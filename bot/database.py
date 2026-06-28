@@ -32,6 +32,7 @@ async def connect() -> bool:
                     min_size=1,
                     max_size=10,
                     command_timeout=30,
+                    ssl="require" if "sslmode=require" in settings.DATABASE_URL else None,
                 ),
                 timeout=15,
             )

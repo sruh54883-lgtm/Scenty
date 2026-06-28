@@ -11,7 +11,8 @@ async def migrate():
         print("DATABASE_URL not set — skipping migration")
         return
     sql = (Path(__file__).parent / "schema.sql").read_text()
-    conn = await asyncpg.connect(url, timeout=10)
+    ssl = "require" if "sslmode=require" in url else None
+    conn = await asyncpg.connect(url, timeout=10, ssl=ssl)
     try:
         await conn.execute(sql)
         print("DB schema applied OK")
