@@ -419,7 +419,9 @@ tbody tr.removing{animation:rowOut .45s forwards}
 /* ============================================================
    SCENTI SUPER-ADMIN  —  single-file SPA
    ============================================================ */
-const API_BASE = "http://localhost:8000";
+const API_BASE = (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1")
+  ? "http://localhost:8000"
+  : "";
 
 /* ---------- ICONS ---------- */
 const I = {
