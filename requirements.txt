@@ -1,0 +1,21 @@
+# FastAPI + сервер
+fastapi==0.115.6
+uvicorn[standard]==0.34.0
+
+# База данных
+asyncpg==0.30.0
+
+# Аутентификация
+python-jose[cryptography]==3.3.0
+passlib[bcrypt]==1.7.4
+bcrypt==4.0.1
+
+# Файлы и формы
+python-multipart==0.0.20
+
+# Конфиг
+python-dotenv==1.0.1
+
+# Telegram бот
+aiogram==3.13.1
+aiohttp==3.10.11
