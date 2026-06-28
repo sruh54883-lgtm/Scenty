@@ -14,7 +14,10 @@ from routers import admin, agent, auth_router, webapp
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    await db.connect()
+    ok = await db.connect()
+    if not ok:
+        import logging
+        logging.getLogger("scenti.api").warning("Starting without DB — endpoints will return 503")
     yield
     await db.disconnect()
 

@@ -5,16 +5,23 @@ from config import settings
 _pool: asyncpg.Pool | None = None
 
 
-async def connect() -> None:
-    """Создать пул соединений при старте приложения."""
+async def connect() -> bool:
+    """Создать пул соединений при старте приложения. Возвращает True при успехе."""
     global _pool
-    if _pool is None:
+    if _pool is not None:
+        return True
+    try:
         _pool = await asyncpg.create_pool(
             dsn=settings.DATABASE_URL,
             min_size=1,
             max_size=10,
             command_timeout=30,
         )
+        return True
+    except Exception as exc:
+        import logging
+        logging.getLogger("scenti.db").error("DB connect failed: %s", exc)
+        return False
 
 
 async def disconnect() -> None:
