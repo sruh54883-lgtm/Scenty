@@ -7,7 +7,7 @@ echo "=== Scenti startup: ROOT=$ROOT ==="
 
 # Применяем схему БД через Python (psql может не быть)
 echo ">>> Applying DB schema..."
-timeout 20 python3 "$ROOT/db/migrate.py" || echo "Migration warning (ignored)"
+timeout 8 python3 "$ROOT/db/migrate.py" || echo "Migration warning (ignored)"
 
 # Запускаем бота в фоне
 echo ">>> Starting Telegram bot..."

@@ -1,8 +1,12 @@
 """Пул соединений asyncpg."""
+import asyncio
+import logging
+
 import asyncpg
 from config import settings
 
 _pool: asyncpg.Pool | None = None
+_log = logging.getLogger("scenti.db")
 
 
 async def connect() -> bool:
@@ -11,16 +15,19 @@ async def connect() -> bool:
     if _pool is not None:
         return True
     try:
-        _pool = await asyncpg.create_pool(
-            dsn=settings.DATABASE_URL,
-            min_size=1,
-            max_size=10,
-            command_timeout=30,
+        _pool = await asyncio.wait_for(
+            asyncpg.create_pool(
+                dsn=settings.DATABASE_URL,
+                min_size=1,
+                max_size=10,
+                command_timeout=30,
+            ),
+            timeout=8,
         )
+        _log.info("DB connected")
         return True
     except Exception as exc:
-        import logging
-        logging.getLogger("scenti.db").error("DB connect failed: %s", exc)
+        _log.error("DB connect failed: %s", exc)
         return False
 
 

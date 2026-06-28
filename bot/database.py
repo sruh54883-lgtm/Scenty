@@ -6,6 +6,7 @@
 """
 from __future__ import annotations
 
+import asyncio
 import logging
 from typing import Any, Optional
 
@@ -24,11 +25,14 @@ async def connect() -> bool:
     if _pool is not None:
         return True
     try:
-        _pool = await asyncpg.create_pool(
-            dsn=settings.DATABASE_URL,
-            min_size=1,
-            max_size=10,
-            command_timeout=30,
+        _pool = await asyncio.wait_for(
+            asyncpg.create_pool(
+                dsn=settings.DATABASE_URL,
+                min_size=1,
+                max_size=10,
+                command_timeout=30,
+            ),
+            timeout=8,
         )
         logger.info("Подключение к БД установлено")
         return True
