@@ -17,21 +17,24 @@ async def connect() -> bool:
     global _pool
     if _pool is not None:
         return True
-    try:
-        _pool = await asyncio.wait_for(
-            asyncpg.create_pool(
-                dsn=settings.DATABASE_URL,
-                min_size=1,
-                max_size=10,
-                command_timeout=30,
-            ),
-            timeout=8,
-        )
-        _log.info("DB connected")
-        return True
-    except Exception as exc:
-        _log.error("DB connect failed: %s", exc)
-        return False
+    for attempt in range(3):
+        try:
+            _pool = await asyncio.wait_for(
+                asyncpg.create_pool(
+                    dsn=settings.DATABASE_URL,
+                    min_size=1,
+                    max_size=10,
+                    command_timeout=30,
+                ),
+                timeout=15,
+            )
+            _log.info("DB connected on attempt %d", attempt + 1)
+            return True
+        except Exception as exc:
+            _log.error("DB connect attempt %d failed: %s", attempt + 1, exc)
+            if attempt < 2:
+                await asyncio.sleep(3)
+    return False
 
 
 async def disconnect() -> None:

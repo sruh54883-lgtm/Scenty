@@ -24,22 +24,25 @@ async def connect() -> bool:
     global _pool
     if _pool is not None:
         return True
-    try:
-        _pool = await asyncio.wait_for(
-            asyncpg.create_pool(
-                dsn=settings.DATABASE_URL,
-                min_size=1,
-                max_size=10,
-                command_timeout=30,
-            ),
-            timeout=8,
-        )
-        logger.info("Подключение к БД установлено")
-        return True
-    except Exception as exc:  # noqa: BLE001 — стартуем даже без БД
-        _pool = None
-        logger.error("Не удалось подключиться к БД: %s", exc)
-        return False
+    for attempt in range(3):
+        try:
+            _pool = await asyncio.wait_for(
+                asyncpg.create_pool(
+                    dsn=settings.DATABASE_URL,
+                    min_size=1,
+                    max_size=10,
+                    command_timeout=30,
+                ),
+                timeout=15,
+            )
+            logger.info("Подключение к БД установлено (попытка %d)", attempt + 1)
+            return True
+        except Exception as exc:  # noqa: BLE001 — стартуем даже без БД
+            _pool = None
+            logger.error("DB attempt %d failed: %s", attempt + 1, exc)
+            if attempt < 2:
+                await asyncio.sleep(3)
+    return False
 
 
 async def disconnect() -> None:
