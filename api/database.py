@@ -1,11 +1,14 @@
 """Пул соединений asyncpg."""
+from __future__ import annotations
+
 import asyncio
 import logging
+from typing import Optional
 
 import asyncpg
 from config import settings
 
-_pool: asyncpg.Pool | None = None
+_pool: Optional[asyncpg.Pool] = None
 _log = logging.getLogger("scenti.db")
 
 

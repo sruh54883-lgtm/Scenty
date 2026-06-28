@@ -1,3 +1,4 @@
+from __future__ import annotations
 """JWT утилиты, хэширование паролей, валидация Telegram initData."""
 import hashlib
 import hmac

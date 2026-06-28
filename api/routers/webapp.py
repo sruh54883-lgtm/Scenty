@@ -1,3 +1,4 @@
+from __future__ import annotations
 """WebApp клиент — эндпоинты /api/*. Авторизация через Telegram initData."""
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field

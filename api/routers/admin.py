@@ -1,3 +1,4 @@
+from __future__ import annotations
 """Супер-Админ панель — эндпоинты /admin/*. JWT Bearer (role=admin)."""
 import json
 import os

@@ -1,3 +1,4 @@
+from __future__ import annotations
 """Зависимости FastAPI: текущий пользователь WebApp, админ, агент."""
 from fastapi import Depends, Header, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer

@@ -1,3 +1,4 @@
+from __future__ import annotations
 """Агент-панель — эндпоинты /agent/*. JWT Bearer (role=agent)."""
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
