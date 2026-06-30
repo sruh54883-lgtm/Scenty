@@ -1446,11 +1446,11 @@ async def update_claim(req_id: int, body: ClaimStatusBody, admin: dict = Depends
                 )
             elif new_status == "delivered":
                 updated = await conn.fetchrow(
-                    "UPDATE gift_requests SET status='delivered' WHERE id=$1 AND status='approved' RETURNING id",
+                    "UPDATE gift_requests SET status='delivered' WHERE id=$1 AND status='confirmed' RETURNING id",
                     req_id,
                 )
                 if updated is None:
-                    raise HTTPException(status_code=400, detail="Заявка не в статусе 'approved'")
+                    raise HTTPException(status_code=400, detail="Заявка не в статусе 'confirmed'")
                 user_row = await conn.fetchrow(
                     "SELECT telegram_id, language FROM users WHERE id=$1", req["user_id"]
                 )

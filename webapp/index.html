@@ -1043,7 +1043,8 @@ function openAgent(){
 }
 
 /* =================== REQUESTS =================== */
-function openRequests(){
+function _buildRequestsSheet(){
+  const ORDER=['pending','approved','shipping','confirmed','delivered'];
   const rows = REQUESTS.map(r=>`
     <div class="req-item" style="flex-wrap:wrap;gap:6px">
       <div class="ic">${ICONS.gift}</div>
@@ -1051,21 +1052,30 @@ function openRequests(){
       <span class="pill ${r.pill}">${r.statusText}</span>
       ${r.rawStatus==='confirmed'?`<button class="btn btn-primary" style="width:100%;margin-top:4px;font-size:13px" onclick="clientConfirmGift(${r.id})">✅ ${USER.lang==='uz'?"Qabul qilishni tasdiqlash":'Подтвердить получение'}</button>`:''}
     </div>`).join('');
+  const latest=REQUESTS.find(r=>r.rawStatus!=='rejected');
+  const cur=latest?ORDER.indexOf(latest.rawStatus):-1;
+  const steps=[tx('step1'),tx('step2'),tx('step3'),tx('step4'),tx('step5')];
+  const stepper=`<div class="steps">${steps.map((s,i)=>{
+    const cls=i<cur?'done':i===cur?'active':'';
+    return `<div class="step ${cls}">${i<steps.length-1?'<div class="step-line"></div>':''}<div class="sn">${i+1}</div><div class="stxt">${s}</div></div>`;
+  }).join('')}</div>`;
   openSheet(`
     <h3 style="margin-bottom:4px;">${tx('my_reqs')}</h3>
     <p class="sheet-sub" style="margin-bottom:6px;">${tx('my_reqs_sub')}</p>
-    ${(()=>{
-      const ORDER=['pending','approved','shipping','confirmed','client_confirmed','delivered'];
-      const latest=REQUESTS.find(r=>r.rawStatus!=='rejected');
-      const cur=latest?ORDER.indexOf(latest.rawStatus):-1;
-      const steps=[tx('step1'),tx('step2'),tx('step3'),tx('step4'),tx('step5')];
-      return `<div class="steps">${steps.map((s,i)=>{
-        const cls=i<cur?'done':i===cur?'active':'';
-        return `<div class="step ${cls}">${i<steps.length-1?'<div class="step-line"></div>':''}<div class="sn">${i+1}</div><div class="stxt">${s}</div></div>`;
-      }).join('')}</div>`;
-    })()}
-    <div class="block" style="margin-top:8px;box-shadow:none;border:1px solid var(--border);">${rows}</div>
+    ${stepper}
+    <div class="block" style="margin-top:8px;box-shadow:none;border:1px solid var(--border);">${rows||`<div style="padding:16px;text-align:center;color:var(--muted)">${tx('no_requests')||'Нет заявок'}</div>`}</div>
     <button class="btn btn-ghost" onclick="closeSheet()">${tx('close_btn')}</button>`);
+}
+
+async function openRequests(){
+  // Всегда грузим свежие данные перед показом
+  if(_tgInitData||_tgUserId){
+    try{
+      const data=await apiFetch('/api/gift-requests');
+      REQUESTS_RAW=data;USER.requests=data.length;reprocessData();
+    }catch(e){}
+  }
+  _buildRequestsSheet();
 }
 
 async function clientConfirmGift(reqId){

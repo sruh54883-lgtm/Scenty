@@ -1669,21 +1669,29 @@ window.clSet=async(id,status)=>{
   const labels={approved:'одобрить заявку',shipping:'передать подарок в доставку',confirmed:'запросить подтверждение у клиента',delivered:'отметить как доставленный'};
   const label=labels[status]||'изменить статус';
   const giftName=esc(x.gift_name||x.name_ru||'');
-  await new Promise(resolve=>{
+  const ok=await new Promise(resolve=>{
     const foot=`<button class="btn btn-ghost" id="_cfNo">Отмена</button><button class="btn btn-primary" id="_cfYes">Подтвердить</button>`;
     const body=`<p style="color:var(--muted);margin-bottom:8px">Вы уверены, что хотите <b>${label}</b>?</p><p style="font-size:13px;color:var(--text)">${giftName}</p>`;
     openModal(modalShell('Подтверждение',body,foot));
     $('#_cfYes').onclick=()=>{closeModal();resolve(true);};
     $('#_cfNo').onclick=()=>{closeModal();resolve(false);};
-  }).then(async ok=>{
-    if(!ok)return;
-    try{ await api("/admin/claims/"+id,{method:"PUT",body:JSON.stringify({status})}); }catch(e){ if(e.message==="401")return; }
-    x.status=status;
-    const row=$(`#clBody tr[data-id="${id}"]`);
-    if(row){row.classList.add("removing");setTimeout(()=>{Badges.pendingClaims=Claims.list.filter(c=>c.status==="pending").length;renderNav();renderClaims();},450);}
-    const msgs={approved:"Заявка одобрена",shipping:"Передано службе доставки",confirmed:"Запрос подтверждения отправлен клиенту"};
-    toast(msgs[status]||"Статус обновлён");
+    // кнопка × тоже должна отменять
+    const xBtn=$('.modal .x');if(xBtn){const orig=xBtn.onclick;xBtn.onclick=()=>{if(orig)orig();resolve(false);};}
   });
+  if(!ok)return;
+  try{
+    await api("/admin/claims/"+id,{method:"PUT",body:JSON.stringify({status})});
+  }catch(e){
+    if(e.message==="401")return;
+    toast(e.message||'Ошибка обновления статуса','err');
+    return;
+  }
+  x.status=status;
+  const row=$(`#clBody tr[data-id="${id}"]`);
+  if(row){row.classList.add("removing");setTimeout(()=>{Badges.pendingClaims=Claims.list.filter(c=>c.status==="pending").length;renderNav();renderClaims();},450);}
+  else{Badges.pendingClaims=Claims.list.filter(c=>c.status==="pending").length;renderNav();renderClaims();}
+  const msgs={approved:"Заявка одобрена",shipping:"Передано службе доставки",confirmed:"Запрос подтверждения отправлен клиенту"};
+  toast(msgs[status]||"Статус обновлён");
 };
 window.clReject=id=>{
   const body=`<p style="margin-bottom:14px;color:var(--muted)">Причина отклонения заявки:</p><textarea class="input" id="clReason" placeholder="Причина..."></textarea>`;
