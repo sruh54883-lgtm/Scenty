@@ -3,6 +3,7 @@ from __future__ import annotations
 import hashlib
 import hmac
 import json
+import time
 from datetime import datetime, timedelta, timezone
 from urllib.parse import parse_qsl
 
@@ -76,6 +77,14 @@ def parse_telegram_init_data(init_data: str) -> dict | None:
     ).hexdigest()
 
     if not hmac.compare_digest(computed_hash, received_hash):
+        return None
+
+    # Проверяем свежесть initData — не старше 24 часов
+    try:
+        auth_date = int(parsed.get("auth_date", 0))
+        if time.time() - auth_date > 86400:
+            return None
+    except (ValueError, TypeError):
         return None
 
     user_raw = parsed.get("user")

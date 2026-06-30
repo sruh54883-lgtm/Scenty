@@ -12,13 +12,11 @@ bearer_scheme = HTTPBearer(auto_error=False)
 # ---------- WebApp клиент (Telegram) ----------
 async def get_current_user(
     x_telegram_data: str | None = Header(default=None, alias="X-Telegram-Data"),
-    x_telegram_id: str | None = Header(default=None, alias="X-Telegram-Id"),
 ) -> dict:
     """
     Авторизация клиента WebApp.
-    1) X-Telegram-Data: валидируем подпись initData -> telegram_id
-    2) X-Telegram-Id (dev fallback): берём id напрямую
-    Создаёт пользователя в БД при первом обращении.
+    X-Telegram-Data: обязательна валидация HMAC-подписи initData.
+    Без корректной подписи — 401.
     """
     telegram_id: int | None = None
     tg_user: dict = {}
@@ -27,12 +25,6 @@ async def get_current_user(
         tg_user = parse_telegram_init_data(x_telegram_data) or {}
         if tg_user.get("id"):
             telegram_id = int(tg_user["id"])
-
-    if telegram_id is None and x_telegram_id:
-        try:
-            telegram_id = int(x_telegram_id)
-        except ValueError:
-            telegram_id = None
 
     if telegram_id is None:
         raise HTTPException(

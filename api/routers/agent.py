@@ -113,14 +113,28 @@ async def search_users(
 
 @router.get("/users/{user_id}")
 async def get_user(user_id: int, agent: dict = Depends(get_current_agent)):
-    user = await db.fetchrow(
-        """
-        SELECT id, first_name, last_name, business_name, phone,
-               region_id, district_id, created_at
-        FROM users WHERE id = $1
-        """,
-        user_id,
+    district_ids = await db.fetch(
+        "SELECT district_id FROM agent_districts WHERE agent_id = $1", agent["id"]
     )
+    ids = [r["district_id"] for r in district_ids]
+    if ids:
+        user = await db.fetchrow(
+            """
+            SELECT id, first_name, last_name, business_name, phone,
+                   region_id, district_id, created_at
+            FROM users WHERE id = $1 AND district_id = ANY($2::int[])
+            """,
+            user_id, ids,
+        )
+    else:
+        user = await db.fetchrow(
+            """
+            SELECT id, first_name, last_name, business_name, phone,
+                   region_id, district_id, created_at
+            FROM users WHERE id = $1
+            """,
+            user_id,
+        )
     if user is None:
         raise HTTPException(status_code=404, detail="Клиент не найден")
     return user
@@ -238,9 +252,23 @@ async def update_gift_request_status(
     body: GrStatusBody,
     agent: dict = Depends(get_current_agent),
 ):
-    gr = await db.fetchrow(
-        "SELECT id, status FROM gift_requests WHERE id = $1", gr_id
+    district_ids = await db.fetch(
+        "SELECT district_id FROM agent_districts WHERE agent_id = $1", agent["id"]
     )
+    ids = [r["district_id"] for r in district_ids]
+    if ids:
+        gr = await db.fetchrow(
+            """
+            SELECT gr.id, gr.status FROM gift_requests gr
+            JOIN users u ON u.id = gr.user_id
+            WHERE gr.id = $1 AND u.district_id = ANY($2::int[])
+            """,
+            gr_id, ids,
+        )
+    else:
+        gr = await db.fetchrow(
+            "SELECT id, status FROM gift_requests WHERE id = $1", gr_id
+        )
     if gr is None:
         raise HTTPException(status_code=404, detail="Заявка не найдена")
 

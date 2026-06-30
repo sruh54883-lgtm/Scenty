@@ -45,6 +45,19 @@ async def main() -> None:
         me = await bot.get_me()
         logger.info("Бот запущен: @%s", me.username)
         await bot.delete_webhook(drop_pending_updates=True)
+        # Устанавливаем описание бота
+        try:
+            await bot.set_my_name("Scenti Loyalty")
+            await bot.set_my_description(
+                "🌿 Scenti — программа лояльности для клиентов.\n\n"
+                "✅ 10% кешбэк за каждую покупку\n"
+                "🎁 Накапливайте баллы и обменивайте на ценные подарки\n"
+                "📊 История покупок и баланс в одном приложении\n\n"
+                "Зарегистрируйтесь и начните экономить прямо сейчас!"
+            )
+            await bot.set_my_short_description("10% кешбэк за каждую покупку в Scenti 🌿")
+        except Exception as _e:
+            logger.warning("Не удалось обновить описание бота: %s", _e)
         await dp.start_polling(bot)
     finally:
         await db.disconnect()

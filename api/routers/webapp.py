@@ -89,6 +89,21 @@ async def cashback_spend(body: SpendBody, user: dict = Depends(get_current_user)
                 user["id"],
                 body.amount,
             )
+    # Уведомление пользователю о списании
+    try:
+        import sys as _sys
+        from pathlib import Path as _Path
+        _bot_path = str(_Path(__file__).resolve().parent.parent.parent / "bot")
+        if _bot_path not in _sys.path:
+            _sys.path.insert(0, _bot_path)
+        from notifications import notify_user_cashback_spent
+        tg_id = user.get("telegram_id")
+        lang = user.get("language", "ru") or "ru"
+        if tg_id:
+            await notify_user_cashback_spent(int(tg_id), body.amount, new_balance, lang)
+    except Exception as _e:
+        import logging as _log
+        _log.getLogger("scenti.webapp").warning("spend notify failed: %s", _e)
     return {"spent": body.amount, "cashback_balance": new_balance}
 
 
@@ -123,6 +138,14 @@ async def create_gift_request(body: GiftRequestBody, user: dict = Depends(get_cu
             if gift["stock_quantity"] is not None and gift["stock_quantity"] <= 0:
                 raise HTTPException(status_code=400, detail="Подарок закончился")
 
+            existing = await conn.fetchrow(
+                """SELECT id FROM gift_requests
+                   WHERE user_id=$1 AND gift_id=$2 AND status IN ('pending','approved')""",
+                user["id"], body.gift_id,
+            )
+            if existing:
+                raise HTTPException(status_code=400, detail="Активная заявка на этот подарок уже существует")
+
             urow = await conn.fetchrow(
                 "SELECT cashback_balance FROM users WHERE id = $1 FOR UPDATE", user["id"]
             )
@@ -134,11 +157,6 @@ async def create_gift_request(body: GiftRequestBody, user: dict = Depends(get_cu
                 gift["price_cashback"],
                 user["id"],
             )
-            await conn.execute(
-                "INSERT INTO cashback_spends (user_id, amount) VALUES ($1, $2)",
-                user["id"],
-                gift["price_cashback"],
-            )
             if gift["stock_quantity"] is not None:
                 await conn.execute(
                     "UPDATE gifts SET stock_quantity = stock_quantity - 1 WHERE id = $1",
@@ -149,12 +167,39 @@ async def create_gift_request(body: GiftRequestBody, user: dict = Depends(get_cu
                 user["id"],
                 gift["id"],
             )
+            await conn.execute(
+                "INSERT INTO cashback_spends (user_id, amount, gift_request_id) VALUES ($1, $2, $3)",
+                user["id"],
+                gift["price_cashback"],
+                req["id"],
+            )
     return {
         "id": req["id"],
         "status": req["status"],
         "created_at": req["created_at"],
         "cashback_balance": new_balance,
     }
+
+
+@router.post("/gift-requests/{req_id}/client-confirm")
+async def client_confirm_gift_receipt(req_id: int, user: dict = Depends(get_current_user)):
+    """Клиент подтверждает получение подарка — меняет статус confirmed → delivered."""
+    async with db.get_pool().acquire() as conn:
+        async with conn.transaction():
+            row = await conn.fetchrow(
+                """SELECT gr.id, gr.user_id FROM gift_requests gr
+                   WHERE gr.id = $1 AND gr.user_id = $2 FOR UPDATE""",
+                req_id, user["id"],
+            )
+            if row is None:
+                raise HTTPException(status_code=404, detail="Заявка не найдена")
+            updated = await conn.fetchrow(
+                "UPDATE gift_requests SET status='delivered' WHERE id=$1 AND status='confirmed' AND user_id=$2 RETURNING id",
+                req_id, user["id"],
+            )
+            if updated is None:
+                raise HTTPException(status_code=400, detail="Заявка не в статусе ожидания подтверждения")
+    return {"status": "delivered"}
 
 
 @router.get("/gift-requests")
@@ -184,6 +229,16 @@ async def list_diffusers(user: dict = Depends(get_current_user)):
         ORDER BY sort_order, id
         """
     )
+
+
+# ---------- Списания кешбэка ----------
+@router.get("/spends")
+async def my_spends(user: dict = Depends(get_current_user)):
+    rows = await db.fetch(
+        "SELECT id, amount, created_at FROM cashback_spends WHERE user_id = $1 ORDER BY created_at DESC",
+        user["id"],
+    )
+    return rows
 
 
 # ---------- Политика ----------

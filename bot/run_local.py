@@ -29,7 +29,9 @@ import db_local as db
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
 log = logging.getLogger(__name__)
 
-BOT_TOKEN = "8836584334:AAESVcdod9itOSV0HfJTa3w0vuZqb7WStmU"
+BOT_TOKEN = os.getenv("BOT_TOKEN", "")
+if not BOT_TOKEN:
+    raise RuntimeError("BOT_TOKEN env var is required")
 WEBAPP_URL = os.getenv("WEBAPP_URL", "http://localhost:8181")
 
 

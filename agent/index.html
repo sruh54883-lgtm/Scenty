@@ -309,7 +309,7 @@ const LS_AGENT = 'scenti_agent_profile';
 /* ===== UTILS ===== */
 const $ = s => document.querySelector(s);
 const $$ = s => document.querySelectorAll(s);
-function esc(s){ return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+function esc(s){ return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;'); }
 function fmt(n){ return Number(n||0).toLocaleString('ru-RU'); }
 function fmtDate(d){
   if(!d)return '—';

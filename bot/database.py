@@ -89,6 +89,10 @@ async def execute(query: str, *args) -> str:
 
 # --- доменные запросы ---
 
+async def get_user_by_phone(phone: str) -> Optional[dict[str, Any]]:
+    return await fetchrow("SELECT id FROM users WHERE phone = $1 AND is_active = TRUE", phone)
+
+
 async def get_user_by_telegram_id(telegram_id: int) -> Optional[dict[str, Any]]:
     return await fetchrow(
         "SELECT * FROM users WHERE telegram_id = $1",
@@ -180,6 +184,13 @@ async def accept_privacy(telegram_id: int) -> None:
     await execute(
         "UPDATE users SET privacy_accepted = TRUE WHERE telegram_id = $1",
         telegram_id,
+    )
+
+
+async def update_language(telegram_id: int, lang: str) -> None:
+    await execute(
+        "UPDATE users SET language = $1 WHERE telegram_id = $2",
+        lang, telegram_id,
     )
 
 

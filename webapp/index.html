@@ -191,6 +191,9 @@ img{display:block;max-width:100%;}
 
 /* ============ GIFTS GRID ============ */
 .gift-grid{display:grid;grid-template-columns:1fr 1fr;gap:13px;margin-top:16px;}
+.empty-state{display:flex;flex-direction:column;align-items:center;justify-content:center;padding:60px 20px;text-align:center;gap:16px;}
+.empty-state .es-icon svg{width:72px;height:72px;color:#CBD5E1;opacity:.8;}
+.empty-state p{font-size:14px;color:#94A3B8;font-weight:500;line-height:1.5;}
 .gift-grid-card{
   background:var(--card);border-radius:var(--r-card);box-shadow:var(--shadow-sm);
   overflow:hidden;transition:transform .15s;border:1px solid var(--border);position:relative;
@@ -225,6 +228,8 @@ img{display:block;max-width:100%;}
 .pill.wait{background:var(--amber-bg);color:var(--amber);}
 .pill.done{background:var(--green-bg);color:var(--green);}
 .pill.rej{background:var(--red-bg);color:var(--red);}
+.pill.spent{background:var(--red-bg);color:var(--red);}
+.pill.refund{background:#FFF0D4;color:#C47A00;}
 
 /* ============ CATALOG ROWS ============ */
 .cat-row{display:flex;align-items:center;gap:13px;background:var(--card);border-radius:16px;padding:13px 14px;box-shadow:var(--shadow-sm);border:1px solid var(--border);margin-bottom:10px;transition:transform .15s;}
@@ -427,61 +432,262 @@ const ICONS = {
   download:'<svg viewBox="0 0 24 24" fill="none"><path d="M12 3v11m0 0 4-4m-4 4-4-4M4 19h16" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>',
 };
 
-/* =================== DATA =================== */
+/* =================== DATA (defaults) =================== */
 const USER = {
-  name:'Шохрух Содиков', biz:'Aroma House', initials:'ШС',
-  id:'SC-10428', balance:85000, earned:128500, purchases:14, requests:3,
-  phone:'+998 33 710 77 10', location:'Ташкент, Юнусабад',
-  tgId:'@shokhrukh', lang:'ru'
+  name:'—', biz:'—', initials:'?',
+  id:'—', balance:0, earned:0, purchases:0, requests:0,
+  phone:'—', location:'—', tgId:'—', lang:'ru'
 };
+let GIFTS = [];
+let TXNS_RAW = [];
+let SPENDS_RAW = [];
+let DEVICES = [];
+let AROMAS = [];
+let REQUESTS = [];
+let GIFTS_RAW = [];
+let CATALOG_RAW = [];
+let REQUESTS_RAW = [];
 
-const GIFTS = [
-  {id:1,name:'Аромадиффузор Mini',price:60000,icon:'diffuser',desc:'Компактный ультразвуковой диффузор для дома и офиса. Тихая работа, мягкая подсветка.'},
-  {id:2,name:'Набор арома-масел',price:45000,icon:'spray',desc:'Набор из 3 эфирных масел: цитрус, лаванда, ваниль. 100% натуральный состав.'},
-  {id:3,name:'Диффузор Premium',price:120000,icon:'diffuser',desc:'Премиальный диффузор с большим резервуаром и таймером. Покрытие до 40 м².'},
-  {id:4,name:'Подарочный сертификат',price:30000,icon:'gift',desc:'Сертификат на покупку любой продукции Scenti в фирменном магазине.'},
-];
+/* =================== I18N =================== */
+const L = {
+  ru:{
+    tab_home:'Главная',tab_gifts:'Подарки',tab_history:'История',tab_catalog:'Каталог',tab_profile:'Профиль',
+    wallet_cap:'КЕШБЭК-КОШЕЛЁК',pay_cashback:'Оплатить кешбэком',
+    cashback_info:'10% кешбэка возвращается с каждой покупки ароматов',
+    sec_gifts:'Подарки',sec_catalog:'Каталог Scenti',sec_support:'Поддержка',see_all:'Все',
+    contact_agent:'Связаться с агентом',contact_sub:'Задайте вопрос по покупкам и подаркам',
+    not_enough:'не хватает',avail_exchange:'ДОСТУПНО ДЛЯ ОБМЕНА',
+    gifts_title:'Подарки',gifts_sub:'Обменивайте кешбэк на продукцию Scenti',
+    hist_title:'История',hist_sub:'Начисления и списания кешбэка',
+    earned_cap:'Начислено кешбэка',purchases_cap:'Покупки',
+    cat_title:'Каталог',cat_sub:'Аппараты и ароматы Scenti',devices_cap:'Аппараты',aromas_cap:'Ароматы',
+    prof_cb:'кешбэк, сум',prof_pur:'покупки',prof_req:'заявки',
+    gift_requests:'Заявки на подарки',see_all_reqs:'Смотреть все',
+    tg_id_lbl:'Telegram ID',phone_lbl:'Телефон',location_lbl:'Локация',
+    lang_lbl:'Язык интерфейса',privacy_link:'Политика конфиденциальности',agent_link:'Связаться с агентом',
+    ver_lbl:'версия',purchase:'Покупка',
+    spend_title:'Оплата кешбэком',spend_sub:'Введите сумму для списания с баланса',
+    avail_lbl:'Доступно',no_funds:'Недостаточно средств',continue_btn:'Продолжить',
+    confirm_title:'Подтверждение',confirm_sub:'Проверьте сумму списания',
+    cur_balance:'Текущий баланс',will_deduct:'Спишется',will_remain:'Останется',
+    confirm_spend:'Подтвердить списание',change_amount:'Изменить сумму',
+    done_title:'Готово',spend_confirmed:'Списание подтверждено',
+    show_to_agent:'Покажите эту сумму агенту при покупке — она будет вычтена из стоимости товара.',
+    done_btn:'Готово',cost_lbl:'Стоимость',your_cashback:'Ваш кешбэк',
+    remainder_lbl:'Остаток после',order_gift:'Оставить заявку',no_funds_btn:'Недостаточно средств',
+    request_sent:'Заявка отправлена',request_sent_text:'принята. Агент свяжется с вами для оформления.',
+    order_btn:'Заказать',
+    privacy_title:'Конфиденциальность',
+    privacy_t1:'Мы используем ваши данные исключительно для работы программы лояльности Scenti: начисления кешбэка, обработки заявок на подарки и связи с вами через агента.',
+    privacy_t2:'Ваши персональные данные не передаются третьим лицам и хранятся в защищённом виде. Вы можете запросить удаление данных в любой момент.',
+    download_btn:'Скачать файл',ok_btn:'Понятно',
+    agent_title:'Связаться с агентом',agent_sub:'Выберите удобный способ связи',close_btn:'Закрыть',
+    my_reqs:'Мои заявки',my_reqs_sub:'Этапы обработки заявок на подарки',
+    step1:'Заявка',step2:'Одобрена',step3:'Доставка',step4:'Подтверждение',step5:'Получено',
+    status_pending:'На рассмотрении',status_approved:'Одобрена',status_shipping:'В доставке',status_confirmed:'Подтверждено',status_client_confirmed:'Получено',status_delivered:'Выдана',status_rejected:'Отклонена',
+    txn_pending:'Ожидает',txn_approved:'Начислено',txn_rejected:'Отклонено',txn_refund:'Возврат',today:'Сегодня',gifts_empty:'Скоро здесь появятся подарки',
+  },
+  uz:{
+    tab_home:'Bosh sahifa',tab_gifts:"Sovg'alar",tab_history:'Tarix',tab_catalog:'Katalog',tab_profile:'Profil',
+    wallet_cap:'KESHBEK-HAMYON',pay_cashback:"Keshbek bilan to'lash",
+    cashback_info:"Har bir xariddan 10% keshbek qaytariladi",
+    sec_gifts:"Sovg'alar",sec_catalog:'Scenti Katalogi',sec_support:"Qo'llab-quvvatlash",see_all:'Hammasi',
+    contact_agent:"Agent bilan bog'lanish",contact_sub:"Xarid va sovg'alar bo'yicha savol bering",
+    not_enough:'yetmaydi',avail_exchange:'ALMASHTIRISH UCHUN MAVJUD',
+    gifts_title:"Sovg'alar",gifts_sub:"Keshbekni Scenti mahsulotlariga almashtiring",
+    hist_title:'Tarix',hist_sub:'Keshbek hisoblash va sarflash',
+    earned_cap:'Hisoblangan keshbek',purchases_cap:'Xaridlar',
+    cat_title:'Katalog',cat_sub:'Scenti apparatlari va aromalar',devices_cap:'Apparatlar',aromas_cap:'Aromalar',
+    prof_cb:"keshbek, so'm",prof_pur:'xaridlar',prof_req:'arizalar',
+    gift_requests:"Sovg'a arizalari",see_all_reqs:"Hammasini ko'rish",
+    tg_id_lbl:'Telegram ID',phone_lbl:'Telefon',location_lbl:'Joylashuv',
+    lang_lbl:'Interfeys tili',privacy_link:'Maxfiylik siyosati',agent_link:"Agent bilan bog'lanish",
+    ver_lbl:'versiya',purchase:'Xarid',
+    spend_title:"Keshbek bilan to'lash",spend_sub:'Hisobdan chiqarish summasini kiriting',
+    avail_lbl:'Mavjud',no_funds:"Mablag' yetarli emas",continue_btn:'Davom etish',
+    confirm_title:'Tasdiqlash',confirm_sub:'Hisobdan chiqarish summasini tekshiring',
+    cur_balance:'Joriy balans',will_deduct:'Hisobdan chiqariladi',will_remain:'Qoladi',
+    confirm_spend:"Hisobdan chiqarishni tasdiqlash",change_amount:"Summani o'zgartirish",
+    done_title:'Bajarildi',spend_confirmed:'Hisobdan chiqarish tasdiqlandi',
+    show_to_agent:"Bu summani xarid paytida agentga ko'rsating — u tovar narxidan ayiriladi.",
+    done_btn:'Tayyor',cost_lbl:'Narxi',your_cashback:'Sizning keshbegingiz',
+    remainder_lbl:"Qoldig'i",order_gift:"Ariza qoldirish",no_funds_btn:"Mablag' yetarli emas",
+    request_sent:'Ariza yuborildi',request_sent_text:"qabul qilindi. Agent siz bilan bog'lanadi.",
+    order_btn:'Buyurtma qilish',
+    privacy_title:'Maxfiylik',
+    privacy_t1:"Biz sizning ma'lumotlaringizni faqat Scenti sadoqat dasturini boshqarish uchun foydalanamiz: keshbek hisoblash, sovg'a arizalarini qayta ishlash va agent orqali siz bilan bog'lanish.",
+    privacy_t2:"Shaxsiy ma'lumotlaringiz uchinchi shaxslarga uzatilmaydi va himoyalangan tarzda saqlanadi. Istalgan vaqtda ma'lumotlarni o'chirishni so'rashingiz mumkin.",
+    download_btn:'Faylni yuklab olish',ok_btn:'Tushunarli',
+    agent_title:"Agent bilan bog'lanish",agent_sub:'Qulay aloqa usulini tanlang',close_btn:'Yopish',
+    my_reqs:'Mening arizalarim',my_reqs_sub:"Sovg'a arizalari bosqichlari",
+    step1:'Ariza',step2:'Tasdiqlandi',step3:'Yetkazish',step4:'Tasdiqlash',step5:'Qabul qilindi',
+    status_pending:"Ko'rib chiqilmoqda",status_approved:'Tasdiqlangan',status_shipping:'Yetkazilmoqda',status_confirmed:'Tasdiqlandi',status_client_confirmed:'Qabul qilindi',status_delivered:'Berilgan',status_rejected:'Rad etildi',
+    txn_pending:'Kutilmoqda',txn_approved:'Hisoblandi',txn_rejected:'Rad etildi',txn_refund:'Qaytarildi',today:'Bugun',gifts_empty:"Tez orada sovg'alar paydo bo'ladi",
+  }
+};
+function tx(key){return (L[USER.lang]||L.ru)[key]||key;}
 
-const TXNS = [
-  {date:'Сегодня',items:[
-    {type:'in',title:'Покупка ароматов',sum:'250 000 сум',amt:'+25 000',status:'done',statusText:'Начислено',icon:'cart'},
-    {type:'out',title:'Оплата кешбэком',sum:'Списание баланса',amt:'−15 000',status:'done',statusText:'Начислено',icon:'wallet'},
-  ]},
-  {date:'24 июня',items:[
-    {type:'in',title:'Покупка диффузора',sum:'180 000 сум',amt:'+18 000',status:'wait',statusText:'Ожидает',icon:'cart'},
-  ]},
-  {date:'21 июня',items:[
-    {type:'in',title:'Покупка ароматов',sum:'90 000 сум',amt:'+9 000',status:'rej',statusText:'Отклонено',icon:'cart'},
-  ]},
-];
+function reprocessData(){
+  const l=USER.lang;
+  GIFTS=GIFTS_RAW.map(g=>({
+    id:g.id,
+    name:l==='uz'?(g.name_uz||g.name_ru):g.name_ru,
+    price:g.price_cashback,
+    icon:'diffuser',
+    image_url:g.image_url||'',
+    desc:l==='uz'?(g.description_uz||g.description_ru||''):g.description_ru||''
+  }));
+  DEVICES=CATALOG_RAW.filter(d=>d.type==='device').map(d=>({
+    name:l==='uz'?(d.name_uz||d.name_ru):d.name_ru,
+    tag:l==='uz'?(d.tag_uz||d.tag_ru||''):d.tag_ru||'',
+    icon:'diffuser',
+    desc:l==='uz'?(d.description_uz||d.description_ru||''):d.description_ru||'',
+    specs:Array.isArray(d.specs)?d.specs:[],
+    feats:d.features||[],
+  }));
+  AROMAS=CATALOG_RAW.filter(d=>d.type==='scent'||d.type==='aroma').map(d=>({
+    name:l==='uz'?(d.name_uz||d.name_ru):d.name_ru,
+    tag:l==='uz'?(d.tag_uz||d.tag_ru||''):d.tag_ru||'',
+    icon:'spray',
+    desc:l==='uz'?(d.description_uz||d.description_ru||''):d.description_ru||'',
+    specs:Array.isArray(d.specs)?d.specs:[],
+    feats:d.features||[],
+  }));
+  const statusCls={pending:'wait',approved:'done',shipping:'done',confirmed:'done',client_confirmed:'done',delivered:'done',rejected:'rej'};
+  REQUESTS=REQUESTS_RAW.map(r=>({
+    id:r.id,
+    name:l==='uz'?(r.name_uz||r.name_ru):r.name_ru,
+    rawStatus:r.status,
+    pill:statusCls[r.status]||'wait',
+    status:tx('status_'+r.status)||r.status,
+    statusText:tx('status_'+r.status)||r.status,
+  }));
+}
 
-const DEVICES = [
-  {name:'Scenti Air Pro',tag:'Покрытие 40 м²',icon:'diffuser',desc:'Профессиональный аромадиффузор для коммерческих помещений. Управление через приложение, программируемые сценарии.',specs:[['Покрытие','40 м²'],['Резервуар','300 мл']],feats:['Wi-Fi','Таймер','Тихий режим','LED-подсветка']},
-  {name:'Scenti Home',tag:'Для дома',icon:'diffuser',desc:'Стильный диффузор для квартиры. Ультразвуковое распыление, 7 цветов подсветки.',specs:[['Покрытие','25 м²'],['Резервуар','200 мл']],feats:['7 цветов','Авто-выкл','Компактный']},
-];
+/* =================== API =================== */
+let _tgInitData = '';
+let _tgUserId = '';
+try{
+  const tg=window.Telegram&&Telegram.WebApp;
+  _tgInitData=tg&&tg.initData||'';
+  _tgUserId=String((tg&&tg.initDataUnsafe&&tg.initDataUnsafe.user&&tg.initDataUnsafe.user.id)||'');
+}catch(e){}
 
-const AROMAS = [
-  {name:'Citrus Fresh',tag:'Цитрусовый',icon:'spray',desc:'Бодрящий аромат с нотами апельсина, грейпфрута и бергамота. Идеален для офиса.',specs:[['Объём','50 мл'],['Стойкость','8 ч']],feats:['Цитрус','Свежесть','Энергия']},
-  {name:'Lavender Calm',tag:'Лавандовый',icon:'spray',desc:'Расслабляющий аромат лаванды с древесными нотами. Создаёт атмосферу спокойствия.',specs:[['Объём','50 мл'],['Стойкость','10 ч']],feats:['Лаванда','Релакс','Сон']},
-  {name:'Vanilla Warm',tag:'Сладкий',icon:'spray',desc:'Тёплый аромат ванили с карамельными нотами. Уютная атмосфера для дома.',specs:[['Объём','50 мл'],['Стойкость','9 ч']],feats:['Ваниль','Уют','Тепло']},
-];
+async function apiFetch(path, opts={}){
+  const headers={'Content-Type':'application/json'};
+  if(_tgInitData) headers['X-Telegram-Data']=_tgInitData;
+  else if(_tgUserId) headers['X-Telegram-Id']=_tgUserId;
+  const r=await fetch(path,{...opts,headers:{...headers,...(opts.headers||{})}});
+  if(!r.ok) throw new Error('HTTP '+r.status);
+  return r.json();
+}
 
-const REQUESTS = [
-  {name:'Аромадиффузор Mini',status:'На рассмотрении',pill:'wait',statusText:'Рассмотрение',step:2},
-  {name:'Набор арома-масел',status:'Готов к выдаче',pill:'done',statusText:'Готов',step:3},
-  {name:'Подарочный сертификат',status:'Заявка принята',pill:'wait',statusText:'Принята',step:1},
-];
+function txnDate(iso){
+  if(!iso)return '';
+  const d=new Date(iso), now=new Date();
+  if(d.toDateString()===now.toDateString()) return tx('today');
+  return d.toLocaleDateString('ru-RU',{day:'2-digit',month:'long'});
+}
+function txnStatusInfo(status){
+  const cls={pending:'wait',approved:'done',rejected:'rej',refund:'refund'};
+  return {cls:cls[status]||'wait', text:tx('txn_'+status)||status};
+}
+
+async function loadUserData(){
+  if(!_tgInitData&&!_tgUserId) return false;
+  try{
+    const me=await apiFetch('/api/me');
+    const fn=me.first_name||'', ln=me.last_name||'';
+    USER.name=(fn+' '+ln).trim()||me.username||'—';
+    USER.biz=me.business_name||'—';
+    USER.initials=((fn[0]||'')+(ln[0]||'')).toUpperCase()||'?';
+    USER.balance=me.cashback_balance||0;
+    USER.phone=me.phone||'—';
+    USER.tgId=me.telegram_id?'TG '+me.telegram_id:'—';
+    USER.lang=me.language||'ru';
+    if(me.region) USER.location=(me.region.name_ru||'')+(me.district?', '+(me.district.name_ru||''):'');
+    return true;
+  }catch(e){return false;}
+}
+
+async function loadGifts(){
+  if(!_tgInitData&&!_tgUserId) return;
+  try{
+    GIFTS_RAW=await apiFetch('/api/gifts');
+    reprocessData();
+  }catch(e){}
+}
+
+async function loadHistory(){
+  if(!_tgInitData&&!_tgUserId) return;
+  try{
+    const [txns, spends]=await Promise.all([
+      apiFetch('/api/transactions'),
+      apiFetch('/api/spends').catch(()=>[]),
+    ]);
+    TXNS_RAW=txns;
+    SPENDS_RAW=spends||[];
+    USER.earned=txns.filter(t=>t.status==='approved').reduce((s,t)=>s+(t.cashback_amount||0),0);
+    USER.purchases=txns.filter(t=>t.status!=='refund').length;
+  }catch(e){}
+}
+
+async function loadRequests(){
+  if(!_tgInitData&&!_tgUserId) return;
+  try{
+    const data=await apiFetch('/api/gift-requests');
+    REQUESTS_RAW=data;
+    USER.requests=data.length;
+    reprocessData();
+  }catch(e){}
+}
+
+async function loadCatalog(){
+  if(!_tgInitData&&!_tgUserId) return;
+  try{
+    CATALOG_RAW=await apiFetch('/api/diffusers');
+    reprocessData();
+  }catch(e){}
+}
+
+function buildTxnsGroups(){
+  const all=[];
+  TXNS_RAW.forEach(t=>{
+    const si=txnStatusInfo(t.status);
+    const isRefund=t.status==='refund';
+    all.push({
+      _ts:new Date(t.created_at).getTime(),
+      type: isRefund ? 'out' : 'in',
+      title: isRefund ? tx('txn_refund') : tx('purchase'),
+      sum:fmt(t.amount)+' сум',
+      amt: isRefund ? '-'+fmt(t.cashback_amount||0) : '+'+fmt(t.cashback_amount||0),
+      status:si.cls,statusText:si.text,
+      icon: isRefund ? 'wallet' : 'cart',
+    });
+  });
+  SPENDS_RAW.forEach(s=>{
+    all.push({_ts:new Date(s.created_at).getTime(),type:'out',title:USER.lang==='uz'?"Keshbek bilan to'lov":'Оплата кешбэком',sum:'',amt:'-'+fmt(s.amount),status:'spent',statusText:USER.lang==='uz'?"Sarflandi":'Списано',icon:'wallet'});
+  });
+  all.sort((a,b)=>b._ts-a._ts);
+  const groups={};
+  all.forEach(item=>{
+    const label=txnDate(new Date(item._ts).toISOString());
+    if(!groups[label])groups[label]=[];
+    groups[label].push(item);
+  });
+  return Object.entries(groups).map(([date,items])=>({date,items}));
+}
 
 /* =================== HELPERS =================== */
 const $ = (s,r=document)=>r.querySelector(s);
-const fmt = n => n.toLocaleString('ru-RU').replace(/,/g,' ');
+const fmt = n => Number(n||0).toLocaleString('ru-RU').replace(/,/g,' ');
 function haptic(t='light'){try{Telegram.WebApp.HapticFeedback.impactOccurred(t);}catch(e){}}
 
 /* =================== RENDER: HOME =================== */
 function renderHome(){
   const giftCards = GIFTS.slice(0,4).map(g=>`
     <div class="gift-card" onclick="openGiftDetail(${g.id})">
-      <div class="pic">${ICONS[g.icon]}</div>
+      <div class="pic">${g.image_url?`<img src="${g.image_url}" style="width:100%;height:100%;object-fit:cover;border-radius:inherit" onerror="this.style.display='none'">`:ICONS[g.icon]}</div>
       <div class="body"><div class="gname">${g.name}</div><div class="gprice">${fmt(g.price)} сум</div></div>
     </div>`).join('');
 
@@ -504,22 +710,22 @@ function renderHome(){
         <div class="avatar">${USER.initials}</div>
         <div><div class="name">${USER.name}</div><div class="biz">${USER.biz}</div></div>
       </div>
-      <div class="wallet-cap">КЕШБЭК-КОШЕЛЁК</div>
+      <div class="wallet-cap">${tx('wallet_cap')}</div>
       <div class="balance"><span class="num">${fmt(USER.balance)}</span><span class="cur">сум</span></div>
-      <button class="hero-btn" onclick="openSpend()">${ICONS.wallet} Оплатить кешбэком</button>
-      <div class="hero-info">${ICONS.spark}<span>10% кешбэка возвращается с каждой покупки ароматов</span></div>
+      <button class="hero-btn" onclick="openSpend()">${ICONS.wallet} ${tx('pay_cashback')}</button>
+      <div class="hero-info">${ICONS.spark}<span>${tx('cashback_info')}</span></div>
     </div>
 
-    <div class="section-head"><h2>Подарки</h2><button class="see-all" onclick="switchTab('gifts')">Все ${ICONS.chev}</button></div>
-    <div class="hscroll">${giftCards}</div>
+    ${GIFTS.length>0?`<div class="section-head"><h2>${tx('sec_gifts')}</h2><button class="see-all" onclick="switchTab('gifts')">${tx('see_all')} ${ICONS.chev}</button></div>
+    <div class="hscroll">${giftCards}</div>`:``}
 
-    <div class="section-head"><h2>Каталог Scenti</h2><button class="see-all" onclick="switchTab('catalog')">Все ${ICONS.chev}</button></div>
+    <div class="section-head"><h2>${tx('sec_catalog')}</h2><button class="see-all" onclick="switchTab('catalog')">${tx('see_all')} ${ICONS.chev}</button></div>
     <div class="hscroll">${catCards}</div>
 
-    <div class="section-head"><h2>Поддержка</h2></div>
+    <div class="section-head"><h2>${tx('sec_support')}</h2></div>
     <div class="card contact-card" onclick="openAgent()">
       <div class="ic">${ICONS.send}</div>
-      <div class="ct"><div class="t">Связаться с агентом</div><div class="s">Задайте вопрос по покупкам и подаркам</div></div>
+      <div class="ct"><div class="t">${tx('contact_agent')}</div><div class="s">${tx('contact_sub')}</div></div>
       <div class="go">${ICONS.chev}</div>
     </div>`;
 }
@@ -529,24 +735,27 @@ function renderGifts(){
   const cards = GIFTS.map(g=>{
     const short = g.price>USER.balance;
     return `<div class="gift-grid-card" onclick="openGiftDetail(${g.id})">
-      ${short?'<div class="badge-short">не хватает</div>':''}
-      <div class="pic">${ICONS[g.icon]}</div>
+      ${short?`<div class="badge-short">${tx('not_enough')}</div>`:''}
+      <div class="pic">${g.image_url?`<img src="${g.image_url}" style="width:100%;height:100%;object-fit:cover;border-radius:inherit" onerror="this.style.display='none'">`:ICONS[g.icon]}</div>
       <div class="body"><div class="gname">${g.name}</div><div class="gprice">${fmt(g.price)} сум</div></div>
     </div>`;
   }).join('');
 
+  const giftsContent = GIFTS.length>0
+    ? `<div class="gift-grid">${cards}</div>`
+    : `<div class="empty-state"><div class="es-icon">${ICONS.gift}</div><p>${tx('gifts_empty')}</p></div>`;
   $('#screen-gifts').innerHTML = `
-    <div><h1 class="page-title">Подарки</h1><p class="page-sub">Обменивайте кешбэк на продукцию Scenti</p></div>
+    <div><h1 class="page-title">${tx('gifts_title')}</h1><p class="page-sub">${tx('gifts_sub')}</p></div>
     <div class="bal-compact">
-      <div class="cap">ДОСТУПНО ДЛЯ ОБМЕНА</div>
+      <div class="cap">${tx('avail_exchange')}</div>
       <div class="b">${fmt(USER.balance)}<span>сум</span></div>
     </div>
-    <div class="gift-grid">${cards}</div>`;
+    ${giftsContent}`;
 }
 
 /* =================== RENDER: HISTORY =================== */
 function renderHistory(){
-  const groups = TXNS.map(g=>`
+  const groups = buildTxnsGroups().map(g=>`
     <div class="date-group">
       <div class="date-label">${g.date}</div>
       ${g.items.map(t=>`
@@ -561,11 +770,11 @@ function renderHistory(){
     </div>`).join('');
 
   $('#screen-history').innerHTML = `
-    <div><h1 class="page-title">История</h1><p class="page-sub">Начисления и списания кешбэка</p></div>
+    <div><h1 class="page-title">${tx('hist_title')}</h1><p class="page-sub">${tx('hist_sub')}</p></div>
     <div class="stats-card">
-      <div class="stat-col"><div class="cap">Начислено кешбэка</div><div class="v">${fmt(USER.earned)}<span>сум</span></div></div>
+      <div class="stat-col"><div class="cap">${tx('earned_cap')}</div><div class="v">${fmt(USER.earned)}<span>сум</span></div></div>
       <div class="stat-divider"></div>
-      <div class="stat-col"><div class="cap">Покупки</div><div class="v">${USER.purchases}</div></div>
+      <div class="stat-col"><div class="cap">${tx('purchases_cap')}</div><div class="v">${USER.purchases}</div></div>
     </div>
     ${groups}`;
 }
@@ -586,9 +795,9 @@ function renderCatalog(){
     </div>`).join('');
 
   $('#screen-catalog').innerHTML = `
-    <div><h1 class="page-title">Каталог</h1><p class="page-sub">Аппараты и ароматы Scenti</p></div>
-    <div class="label-cap">Аппараты</div>${devRows}
-    <div class="label-cap">Ароматы</div>${aromaRows}`;
+    <div><h1 class="page-title">${tx('cat_title')}</h1><p class="page-sub">${tx('cat_sub')}</p></div>
+    <div class="label-cap">${tx('devices_cap')}</div>${devRows}
+    <div class="label-cap">${tx('aromas_cap')}</div>${aromaRows}`;
 }
 
 /* =================== RENDER: PROFILE =================== */
@@ -607,24 +816,24 @@ function renderProfile(){
       <div class="pbiz">${USER.biz}</div>
     </div>
     <div class="prof-stats">
-      <div class="pstat"><div class="v">${fmt(USER.balance)}</div><div class="l">кешбэк, сум</div></div>
-      <div class="pstat"><div class="v">${USER.purchases}</div><div class="l">покупки</div></div>
-      <div class="pstat"><div class="v">${USER.requests}</div><div class="l">заявки</div></div>
+      <div class="pstat"><div class="v">${fmt(USER.balance)}</div><div class="l">${tx('prof_cb')}</div></div>
+      <div class="pstat"><div class="v">${USER.purchases}</div><div class="l">${tx('prof_pur')}</div></div>
+      <div class="pstat"><div class="v">${USER.requests}</div><div class="l">${tx('prof_req')}</div></div>
     </div>
 
     <div class="block">
-      <div class="block-head"><div class="bt">Заявки на подарки</div><button class="see-all" onclick="openRequests()">Смотреть все ${ICONS.chev}</button></div>
+      <div class="block-head"><div class="bt">${tx('gift_requests')}</div><button class="see-all" onclick="openRequests()">${tx('see_all_reqs')} ${ICONS.chev}</button></div>
       ${reqs}
     </div>
 
     <div class="block">
-      <div class="info-row"><div class="ic">${ICONS.id}</div><div class="ii"><div class="l">Telegram ID</div><div class="v">${USER.tgId}</div></div></div>
-      <div class="info-row"><div class="ic">${ICONS.phoneIcon}</div><div class="ii"><div class="l">Телефон</div><div class="v">${USER.phone}</div></div></div>
-      <div class="info-row"><div class="ic">${ICONS.pin}</div><div class="ii"><div class="l">Локация</div><div class="v">${USER.location}</div></div></div>
+      <div class="info-row"><div class="ic">${ICONS.id}</div><div class="ii"><div class="l">${tx('tg_id_lbl')}</div><div class="v">${USER.tgId}</div></div></div>
+      <div class="info-row"><div class="ic">${ICONS.phoneIcon}</div><div class="ii"><div class="l">${tx('phone_lbl')}</div><div class="v">${USER.phone}</div></div></div>
+      <div class="info-row"><div class="ic">${ICONS.pin}</div><div class="ii"><div class="l">${tx('location_lbl')}</div><div class="v">${USER.location}</div></div></div>
     </div>
 
     <div class="block">
-      <div class="block-head"><div class="bt">Язык интерфейса</div></div>
+      <div class="block-head"><div class="bt">${tx('lang_lbl')}</div></div>
       <div class="lang-row">
         <button class="lang-btn ${USER.lang==='ru'?'active':''}" onclick="setLang('ru')"><span class="flag">🇷🇺</span> RU</button>
         <button class="lang-btn ${USER.lang==='uz'?'active':''}" onclick="setLang('uz')"><span class="flag">🇺🇿</span> UZ</button>
@@ -632,27 +841,29 @@ function renderProfile(){
     </div>
 
     <div class="link-row" onclick="openPrivacy()">
-      <div class="ic">${ICONS.shield}</div><div class="lt">Политика конфиденциальности</div><div class="chev">${ICONS.chev}</div>
+      <div class="ic">${ICONS.shield}</div><div class="lt">${tx('privacy_link')}</div><div class="chev">${ICONS.chev}</div>
     </div>
     <div class="link-row" onclick="openAgent()">
-      <div class="ic">${ICONS.send}</div><div class="lt">Связаться с агентом</div><div class="chev">${ICONS.chev}</div>
+      <div class="ic">${ICONS.send}</div><div class="lt">${tx('agent_link')}</div><div class="chev">${ICONS.chev}</div>
     </div>
 
-    <div class="prof-logo"><div class="l">scenti</div><div class="v">версия 1.0.0</div></div>`;
+    <div class="prof-logo"><div class="l">scenti</div><div class="v">${tx('ver_lbl')} 1.0.0</div></div>`;
 }
 
 /* =================== TABBAR =================== */
 const TABS = [
-  {id:'home',label:'Главная',icon:'home'},
-  {id:'gifts',label:'Подарки',icon:'gift'},
-  {id:'history',label:'История',icon:'clock'},
-  {id:'catalog',label:'Каталог',icon:'diffuser'},
-  {id:'profile',label:'Профиль',icon:'user'},
+  {id:'home',key:'tab_home',icon:'home'},
+  {id:'gifts',key:'tab_gifts',icon:'gift'},
+  {id:'history',key:'tab_history',icon:'clock'},
+  {id:'catalog',key:'tab_catalog',icon:'diffuser'},
+  {id:'profile',key:'tab_profile',icon:'user'},
 ];
 function renderTabbar(){
+  const active = document.querySelector('.tab.active');
+  const activeId = active ? active.dataset.tab : 'home';
   $('#tabbar').innerHTML = TABS.map(t=>`
-    <button class="tab ${t.id==='home'?'active':''}" data-tab="${t.id}" onclick="switchTab('${t.id}')">
-      <span class="dot"></span>${ICONS[t.icon]}<span class="tlabel">${t.label}</span>
+    <button class="tab ${t.id===activeId?'active':''}" data-tab="${t.id}" onclick="switchTab('${t.id}')">
+      <span class="dot"></span>${ICONS[t.icon]}<span class="tlabel">${tx(t.key)}</span>
     </button>`).join('');
 }
 function switchTab(id){
@@ -683,17 +894,17 @@ function openSpend(){spendAmount=0;openSheet(spendStep1());bindSpendInput();}
 function spendStep1(){
   return `
     <div class="sheet-ic">${ICONS.wallet}</div>
-    <h3>Оплата кешбэком</h3>
-    <p class="sheet-sub">Введите сумму для списания с баланса</p>
+    <h3>${tx('spend_title')}</h3>
+    <p class="sheet-sub">${tx('spend_sub')}</p>
     <div class="amount-input"><input id="spendInput" type="tel" inputmode="numeric" placeholder="0" value=""><span class="cur">сум</span></div>
-    <div class="avail">Доступно: ${fmt(USER.balance)} сум</div>
-    <div class="err-msg" id="spendErr">Недостаточно средств</div>
+    <div class="avail">${tx('avail_lbl')}: ${fmt(USER.balance)} сум</div>
+    <div class="err-msg" id="spendErr">${tx('no_funds')}</div>
     <div class="chips">
       <button class="chip" data-pct="25" onclick="setPct(25)">25%</button>
       <button class="chip" data-pct="50" onclick="setPct(50)">50%</button>
       <button class="chip" data-pct="100" onclick="setPct(100)">100%</button>
     </div>
-    <div class="btn-row"><button class="btn btn-primary" id="spendNext" disabled onclick="spendConfirm()">Продолжить</button></div>`;
+    <div class="btn-row"><button class="btn btn-primary" id="spendNext" disabled onclick="spendConfirm()">${tx('continue_btn')}</button></div>`;
 }
 function bindSpendInput(){
   const inp = $('#spendInput');
@@ -724,16 +935,16 @@ function spendConfirm(){
   const remain = USER.balance - spendAmount;
   $('#sheet').innerHTML = `<div class="handle"></div>
     <div class="sheet-ic">${ICONS.wallet}</div>
-    <h3>Подтверждение</h3>
-    <p class="sheet-sub">Проверьте сумму списания</p>
+    <h3>${tx('confirm_title')}</h3>
+    <p class="sheet-sub">${tx('confirm_sub')}</p>
     <div class="big-amount">${fmt(spendAmount)}<span>сум</span></div>
     <div class="kv-table">
-      <div class="kv"><span class="k">Текущий баланс</span><span class="v">${fmt(USER.balance)} сум</span></div>
-      <div class="kv"><span class="k">Спишется</span><span class="v red">−${fmt(spendAmount)} сум</span></div>
-      <div class="kv"><span class="k">Останется</span><span class="v blue">${fmt(remain)} сум</span></div>
+      <div class="kv"><span class="k">${tx('cur_balance')}</span><span class="v">${fmt(USER.balance)} сум</span></div>
+      <div class="kv"><span class="k">${tx('will_deduct')}</span><span class="v red">−${fmt(spendAmount)} сум</span></div>
+      <div class="kv"><span class="k">${tx('will_remain')}</span><span class="v blue">${fmt(remain)} сум</span></div>
     </div>
-    <button class="btn btn-primary" onclick="spendSuccess()">Подтвердить списание</button>
-    <button class="btn btn-ghost" onclick="openSpendBack()">Изменить сумму</button>`;
+    <button class="btn btn-primary" onclick="spendSuccess()">${tx('confirm_spend')}</button>
+    <button class="btn btn-ghost" onclick="openSpendBack()">${tx('change_amount')}</button>`;
 }
 function openSpendBack(){openSheet(spendStep1());$('#spendInput').value=fmt(spendAmount);validateSpend();bindSpendInput();}
 function spendSuccess(){
@@ -764,15 +975,17 @@ function openGiftDetail(id){
   const enough = USER.balance>=g.price;
   const remain = USER.balance - g.price;
   openSheet(`
-    <div class="sheet-ic big">${ICONS[g.icon]}</div>
+    <div class="sheet-ic big" style="${g.image_url?'padding:0;overflow:hidden':''}">
+      ${g.image_url?`<img src="${g.image_url}" style="width:100%;height:100%;object-fit:cover">`:ICONS[g.icon]}
+    </div>
     <h3>${g.name}</h3>
     <p class="sheet-text" style="text-align:center;">${g.desc}</p>
     <div class="kv-table">
-      <div class="kv"><span class="k">Стоимость</span><span class="v">${fmt(g.price)} сум</span></div>
-      <div class="kv"><span class="k">Ваш кешбэк</span><span class="v blue">${fmt(USER.balance)} сум</span></div>
-      <div class="kv"><span class="k">Остаток после</span><span class="v ${enough?'green':'red'}">${enough?fmt(remain)+' сум':'не хватает'}</span></div>
+      <div class="kv"><span class="k">${tx('cost_lbl')}</span><span class="v">${fmt(g.price)} сум</span></div>
+      <div class="kv"><span class="k">${tx('your_cashback')}</span><span class="v blue">${fmt(USER.balance)} сум</span></div>
+      <div class="kv"><span class="k">${tx('remainder_lbl')}</span><span class="v ${enough?'green':'red'}">${enough?fmt(remain)+' сум':tx('not_enough')}</span></div>
     </div>
-    <button class="btn btn-primary" ${enough?`onclick="giftRequest('${g.name}')"`:'disabled'}>${enough?'Оставить заявку':'Недостаточно средств'}</button>`);
+    <button class="btn btn-primary" ${enough?`onclick="giftRequest('${g.name}',${g.id})"`:' disabled'}>${enough?tx('order_gift'):tx('no_funds_btn')}</button>`);
 }
 function giftRequest(name){
   haptic('medium');
@@ -783,9 +996,9 @@ function giftRequest(name){
       <div class="sc-ring"></div>
       <div class="sc-circle"><svg viewBox="0 0 24 24"><path d="m5 13 4 4L19 7"/></svg></div>
     </div>
-    <h3>Заявка отправлена</h3>
-    <p class="sheet-text" style="text-align:center;">Заявка на «${name}» принята. Агент свяжется с вами для оформления.</p>
-    <button class="btn btn-primary" onclick="closeSheet()">Готово</button>`),250);
+    <h3>${tx('request_sent')}</h3>
+    <p class="sheet-text" style="text-align:center;">«${name}» ${tx('request_sent_text')}</p>
+    <button class="btn btn-primary" onclick="closeSheet()">${tx('done_btn')}</button>`),250);
 }
 
 /* =================== CATALOG DETAIL =================== */
@@ -800,60 +1013,141 @@ function openCatDetail(type,i){
       ${c.specs.map(s=>`<div class="spec"><div class="sl">${s[0]}</div><div class="sv">${s[1]}</div></div>`).join('')}
     </div>
     <div class="feat-chips">${c.feats.map(f=>`<span class="feat-chip">${f}</span>`).join('')}</div>
-    <div class="btn-row"><button class="btn btn-primary" onclick="openAgent()">Заказать</button></div>`);
+    <div class="btn-row"><button class="btn btn-primary" onclick="openAgent()">${tx('order_btn')}</button></div>`);
 }
 
 /* =================== PRIVACY =================== */
 function openPrivacy(){
   openSheet(`
     <div class="sheet-ic">${ICONS.shield}</div>
-    <h3>Конфиденциальность</h3>
-    <p class="sheet-text">Мы используем ваши данные исключительно для работы программы лояльности Scenti: начисления кешбэка, обработки заявок на подарки и связи с вами через агента.</p>
-    <p class="sheet-text">Ваши персональные данные не передаются третьим лицам и хранятся в защищённом виде. Вы можете запросить удаление данных в любой момент.</p>
-    <button class="btn btn-primary" style="margin-bottom:0;" onclick="alert('Файл политики будет загружен')">${ICONS.download} Скачать файл</button>
-    <button class="btn btn-ghost" onclick="closeSheet()">Понятно</button>`);
+    <h3>${tx('privacy_title')}</h3>
+    <p class="sheet-text">${tx('privacy_t1')}</p>
+    <p class="sheet-text">${tx('privacy_t2')}</p>
+    <button class="btn btn-primary" style="margin-bottom:0;" onclick="alert('Файл политики будет загружен')">${ICONS.download} ${tx('download_btn')}</button>
+    <button class="btn btn-ghost" onclick="closeSheet()">${tx('ok_btn')}</button>`);
 }
 
 /* =================== AGENT =================== */
 function openAgent(){
   openSheet(`
     <div class="sheet-ic">${ICONS.send}</div>
-    <h3>Связаться с агентом</h3>
-    <p class="sheet-sub">Выберите удобный способ связи</p>
-    <a href="tel:${USER.phone.replace(/\s/g,'')}" style="text-decoration:none;color:inherit;">
-      <div class="link-row" style="margin-top:18px;"><div class="ic">${ICONS.phoneIcon}</div><div class="lt">${USER.phone}</div><div class="chev">${ICONS.chev}</div></div>
-    </a>
-    <a href="https://t.me/scenti_uz" target="_blank" style="text-decoration:none;color:inherit;">
-      <div class="link-row"><div class="ic">${ICONS.tg}</div><div class="lt">@scenti_uz</div><div class="chev">${ICONS.chev}</div></div>
-    </a>
-    <button class="btn btn-ghost" style="margin-top:18px;" onclick="closeSheet()">Закрыть</button>`);
+    <h3>${tx('agent_title')}</h3>
+    <p class="sheet-sub">${tx('agent_sub')}</p>
+    <div class="link-row" style="margin-top:18px;cursor:pointer" onclick="(Telegram&&Telegram.WebApp&&Telegram.WebApp.openLink?Telegram.WebApp.openLink('tel:+998773831111'):window.open('tel:+998773831111'))">
+      <div class="ic">${ICONS.phoneIcon}</div><div class="lt">+998 77 383 11 11</div><div class="chev">${ICONS.chev}</div>
+    </div>
+    <div class="link-row" style="cursor:pointer" onclick="(Telegram&&Telegram.WebApp&&Telegram.WebApp.openTelegramLink?Telegram.WebApp.openTelegramLink('https://t.me/Scentioffice1'):window.open('https://t.me/Scentioffice1','_blank'))">
+      <div class="ic">${ICONS.tg}</div><div class="lt">@Scentioffice1</div><div class="chev">${ICONS.chev}</div>
+    </div>
+    <button class="btn btn-ghost" style="margin-top:18px;" onclick="closeSheet()">${tx('close_btn')}</button>`);
 }
 
 /* =================== REQUESTS =================== */
 function openRequests(){
   const rows = REQUESTS.map(r=>`
-    <div class="req-item">
+    <div class="req-item" style="flex-wrap:wrap;gap:6px">
       <div class="ic">${ICONS.gift}</div>
-      <div class="ri"><div class="t">${r.name}</div><div class="s">${r.status}</div></div>
+      <div class="ri"><div class="t">${r.name}</div><div class="s">${r.statusText}</div></div>
       <span class="pill ${r.pill}">${r.statusText}</span>
+      ${r.rawStatus==='confirmed'?`<button class="btn btn-primary" style="width:100%;margin-top:4px;font-size:13px" onclick="clientConfirmGift(${r.id})">✅ ${USER.lang==='uz'?"Qabul qilishni tasdiqlash":'Подтвердить получение'}</button>`:''}
     </div>`).join('');
   openSheet(`
-    <h3 style="margin-bottom:4px;">Мои заявки</h3>
-    <p class="sheet-sub" style="margin-bottom:6px;">Этапы обработки заявок на подарки</p>
-    <div class="steps">
-      <div class="step done"><div class="step-line"></div><div class="sn">1</div><div class="stxt">Заявка</div></div>
-      <div class="step active"><div class="step-line"></div><div class="sn">2</div><div class="stxt">Рассмотрение</div></div>
-      <div class="step"><div class="sn">3</div><div class="stxt">Готово</div></div>
-    </div>
+    <h3 style="margin-bottom:4px;">${tx('my_reqs')}</h3>
+    <p class="sheet-sub" style="margin-bottom:6px;">${tx('my_reqs_sub')}</p>
+    ${(()=>{
+      const ORDER=['pending','approved','shipping','confirmed','client_confirmed','delivered'];
+      const latest=REQUESTS.find(r=>r.rawStatus!=='rejected');
+      const cur=latest?ORDER.indexOf(latest.rawStatus):-1;
+      const steps=[tx('step1'),tx('step2'),tx('step3'),tx('step4'),tx('step5')];
+      return `<div class="steps">${steps.map((s,i)=>{
+        const cls=i<cur?'done':i===cur?'active':'';
+        return `<div class="step ${cls}">${i<steps.length-1?'<div class="step-line"></div>':''}<div class="sn">${i+1}</div><div class="stxt">${s}</div></div>`;
+      }).join('')}</div>`;
+    })()}
     <div class="block" style="margin-top:8px;box-shadow:none;border:1px solid var(--border);">${rows}</div>
-    <button class="btn btn-ghost" onclick="closeSheet()">Закрыть</button>`);
+    <button class="btn btn-ghost" onclick="closeSheet()">${tx('close_btn')}</button>`);
+}
+
+async function clientConfirmGift(reqId){
+  try{
+    await apiFetch(`/api/gift-requests/${reqId}/client-confirm`,{method:'POST'});
+    haptic('success');
+    await loadRequests();
+    reprocessData();
+    openRequests();
+  }catch(e){
+    alert(e.message||'Ошибка');
+  }
 }
 
 /* =================== LANG =================== */
-function setLang(l){USER.lang=l;haptic('light');renderProfile();}
+function setLang(l){
+  USER.lang=l; haptic('light');
+  reprocessData();
+  renderHome();renderGifts();renderHistory();renderCatalog();renderProfile();renderTabbar();
+  if(_tgInitData||_tgUserId){
+    apiFetch('/api/me/language',{method:'PUT',body:JSON.stringify({language:l})}).catch(()=>{});
+  }
+}
+
+/* =================== SPEND via API =================== */
+async function doSpendApi(amount){
+  if(!_tgInitData&&!_tgUserId) return false;
+  try{
+    const r=await apiFetch('/api/cashback-spend',{method:'POST',body:JSON.stringify({amount})});
+    USER.balance=r.cashback_balance||0;
+    return true;
+  }catch(e){return false;}
+}
+// Override spendSuccess to use API
+const _origSpendSuccess=typeof spendSuccess!=='undefined'?spendSuccess:null;
+window.spendSuccess=async function(){
+  haptic('heavy');
+  try{Telegram.WebApp.HapticFeedback.notificationOccurred('success');}catch(e){}
+  await doSpendApi(spendAmount);
+  // Обновляем фоновые экраны сразу — до закрытия шторки любым способом
+  try{renderHome();renderGifts();renderProfile();}catch(e){}
+  const colors=['#16A34A','#2E7BD6','#0E37A3','#F59E0B','#EC4899','#22C55E'];
+  let bursts='';
+  for(let i=0;i<10;i++){
+    const ang=(Math.PI*2/10)*i, dist=46+Math.random()*22;
+    bursts+=`<span class="burst" style="--bx:${Math.cos(ang)*dist}px;--by:${Math.sin(ang)*dist}px;background:${colors[i%colors.length]};"></span>`;
+  }
+  $('#sheet').innerHTML=`<div class="handle"></div>
+    <div class="success-wrap">
+      <div class="sc-ring"></div>
+      <div class="sc-circle"><svg viewBox="0 0 24 24"><path d="m5 13 4 4L19 7"/></svg></div>
+      ${bursts}
+    </div>
+    <h3>${tx('done_title')}</h3>
+    <p class="sheet-sub">${tx('spend_confirmed')}</p>
+    <div class="big-amount">${fmt(spendAmount)}<span>сум</span></div>
+    <p class="sheet-text" style="text-align:center;">${tx('show_to_agent')}</p>
+    <button class="btn btn-primary" onclick="closeSheet();renderHome();renderGifts();renderProfile()">${tx('done_btn')}</button>`;
+};
+
+/* =================== GIFT REQUEST via API =================== */
+window.giftRequest=async function(name, giftId){
+  haptic('medium');
+  try{Telegram.WebApp.HapticFeedback.notificationOccurred('success');}catch(e){}
+  closeSheet();
+  if(giftId && (_tgInitData||_tgUserId)){
+    try{ await apiFetch('/api/gift-requests',{method:'POST',body:JSON.stringify({gift_id:giftId})}); }catch(e){}
+    await loadRequests(); await loadUserData();
+    renderHome(); renderGifts(); renderProfile();
+  }
+  setTimeout(()=>openSheet(`
+    <div class="success-wrap">
+      <div class="sc-ring"></div>
+      <div class="sc-circle"><svg viewBox="0 0 24 24"><path d="m5 13 4 4L19 7"/></svg></div>
+    </div>
+    <h3>${tx('request_sent')}</h3>
+    <p class="sheet-text" style="text-align:center;">«${name}» ${tx('request_sent_text')}</p>
+    <button class="btn btn-primary" onclick="closeSheet()">${tx('done_btn')}</button>`),250);
+};
 
 /* =================== INIT =================== */
-function init(){
+async function init(){
   try{
     const tg = Telegram.WebApp;
     tg.ready(); tg.expand();
@@ -866,9 +1160,33 @@ function init(){
       if(u.username)USER.tgId='@'+u.username;
     }
   }catch(e){}
+
+  // Первичный рендер со статическими данными (сразу)
   renderHome();renderGifts();renderHistory();renderCatalog();renderProfile();renderTabbar();
+
+  // Подгружаем реальные данные из API
+  const hasApi = await loadUserData();
+  if(hasApi){
+    await Promise.all([loadGifts(), loadHistory(), loadRequests(), loadCatalog()]);
+    renderHome();renderGifts();renderHistory();renderCatalog();renderProfile();
+  }
+
+  // Открыть нужный таб если задан хэш в URL (#gifts, #history и т.д.)
+  const _hash = (window.location.hash||'').replace('#','');
+  if(_hash && ['gifts','history','catalog','profile'].includes(_hash)) switchTab(_hash);
 }
 init();
+
+// Обновляем данные когда пользователь возвращается в апп (свернул → открыл)
+document.addEventListener('visibilitychange', async () => {
+  if (!document.hidden) {
+    const ok = await loadUserData();
+    if (ok) {
+      await Promise.all([loadGifts(), loadHistory(), loadRequests()]);
+      renderHome(); renderGifts(); renderHistory(); renderProfile();
+    }
+  }
+});
 </script>
 </body>
 </html>
