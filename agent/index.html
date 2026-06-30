@@ -108,6 +108,7 @@ tbody tr:last-child td{border-bottom:none}
 .seg-tab{padding:8px 20px;border-radius:9px;font-size:14px;font-weight:600;color:var(--muted);background:transparent;border:none;cursor:pointer;transition:var(--t);white-space:nowrap}
 .seg-tab:hover{color:var(--text)}
 .seg-tab.active{background:#fff;color:var(--primary);box-shadow:0 1px 4px rgba(0,0,0,.10)}
+.seg-cnt{display:inline-flex;align-items:center;justify-content:center;min-width:18px;height:18px;border-radius:9px;background:#e05252;color:#fff;font-size:11px;font-weight:700;margin-left:5px;padding:0 4px;line-height:1}
 .search{position:relative;flex:1;max-width:360px;min-width:200px}
 .search svg{position:absolute;left:13px;top:50%;transform:translateY(-50%);width:17px;height:17px;color:var(--muted)}
 .search .input{padding-left:40px;height:42px;background:#fff}
@@ -782,27 +783,58 @@ const GR_STATUS={
   rejected:{cls:'pill-rejected',label:'Отклонено'},
 };
 
-let _grequests=[];
+const GR_TABS=[
+  {key:'pending',   label:'В обработке'},
+  {key:'approved',  label:'Одобрено'},
+  {key:'shipping',  label:'У доставки'},
+  {key:'confirmed', label:'Ожидает клиента'},
+  {key:'delivered', label:'Завершённые'},
+  {key:'rejected',  label:'Отклонённые'},
+];
+
+let _grequests=[];let _grFilter='pending';
 async function pageGRequests(){
   const c=$('#content');
-  c.innerHTML=`<div class="table-wrap">
-    <table><thead><tr><th>Клиент</th><th>Подарок</th><th>Цена</th><th>Статус</th><th>Дата</th></tr></thead>
-    <tbody id="grBody">${loadingRows(5)}</tbody></table>
-  </div>`;
+  c.innerHTML=`
+    <div class="toolbar" style="margin-bottom:14px">
+      <div class="seg-tabs" id="grTabs" style="gap:2px">${GR_TABS.map(t=>`<button class="seg-tab${t.key===_grFilter?' active':''}" data-f="${t.key}" onclick="setGrFilter('${t.key}')">${t.label}<span class="seg-cnt" id="grCnt_${t.key}" style="display:none"></span></button>`).join('')}</div>
+    </div>
+    <div class="table-wrap">
+      <table><thead><tr><th>Клиент</th><th>Подарок</th><th>Цена</th><th>Статус</th><th>Дата</th></tr></thead>
+      <tbody id="grBody">${loadingRows(5)}</tbody></table>
+    </div>`;
   try{
     const data=await api('/agent/gift-requests');
     _grequests=Array.isArray(data)?data:[];
+    updateGrCounts();
     renderGRequests();
   }catch(e){if(e.message!=='401')toast(e.message,'err');}
 }
 
+function updateGrCounts(){
+  GR_TABS.forEach(t=>{
+    const n=_grequests.filter(r=>r.status===t.key).length;
+    const el=$(`#grCnt_${t.key}`);if(!el)return;
+    if(n>0){el.textContent=n;el.style.display='inline-flex';}
+    else el.style.display='none';
+  });
+}
+
+function setGrFilter(f){
+  _grFilter=f;
+  document.querySelectorAll('#grTabs .seg-tab').forEach(b=>b.classList.toggle('active',b.dataset.f===f));
+  renderGRequests();
+}
+
 function renderGRequests(){
   const body=$('#grBody');if(!body)return;
-  if(!_grequests.length){body.innerHTML=`<tr><td colspan="5"><div class="empty">Нет заявок</div></td></tr>`;return;}
-  body.innerHTML=_grequests.map((r,i)=>{
+  const list=_grequests.filter(r=>r.status===_grFilter);
+  if(!list.length){body.innerHTML=`<tr><td colspan="5"><div class="empty">Нет заявок</div></td></tr>`;return;}
+  body.innerHTML=list.map((r,i)=>{
+    const ridx=_grequests.indexOf(r);
     const st=GR_STATUS[r.status]||{cls:'pill-pending',label:r.status};
     const name=[r.first_name,r.last_name].filter(Boolean).join(' ')||r.user_name||'—';
-    return `<tr class="clickable" onclick="openGRModal(${i})">
+    return `<tr class="clickable" onclick="openGRModal(${ridx})">
       <td><div class="cell-user"><div class="avatar" style="width:32px;height:32px;font-size:12px">${initials(name)}</div><b>${esc(name)}</b></div></td>
       <td>${esc(r.gift_name||r.name_ru||'—')}</td>
       <td><b style="color:var(--primary)">${fmt(r.price||r.price_cashback||0)} сум</b></td>
@@ -815,7 +847,7 @@ function renderGRequests(){
 const GR_TRANSITIONS={
   pending:['approved','rejected'],
   approved:['shipping','rejected'],
-  shipping:['confirmed','rejected'],
+  shipping:['rejected'],
   confirmed:['delivered'],
   delivered:[],
   rejected:[],

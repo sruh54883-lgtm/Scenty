@@ -225,7 +225,7 @@ class GrStatusBody(BaseModel):
 _AGENT_TRANSITIONS: dict[str, list[str]] = {
     "pending":   ["approved", "rejected"],
     "approved":  ["shipping", "rejected"],
-    "shipping":  ["confirmed", "rejected"],
+    "shipping":  ["rejected"],
     "confirmed": ["delivered"],
     "delivered": [],
     "rejected":  [],
