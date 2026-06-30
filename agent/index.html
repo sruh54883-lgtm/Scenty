@@ -2,421 +2,331 @@
 <html lang="ru">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<meta name="theme-color" content="#0E37A3">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Scenti — Панель агента</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Fredoka:wght@500;600;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <style>
 :root{
-  --primary:#0E37A3;
-  --light:#2E7BD6;
-  --bg:#f0f4fb;
-  --card:#ffffff;
-  --text:#16233F;
-  --muted:#7C8BA5;
-  --success:#1ec27f;
-  --danger:#D5564B;
-  --warning:#F1A82C;
-  --radius:18px;
-  --radius-sm:12px;
-  --shadow:0 8px 24px rgba(14,55,163,.08);
-  --shadow-soft:0 2px 10px rgba(22,35,63,.05);
+  --primary:#0E37A3;--light:#2E7BD6;--bg:#f0f4fb;--sidebar-bg:#0b0f1a;
+  --card:#ffffff;--text:#16233F;--muted:#7C8BA5;
+  --success:#1ec27f;--warning:#C98A2E;--danger:#D5564B;
+  --border:#e3eaf4;
+  --radius:14px;--radius-sm:10px;--radius-lg:20px;
+  --shadow-sm:0 1px 3px rgba(16,35,63,.06),0 1px 2px rgba(16,35,63,.04);
+  --shadow-md:0 8px 24px rgba(16,35,63,.08);
+  --shadow-lg:0 20px 50px rgba(16,35,63,.16);
+  --sidebar-w:240px;
+  --font:"Plus Jakarta Sans",-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+  --t:.18s cubic-bezier(.4,0,.2,1);
 }
-*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+*{box-sizing:border-box;margin:0;padding:0}
 html,body{height:100%}
-body{
-  font-family:'Plus Jakarta Sans',sans-serif;
-  background:var(--bg);
-  color:var(--text);
-  font-size:15px;
-  line-height:1.45;
-  display:flex;
-  justify-content:center;
-  -webkit-font-smoothing:antialiased;
-}
-#app{
-  width:100%;
-  max-width:480px;
-  min-height:100vh;
-  background:var(--bg);
-  position:relative;
-  display:flex;
-  flex-direction:column;
-  box-shadow:0 0 40px rgba(22,35,63,.06);
-}
-button{font-family:inherit;cursor:pointer;border:none;background:none;color:inherit}
-input,textarea{font-family:inherit;font-size:15px;color:var(--text)}
-input:focus,textarea:focus{outline:none}
-::placeholder{color:var(--muted);opacity:.85}
+body{font-family:var(--font);background:var(--bg);color:var(--text);font-size:14px;line-height:1.5;-webkit-font-smoothing:antialiased}
+button{font-family:inherit;cursor:pointer;border:none;background:none}
+input,textarea,select{font-family:inherit;font-size:14px;color:var(--text)}
+a{color:inherit;text-decoration:none}
+::selection{background:var(--light);color:#fff}
+::-webkit-scrollbar{width:10px;height:10px}
+::-webkit-scrollbar-thumb{background:#c7d2e3;border-radius:8px;border:2px solid var(--bg)}
 
-/* ---------- LOGIN ---------- */
-.login-screen{
-  flex:1;display:flex;align-items:center;justify-content:center;
-  padding:24px;
-  background:linear-gradient(160deg,#0E37A3 0%,#2E7BD6 100%);
-}
-.login-card{
-  width:100%;max-width:360px;background:var(--card);
-  border-radius:26px;padding:36px 28px;
-  box-shadow:0 20px 50px rgba(8,28,90,.35);
-  text-align:center;
-}
-.logo{
-  font-family:'Fredoka',sans-serif;font-weight:700;
-  font-size:42px;color:var(--primary);letter-spacing:-1px;line-height:1;
-}
-.login-sub{color:var(--muted);font-weight:500;margin-top:6px;margin-bottom:28px;font-size:15px}
-.field{text-align:left;margin-bottom:16px}
-.field label{display:block;font-size:13px;font-weight:600;color:var(--text);margin-bottom:7px}
-.input{
-  width:100%;background:var(--bg);border:1.5px solid transparent;
-  border-radius:var(--radius-sm);padding:14px 16px;transition:border-color .2s,background .2s;
-}
-.input:focus{border-color:var(--light);background:#fff}
-.input-icon{position:relative}
-.input-icon svg{position:absolute;left:15px;top:50%;transform:translateY(-50%);color:var(--muted)}
-.input-icon .input{padding-left:44px}
-.btn{
-  width:100%;background:var(--primary);color:#fff;font-weight:700;font-size:16px;
-  border-radius:var(--radius-sm);padding:15px;transition:transform .12s,background .2s,box-shadow .2s;
-  box-shadow:0 8px 18px rgba(14,55,163,.28);
-}
-.btn:active{transform:scale(.97)}
-.btn:disabled{opacity:.6;box-shadow:none}
-.btn-light{background:#fff;color:var(--primary);border:1.5px solid #e2e9f5;box-shadow:none}
-.btn-danger{background:var(--danger);box-shadow:0 8px 18px rgba(213,86,75,.28)}
-.btn-success{background:var(--success);box-shadow:0 8px 18px rgba(30,194,127,.28)}
-.login-err{color:var(--danger);font-size:13px;font-weight:600;margin-top:14px;min-height:18px}
+/* LOGIN */
+#login{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;background:#eef2f8;z-index:1000}
+.login-card{width:420px;background:#fff;border-radius:18px;padding:44px 40px 40px;box-shadow:0 4px 40px rgba(14,55,163,.10);animation:pop .35s cubic-bezier(.34,1.56,.64,1)}
+.login-brand{display:flex;flex-direction:column;align-items:center;margin-bottom:28px}
+.login-brand-icon{width:60px;height:60px;border-radius:16px;background:linear-gradient(135deg,#0e37a3,#2e7bd6);display:flex;align-items:center;justify-content:center;color:#fff;font-size:28px;font-weight:900;margin-bottom:14px;box-shadow:0 8px 24px rgba(14,55,163,.28)}
+.login-brand-title{font-size:22px;font-weight:800;color:#0f1b35;margin-bottom:3px}
+.login-brand-sub{font-size:13px;color:#8897b0;font-weight:500}
+.field{margin-bottom:18px}
+.field label{display:block;font-size:13px;font-weight:600;margin-bottom:8px;color:#3a4a6b}
+.input{width:100%;height:46px;border:1.5px solid #e1e8f2;border-radius:var(--radius-sm);padding:0 14px;background:#fafcff;transition:border var(--t),box-shadow var(--t)}
+.input:focus{outline:none;border-color:var(--light);box-shadow:0 0 0 3px rgba(46,123,214,.14);background:#fff}
+.btn{height:46px;border-radius:var(--radius-sm);font-weight:700;font-size:14px;display:inline-flex;align-items:center;justify-content:center;gap:8px;padding:0 20px;transition:transform var(--t),box-shadow var(--t),background var(--t),opacity var(--t)}
+.btn:active{transform:translateY(1px)}
+.btn-primary{background:var(--primary);color:#fff;box-shadow:0 6px 16px rgba(14,55,163,.28)}
+.btn-primary:hover{background:#0c2f8c}
+.btn-block{width:100%}
+.btn-ghost{background:#eef3fb;color:var(--text)}
+.btn-ghost:hover{background:#e3ebf7}
+.btn-sm{height:36px;padding:0 14px;font-size:13px;border-radius:9px}
+.login-error{color:var(--danger);font-size:13px;margin-top:4px;min-height:18px;font-weight:600}
 
-/* ---------- SHELL ---------- */
-.shell{flex:1;display:none;flex-direction:column;min-height:100vh}
-.shell.active{display:flex}
-.topbar{
-  position:sticky;top:0;z-index:30;
-  background:var(--card);padding:18px 20px 16px;
-  display:flex;align-items:center;gap:12px;
-  box-shadow:var(--shadow-soft);
-}
-.topbar .logo-sm{font-family:'Fredoka',sans-serif;font-weight:700;font-size:24px;color:var(--primary);line-height:1}
-.topbar h1{font-size:18px;font-weight:700}
-.topbar .back-btn{
-  display:flex;align-items:center;gap:5px;font-weight:600;color:var(--primary);font-size:15px;
-}
-.content{flex:1;padding:18px 18px 100px;overflow-y:auto}
+/* APP SHELL */
+#app{display:flex;min-height:100vh}
+.sidebar{width:var(--sidebar-w);background:var(--sidebar-bg);color:#cdd6e6;position:fixed;top:0;left:0;bottom:0;display:flex;flex-direction:column;z-index:50}
+.sidebar .brand{display:flex;align-items:center;gap:10px;padding:22px 20px 18px}
+.sidebar .brand .mark{width:34px;height:34px;border-radius:10px;flex-shrink:0;background:linear-gradient(135deg,var(--primary),var(--light));display:flex;align-items:center;justify-content:center;color:#fff;font-weight:800;font-size:17px}
+.sidebar .brand .name{font-size:20px;font-weight:800;color:#fff;letter-spacing:-.4px}
+.sidebar-role{font-size:11px;font-weight:700;color:#4a5a7a;text-transform:uppercase;letter-spacing:.8px;padding:0 20px 12px}
+.nav{flex:1;overflow-y:auto;padding:6px 12px 12px;display:flex;flex-direction:column;gap:2px}
+.nav-item{display:flex;align-items:center;gap:12px;padding:10px 12px;border-radius:10px;color:#9aa7be;font-weight:600;font-size:13.5px;white-space:nowrap;transition:background var(--t),color var(--t);cursor:pointer}
+.nav-item .ic{width:20px;height:20px;flex-shrink:0;display:flex;align-items:center;justify-content:center}
+.nav-item .ic svg{width:18px;height:18px}
+.nav-item:hover{background:#161c2b;color:#fff}
+.nav-item.active{background:linear-gradient(135deg,var(--primary),var(--light));color:#fff;box-shadow:0 6px 16px rgba(14,55,163,.35)}
+.sidebar .foot{padding:14px 12px;border-top:1px solid #1a2233}
+.agent-foot{display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:10px}
+.agent-foot .av{width:34px;height:34px;border-radius:50%;background:linear-gradient(135deg,var(--primary),var(--light));color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:13px;flex-shrink:0}
+.agent-foot .info{flex:1;min-width:0}
+.agent-foot .info .nm{font-size:13px;font-weight:700;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.agent-foot .info .rl{font-size:11px;color:#6a7a9a}
+.btn-logout{color:#6a7a9a;font-size:12px;font-weight:700;padding:6px 10px;border-radius:8px;background:none;transition:var(--t)}
+.btn-logout:hover{background:#161c2b;color:#fff}
 
-/* views */
-.view{display:none}
-.view.active{display:block;animation:fade .25s ease}
-@keyframes fade{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+.main{flex:1;margin-left:var(--sidebar-w);min-width:0;display:flex;flex-direction:column;min-height:100vh}
+.topbar{height:64px;background:rgba(240,244,251,.85);backdrop-filter:blur(10px);position:sticky;top:0;z-index:30;display:flex;align-items:center;padding:0 28px;gap:16px;border-bottom:1px solid #e3eaf4}
+.topbar h1{font-size:20px;font-weight:800;letter-spacing:-.4px;flex:1}
+.content{padding:24px 28px 48px;flex:1}
 
-/* search */
-.search-wrap{position:relative;margin-bottom:18px}
-.search-wrap svg{position:absolute;left:16px;top:50%;transform:translateY(-50%);color:var(--muted)}
-.search-input{
-  width:100%;background:var(--card);border:1.5px solid transparent;
-  border-radius:var(--radius);padding:15px 16px 15px 46px;box-shadow:var(--shadow-soft);
-  transition:border-color .2s;
-}
-.search-input:focus{border-color:var(--light)}
+/* STATS */
+.stat-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:18px;margin-bottom:26px}
+.stat{background:var(--card);border-radius:var(--radius);padding:20px;box-shadow:var(--shadow-sm);position:relative;overflow:hidden;transition:transform var(--t),box-shadow var(--t);cursor:pointer}
+.stat:hover{transform:translateY(-2px);box-shadow:var(--shadow-md)}
+.stat .ico{width:44px;height:44px;border-radius:12px;display:flex;align-items:center;justify-content:center;margin-bottom:14px}
+.stat .ico svg{width:22px;height:22px}
+.stat .label{color:var(--muted);font-size:13px;font-weight:600;margin-bottom:4px}
+.stat .value{font-size:28px;font-weight:800;letter-spacing:-.6px}
+.stat .value .cur{font-size:15px;font-weight:700;color:var(--muted);margin-left:4px}
+.stat-sub{font-size:12px;color:var(--muted);margin-top:4px}
 
-/* client card */
-.client-card{
-  background:var(--card);border-radius:var(--radius);padding:14px;
-  display:flex;align-items:center;gap:13px;margin-bottom:12px;
-  box-shadow:var(--shadow-soft);transition:transform .12s,box-shadow .2s;
-}
-.client-card:active{transform:scale(.98);box-shadow:var(--shadow)}
-.avatar{
-  width:48px;height:48px;border-radius:14px;flex-shrink:0;
-  background:linear-gradient(150deg,var(--light),var(--primary));
-  color:#fff;font-weight:700;font-size:17px;
-  display:flex;align-items:center;justify-content:center;
-}
-.client-info{flex:1;min-width:0}
-.client-info .name{font-weight:700;font-size:15.5px}
-.client-info .biz{color:var(--text);opacity:.7;font-size:13px;font-weight:500}
-.client-info .phone{color:var(--muted);font-size:13px;font-weight:500;display:flex;align-items:center;gap:4px;margin-top:1px}
-.chev{color:var(--muted);flex-shrink:0}
+/* TABLE */
+.table-wrap{background:var(--card);border-radius:var(--radius);box-shadow:var(--shadow-sm);overflow:hidden}
+table{width:100%;border-collapse:collapse}
+thead th{text-align:left;font-size:11.5px;font-weight:800;text-transform:uppercase;letter-spacing:.5px;color:var(--muted);padding:14px 18px;background:#f7faff;border-bottom:1px solid #eaf0f8;white-space:nowrap}
+tbody td{padding:14px 18px;border-bottom:1px solid #f0f4fb;font-size:13.5px;vertical-align:middle}
+tbody tr{transition:background var(--t)}
+tbody tr.clickable{cursor:pointer}
+tbody tr.clickable:hover{background:#f6f9ff}
+tbody tr:last-child td{border-bottom:none}
+.cell-user{display:flex;align-items:center;gap:11px}
+.cell-user .avatar{width:34px;height:34px;font-size:13px}
 
-.empty{text-align:center;color:var(--muted);padding:48px 20px;font-weight:500}
-.empty .em-ico{font-size:38px;margin-bottom:10px}
-.skeleton{background:var(--card);border-radius:var(--radius);height:76px;margin-bottom:12px;
-  background:linear-gradient(90deg,#fff 25%,#eef2f9 50%,#fff 75%);background-size:200% 100%;
-  animation:sk 1.2s infinite}
-@keyframes sk{from{background-position:200% 0}to{background-position:-200% 0}}
+/* TOOLBAR */
+.toolbar{display:flex;align-items:center;gap:12px;margin-bottom:18px;flex-wrap:wrap}
+.search{position:relative;flex:1;max-width:360px;min-width:200px}
+.search svg{position:absolute;left:13px;top:50%;transform:translateY(-50%);width:17px;height:17px;color:var(--muted)}
+.search .input{padding-left:40px;height:42px;background:#fff}
 
-/* client detail */
-.detail-head{
-  background:var(--card);border-radius:var(--radius);padding:22px;margin-bottom:18px;
-  box-shadow:var(--shadow);text-align:center;
-}
-.detail-head .avatar{width:64px;height:64px;border-radius:18px;font-size:22px;margin:0 auto 14px}
-.detail-head .name{font-size:20px;font-weight:800}
-.detail-head .biz{color:var(--light);font-weight:600;font-size:14px;margin-top:2px}
-.detail-rows{margin-top:16px;text-align:left;border-top:1px solid #eef2f9;padding-top:14px}
-.detail-row{display:flex;justify-content:space-between;align-items:center;padding:8px 0;font-size:14px}
-.detail-row .k{color:var(--muted);font-weight:500}
-.detail-row .v{font-weight:600;text-align:right}
+/* AVATAR */
+.avatar{width:36px;height:36px;border-radius:50%;background:linear-gradient(135deg,var(--primary),var(--light));color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:14px}
 
-/* sale form */
-.card{background:var(--card);border-radius:var(--radius);padding:20px;box-shadow:var(--shadow-soft);margin-bottom:16px}
-.card-title{font-size:18px;font-weight:800;display:flex;align-items:center;gap:8px;margin-bottom:4px}
-.card-sub{color:var(--muted);font-weight:500;font-size:14px;margin-bottom:18px}
-.amount-input{
-  width:100%;background:var(--bg);border:1.5px solid transparent;border-radius:var(--radius-sm);
-  padding:16px;font-size:24px;font-weight:800;text-align:center;letter-spacing:.5px;
-}
-.amount-input:focus{border-color:var(--light);background:#fff}
-.hint{color:var(--muted);font-size:12.5px;font-weight:500;margin-top:7px;text-align:center}
-.cashback-box{
-  background:linear-gradient(135deg,rgba(30,194,127,.12),rgba(30,194,127,.04));
-  border:1.5px solid rgba(30,194,127,.25);border-radius:var(--radius-sm);
-  padding:14px 16px;margin:16px 0;text-align:center;
-}
-.cashback-box .lbl{color:#13955f;font-size:12.5px;font-weight:600;text-transform:uppercase;letter-spacing:.4px}
-.cashback-box .val{color:var(--success);font-size:24px;font-weight:800;margin-top:3px}
-textarea.note{
-  width:100%;background:var(--bg);border:1.5px solid transparent;border-radius:var(--radius-sm);
-  padding:13px 15px;resize:none;min-height:74px;transition:border-color .2s;
-}
-textarea.note:focus{border-color:var(--light);background:#fff}
+/* PILL / BADGE */
+.pill{display:inline-flex;align-items:center;gap:5px;font-size:11.5px;font-weight:800;padding:5px 11px;border-radius:20px;white-space:nowrap}
+.pill::before{content:"";width:6px;height:6px;border-radius:50%;background:currentColor}
+.pill-pending{background:#fdf3e3;color:var(--warning)}
+.pill-approved{background:#e3f8ef;color:var(--success)}
+.pill-rejected{background:#fbe9e7;color:var(--danger)}
+.pill-shipping{background:#e8f4fd;color:#1a6fb5}
+.pill-confirmed{background:#f0e8fd;color:#7c3aed}
+.pill-delivered{background:#e3f8ef;color:var(--success)}
 
-/* stats */
-.stats-card{
-  background:linear-gradient(150deg,var(--primary),var(--light));
-  border-radius:var(--radius);padding:20px;color:#fff;margin-bottom:20px;
-  box-shadow:0 12px 28px rgba(14,55,163,.25);
-}
-.stats-card .lbl{font-size:13px;font-weight:600;opacity:.85}
-.stats-grid{display:flex;gap:14px;margin-top:14px}
-.stat{flex:1}
-.stat .n{font-size:24px;font-weight:800;line-height:1.1}
-.stat .t{font-size:12.5px;opacity:.85;font-weight:500;margin-top:2px}
+/* SKELETON */
+.skeleton{background:linear-gradient(90deg,#eef3fb 25%,#e2ecf8 50%,#eef3fb 75%);background-size:400% 100%;animation:shimmer 1.4s ease infinite;border-radius:10px;height:20px}
+@keyframes shimmer{0%{background-position:100% 50%}100%{background-position:0% 50%}}
 
-/* transaction card */
-.tx-card{
-  background:var(--card);border-radius:var(--radius);padding:14px 16px;margin-bottom:12px;
-  box-shadow:var(--shadow-soft);
-}
-.tx-top{display:flex;align-items:flex-start;gap:12px}
-.tx-ico{
-  width:42px;height:42px;border-radius:12px;flex-shrink:0;
-  background:rgba(46,123,214,.12);color:var(--primary);
-  display:flex;align-items:center;justify-content:center;font-size:18px;
-}
-.tx-mid{flex:1;min-width:0}
-.tx-mid .name{font-weight:700;font-size:15px}
-.tx-mid .date{color:var(--muted);font-size:12.5px;font-weight:500;margin-top:1px}
-.tx-amt{text-align:right;flex-shrink:0}
-.tx-amt .a{font-weight:800;font-size:15px}
-.tx-amt .cb{color:var(--success);font-size:12.5px;font-weight:600;margin-top:1px}
-.tx-foot{display:flex;justify-content:flex-end;margin-top:10px}
-.tx-note{color:var(--muted);font-size:12.5px;font-weight:500;margin-top:8px;padding-top:8px;border-top:1px dashed #e7edf6}
-.pill{font-size:12px;font-weight:700;padding:5px 12px;border-radius:30px}
-.pill.pending{background:rgba(241,168,44,.15);color:#C7851A}
-.pill.approved{background:rgba(30,194,127,.15);color:#0f9a63}
-.pill.rejected{background:rgba(213,86,75,.15);color:var(--danger)}
+/* EMPTY */
+.empty{text-align:center;padding:60px 20px;color:var(--muted);font-size:14px}
 
-/* profile */
-.profile-head{
-  background:var(--card);border-radius:var(--radius);padding:24px;text-align:center;
-  box-shadow:var(--shadow);margin-bottom:18px;
-}
-.profile-head .avatar{width:72px;height:72px;border-radius:20px;font-size:26px;margin:0 auto 14px}
-.profile-head .name{font-size:20px;font-weight:800}
-.profile-head .phone{color:var(--muted);font-weight:500;margin-top:2px}
-.section-label{font-size:13px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin:0 4px 10px}
-.district{
-  background:var(--card);border-radius:var(--radius-sm);padding:13px 16px;margin-bottom:9px;
-  font-weight:600;font-size:14px;display:flex;align-items:center;gap:10px;box-shadow:var(--shadow-soft);
-}
-.district .dot{width:8px;height:8px;border-radius:50%;background:var(--light);flex-shrink:0}
+/* CARD */
+.card{background:var(--card);border-radius:var(--radius);box-shadow:var(--shadow-sm);overflow:hidden}
+.card-pad{padding:22px}
+.section-head{display:flex;align-items:center;gap:14px;margin-bottom:16px}
+.section-head h2{font-size:17px;font-weight:800;letter-spacing:-.3px;flex:1}
 
-/* bottom nav */
-.bottom-nav{
-  position:fixed;bottom:0;left:50%;transform:translateX(-50%);
-  width:100%;max-width:480px;background:var(--card);
-  display:flex;padding:8px 8px env(safe-area-inset-bottom);
-  box-shadow:0 -4px 20px rgba(22,35,63,.08);z-index:40;
-}
-.nav-item{
-  flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;
-  padding:8px 4px 10px;color:var(--muted);font-size:11px;font-weight:600;transition:color .2s;
-}
-.nav-item svg{width:23px;height:23px}
-.nav-item.active{color:var(--primary)}
+/* TOASTS */
+#toasts{position:fixed;top:18px;right:18px;z-index:9999;display:flex;flex-direction:column;gap:10px}
+.toast{background:#fff;border-radius:12px;box-shadow:var(--shadow-lg);padding:13px 16px;display:flex;align-items:center;gap:11px;min-width:280px;max-width:380px;border-left:4px solid var(--success);animation:slideIn .3s cubic-bezier(.34,1.56,.64,1)}
+.toast.out{animation:slideOut .3s forwards}
+.toast.err{border-left-color:var(--danger)}
+.toast.warn{border-left-color:var(--warning)}
+.toast b{display:block;font-weight:700;font-size:13.5px}
+.toast small{color:var(--muted);font-size:12px}
 
-/* modal */
-.modal-overlay{
-  position:fixed;inset:0;background:rgba(16,28,55,.45);z-index:60;
-  display:none;align-items:flex-end;justify-content:center;
-  backdrop-filter:blur(2px);
-}
-.modal-overlay.show{display:flex;animation:fade .2s}
-.modal{
-  width:100%;max-width:480px;background:var(--card);
-  border-radius:26px 26px 0 0;padding:24px 22px calc(28px + env(safe-area-inset-bottom));
-  animation:slideUp .3s cubic-bezier(.2,.8,.2,1);max-height:92vh;overflow-y:auto;
-}
-@keyframes slideUp{from{transform:translateY(100%)}to{transform:none}}
-.modal-grip{width:42px;height:5px;border-radius:5px;background:#dde4f0;margin:0 auto 18px}
+/* MODAL */
+.overlay{position:fixed;inset:0;background:rgba(11,15,26,.5);backdrop-filter:blur(3px);display:flex;align-items:flex-start;justify-content:center;padding:48px 20px;z-index:200;opacity:0;animation:fade .2s forwards;overflow-y:auto}
+.modal{background:var(--card);border-radius:var(--radius-lg);width:560px;max-width:100%;box-shadow:var(--shadow-lg);animation:pop .3s cubic-bezier(.34,1.56,.64,1);display:flex;flex-direction:column;max-height:calc(100vh - 96px)}
+.modal.wide{width:760px}
+.modal-head{display:flex;align-items:center;gap:14px;padding:22px 24px 16px;border-bottom:1px solid #eef3fb}
+.modal-head h3{font-size:19px;font-weight:800;letter-spacing:-.4px}
+.modal-head .x{margin-left:auto;width:34px;height:34px;border-radius:9px;color:var(--muted);display:flex;align-items:center;justify-content:center;transition:var(--t)}
+.modal-head .x:hover{background:#f0f4fb;color:var(--text)}
+.modal-body{padding:22px 24px;overflow-y:auto;flex:1}
+.modal-foot{padding:16px 24px;border-top:1px solid #eef3fb;display:flex;gap:10px;justify-content:flex-end}
+.sub-label{font-size:11.5px;font-weight:800;text-transform:uppercase;letter-spacing:.5px;color:var(--muted);margin:18px 0 10px}
+.balance-box{background:linear-gradient(135deg,var(--primary),var(--light));color:#fff;border-radius:var(--radius);padding:16px 18px;display:flex;justify-content:space-between;align-items:center;margin:6px 0 18px}
+.balance-box .lab{font-size:12.5px;opacity:.85;font-weight:600}
+.balance-box .num{font-size:24px;font-weight:800}
 
-/* toast */
-.toast-wrap{
-  position:fixed;top:18px;left:50%;transform:translateX(-50%);
-  z-index:90;width:calc(100% - 36px);max-width:444px;
-  display:flex;flex-direction:column;gap:10px;pointer-events:none;
-}
-.toast{
-  background:var(--text);color:#fff;border-radius:14px;padding:14px 16px;
-  font-size:14px;font-weight:600;box-shadow:0 10px 30px rgba(0,0,0,.25);
-  display:flex;align-items:center;gap:10px;animation:toastIn .3s cubic-bezier(.2,.8,.2,1);
-}
-.toast.success{background:var(--success)}
-.toast.error{background:var(--danger)}
-.toast.fade-out{animation:toastOut .3s forwards}
-@keyframes toastIn{from{transform:translateY(-20px);opacity:0}to{transform:none;opacity:1}}
-@keyframes toastOut{to{transform:translateY(-20px);opacity:0}}
+/* STEPPER */
+.stepper{display:flex;align-items:center;gap:0;margin:14px 0 8px;overflow-x:auto}
+.step-item{display:flex;align-items:center;flex:1;min-width:0}
+.step-circle{width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:800;flex-shrink:0}
+.step-circle.done{background:var(--success);color:#fff}
+.step-circle.active{background:var(--primary);color:#fff}
+.step-circle.idle{background:#e8edf5;color:var(--muted)}
+.step-col{display:flex;flex-direction:column;align-items:center;gap:4px}
+.step-label{font-size:9.5px;text-align:center;line-height:1.2;max-width:50px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.step-line{flex:1;height:2px;margin:0 2px;margin-bottom:16px}
 
-.spinner{width:18px;height:18px;border:2.5px solid rgba(255,255,255,.35);border-top-color:#fff;border-radius:50%;animation:spin .7s linear infinite;display:inline-block}
-@keyframes spin{to{transform:rotate(360deg)}}
-.mt8{margin-top:8px}
+/* TX CREATE MODAL search */
+.user-search-wrap{position:relative}
+.user-results{position:absolute;top:100%;left:0;right:0;background:#fff;border-radius:var(--radius-sm);box-shadow:var(--shadow-md);z-index:10;max-height:220px;overflow-y:auto;display:none;border:1px solid var(--border)}
+.user-results.open{display:block}
+.user-result-item{display:flex;align-items:center;gap:10px;padding:11px 14px;cursor:pointer;border-bottom:1px solid #f0f4fb;transition:background .12s}
+.user-result-item:last-child{border-bottom:none}
+.user-result-item:hover{background:#eef3fb}
+.uri-av{width:32px;height:32px;border-radius:9px;background:var(--primary);color:#fff;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;flex-shrink:0}
+.uri-name{font-weight:700;font-size:13px}
+.uri-ph{font-size:11.5px;color:var(--muted)}
+.selected-user{display:none;align-items:center;gap:10px;background:#eef3fb;border-radius:var(--radius-sm);padding:10px 14px;margin-bottom:14px}
+.selected-user.show{display:flex}
+.cashback-hint{background:#e3f8ef;border-radius:var(--radius-sm);padding:10px 14px;font-size:13px;font-weight:600;color:var(--success);margin-bottom:14px;display:none}
+.cashback-hint.show{display:block}
+
+/* GIFT CARDS */
+.gift-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:16px}
+.gift-card{background:var(--card);border-radius:var(--radius);box-shadow:var(--shadow-sm);overflow:hidden}
+.gift-card img{width:100%;height:140px;object-fit:cover;display:block;background:#eef3fb}
+.gift-card-body{padding:14px}
+.gift-card-name{font-weight:700;font-size:14px;margin-bottom:6px}
+.gift-card-price{color:var(--primary);font-weight:800;font-size:15px}
+.gift-card-stock{font-size:12px;color:var(--muted);margin-top:4px}
+
+/* ANIMATIONS */
+@keyframes fade{to{opacity:1}}
+@keyframes pop{0%{transform:scale(.92);opacity:0}100%{transform:none;opacity:1}}
+@keyframes slideIn{from{transform:translateX(30px);opacity:0}to{transform:none;opacity:1}}
+@keyframes slideOut{to{transform:translateX(30px);opacity:0}}
+
+/* DASH RECENT */
+/* PAGER */
+.pager{display:flex;align-items:center;padding:14px 18px;gap:12px;border-top:1px solid #f0f4fb}
+.pager .info{font-size:13px;color:var(--muted);flex:1}
+.pager .pages{display:flex;gap:4px}
+.pg-btn{height:32px;min-width:32px;padding:0 8px;border-radius:8px;font-size:13px;font-weight:600;background:#eef3fb;color:var(--text);transition:var(--t)}
+.pg-btn:hover{background:#dde8f7}
+.pg-btn.active{background:var(--primary);color:#fff}
+
+.dash-grid{display:grid;grid-template-columns:1fr 380px;gap:18px;align-items:start}
+.txn-list{display:flex;flex-direction:column;gap:8px}
+.txn-item{display:flex;align-items:center;gap:12px;padding:11px 13px;background:#f7faff;border-radius:11px}
+.txn-item .amt{margin-left:auto;text-align:right}
+.txn-item .amt b{display:block;font-weight:800}
+.txn-item .amt small{color:var(--muted);font-size:11.5px}
 </style>
 </head>
 <body>
-<div id="app">
 
-  <!-- ============ LOGIN ============ -->
-  <div class="login-screen" id="loginScreen">
-    <div class="login-card">
-      <div class="logo">scenti</div>
-      <div class="login-sub">Панель агента</div>
-      <form id="loginForm">
-        <div class="field">
-          <label>Логин</label>
-          <div class="input-icon">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
-            <input class="input" id="loginUser" type="text" placeholder="username" autocomplete="username" required>
-          </div>
-        </div>
-        <div class="field">
-          <label>Пароль</label>
-          <div class="input-icon">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
-            <input class="input" id="loginPass" type="password" placeholder="••••••••" autocomplete="current-password" required>
-          </div>
-        </div>
-        <button class="btn" type="submit" id="loginBtn">Войти</button>
-        <div class="login-err" id="loginErr"></div>
-      </form>
+<!-- LOGIN -->
+<div id="login">
+  <div class="login-card">
+    <div class="login-brand">
+      <div class="login-brand-icon">S</div>
+      <div class="login-brand-title">scenti</div>
+      <div class="login-brand-sub">Панель агента</div>
     </div>
-  </div>
-
-  <!-- ============ SHELL ============ -->
-  <div class="shell" id="shell">
-    <div class="topbar" id="topbar"></div>
-    <div class="content">
-
-      <!-- VIEW: clients list -->
-      <div class="view" id="view-clients">
-        <div class="search-wrap">
-          <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
-          <input class="search-input" id="searchInput" type="text" placeholder="Поиск по имени или телефону">
-        </div>
-        <div id="clientsList"></div>
+    <form id="loginForm">
+      <div class="field">
+        <label>Имя пользователя</label>
+        <input class="input" id="loginUser" type="text" placeholder="username" autocomplete="username" required>
       </div>
-
-      <!-- VIEW: client detail -->
-      <div class="view" id="view-client"></div>
-
-      <!-- VIEW: transactions -->
-      <div class="view" id="view-tx">
-        <div class="stats-card">
-          <div class="lbl">Этот месяц</div>
-          <div class="stats-grid">
-            <div class="stat"><div class="n" id="statCount">0</div><div class="t">Транзакций</div></div>
-            <div class="stat"><div class="n" id="statSum">0</div><div class="t">Сумма, сум</div></div>
-          </div>
-        </div>
-        <div id="txList"></div>
+      <div class="field">
+        <label>Пароль</label>
+        <input class="input" id="loginPass" type="password" placeholder="••••••••" autocomplete="current-password" required>
       </div>
-
-      <!-- VIEW: profile -->
-      <div class="view" id="view-profile"></div>
-
-    </div>
-
-    <!-- bottom nav -->
-    <nav class="bottom-nav">
-      <button class="nav-item active" data-tab="clients">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
-        Клиенты
-      </button>
-      <button class="nav-item" data-tab="tx">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><path d="M16 13H8"/><path d="M16 17H8"/></svg>
-        Транзакции
-      </button>
-      <button class="nav-item" data-tab="profile">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
-        Профиль
-      </button>
-    </nav>
+      <button class="btn btn-primary btn-block" type="submit" id="loginBtn">Войти</button>
+      <div class="login-error" id="loginErr"></div>
+    </form>
   </div>
-
-  <!-- toast container -->
-  <div class="toast-wrap" id="toastWrap"></div>
-
-  <!-- sale modal -->
-  <div class="modal-overlay" id="saleModal"></div>
-
 </div>
 
+<!-- APP -->
+<div id="app" style="display:none">
+  <!-- SIDEBAR -->
+  <div class="sidebar">
+    <div class="brand">
+      <div class="mark">S</div>
+      <span class="name">scenti</span>
+    </div>
+    <div class="sidebar-role">Панель агента</div>
+    <nav class="nav">
+      <div class="nav-item active" data-page="dash">
+        <span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg></span>
+        <span class="label">Dashboard</span>
+      </div>
+      <div class="nav-item" data-page="clients">
+        <span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg></span>
+        <span class="label">Клиенты</span>
+      </div>
+      <div class="nav-item" data-page="txns">
+        <span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14,2 14,8 20,8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10,9 9,9 8,9"/></svg></span>
+        <span class="label">Транзакции</span>
+      </div>
+      <div class="nav-item" data-page="gifts">
+        <span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polyline points="20,12 20,22 4,22 4,12"/><rect x="2" y="7" width="20" height="5"/><line x1="12" y1="22" x2="12" y2="7"/><path d="M12 7H7.5a2.5 2.5 0 0 1 0-5C11 2 12 7 12 7z"/><path d="M12 7h4.5a2.5 2.5 0 0 0 0-5C13 2 12 7 12 7z"/></svg></span>
+        <span class="label">Подарки</span>
+      </div>
+      <div class="nav-item" data-page="grequests">
+        <span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg></span>
+        <span class="label">Заявки на подарки</span>
+      </div>
+    </nav>
+    <div class="foot">
+      <div class="agent-foot">
+        <div class="av" id="sideAv">А</div>
+        <div class="info">
+          <div class="nm" id="sideAgentName">Агент</div>
+          <div class="rl">Агент</div>
+        </div>
+      </div>
+      <button class="btn-logout btn-block" onclick="doLogout()" style="width:100%;margin-top:6px;text-align:left;padding:8px 12px">Выйти</button>
+    </div>
+  </div>
+
+  <!-- MAIN -->
+  <div class="main">
+    <div class="topbar">
+      <h1 id="pageTitle">Dashboard</h1>
+    </div>
+    <div class="content" id="content"></div>
+  </div>
+</div>
+
+<!-- TOASTS -->
+<div id="toasts"></div>
+
 <script>
-/* ===================== CONFIG ===================== */
-const API_BASE = 'http://localhost:8000';
+const API_BASE = '';
 const LS_TOKEN = 'scenti_agent_token';
 const LS_AGENT = 'scenti_agent_profile';
-let USE_MOCK = false;
 
-/* ===================== MOCK ===================== */
-const MOCK = {
-  agent:{name:'Азиз Каримов',phone:'+998 90 123 45 67',districts:['Чиланзар','Юнусабад','Мирзо-Улугбек']},
-  users:[
-    {id:1,name:'Дилшод Рахимов',business:'Кафе "Лаззат"',phone:'+998 90 111 22 33',region:'Чиланзар'},
-    {id:2,name:'Малика Усманова',business:'Салон "Гулдаста"',phone:'+998 93 444 55 66',region:'Юнусабад'},
-  ],
-  tx:[
-    {id:101,user_name:'Дилшод Рахимов',amount:500000,cashback:50000,note:'2 диффузора',status:'approved',created_at:'2026-06-27T10:30:00'},
-    {id:102,user_name:'Малика Усманова',amount:1200000,cashback:120000,note:'Набор ароматов',status:'pending',created_at:'2026-06-26T14:10:00'},
-    {id:103,user_name:'Дилшод Рахимов',amount:300000,cashback:30000,note:'',status:'rejected',created_at:'2026-06-20T09:00:00'},
-  ]
-};
-
-/* ===================== STATE ===================== */
-let state = {tab:'clients', clientStack:false, currentClient:null, txCache:null};
-
-/* ===================== HELPERS ===================== */
+/* ===== UTILS ===== */
 const $ = s => document.querySelector(s);
-const token = () => localStorage.getItem(LS_TOKEN);
-const esc = s => String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-const initials = n => String(n||'?').trim().split(/\s+/).slice(0,2).map(w=>w[0]||'').join('').toUpperCase();
-const fmtNum = n => {const v=Math.round(Number(n)||0);return v.toString().replace(/\B(?=(\d{3})+(?!\d))/g,' ');};
-const fmtSum = n => fmtNum(n)+' сум';
-const MONTHS=['янв','фев','мар','апр','мая','июн','июл','авг','сен','окт','ноя','дек'];
-function fmtDate(iso){const d=new Date(iso);if(isNaN(d))return '';return `${d.getDate()} ${MONTHS[d.getMonth()]} ${d.getFullYear()}`;}
+const $$ = s => document.querySelectorAll(s);
+function esc(s){ return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+function fmt(n){ return Number(n||0).toLocaleString('ru-RU'); }
+function fmtDate(d){
+  if(!d)return '—';
+  const dt=new Date(d);
+  return dt.toLocaleDateString('ru-RU',{day:'2-digit',month:'2-digit',year:'numeric'})+' '+dt.toLocaleTimeString('ru-RU',{hour:'2-digit',minute:'2-digit'});
+}
+function initials(s){ if(!s)return '?'; const p=s.trim().split(/\s+/); return (p[0][0]+(p[1]?p[1][0]:'')).toUpperCase(); }
+function paginate(arr,page,perPage=20){ const t=Math.ceil(arr.length/perPage)||1; const items=arr.slice((page-1)*perPage,page*perPage); return{items,page,total:t,count:arr.length}; }
+function loadingRows(cols,n=5){ return Array(n).fill(`<tr>${Array(cols).fill('<td><div class="skeleton" style="height:16px"></div></td>').join('')}</tr>`).join(''); }
 
-function toast(msg,type='',ms=3200){
-  const wrap=$('#toastWrap');
+let _toastId=0;
+function toast(msg,type='',dur=3400){
   const el=document.createElement('div');
-  el.className='toast '+type;
-  el.innerHTML=esc(msg);
-  wrap.appendChild(el);
-  setTimeout(()=>{el.classList.add('fade-out');setTimeout(()=>el.remove(),300);},ms);
+  el.className='toast'+(type==='err'?' err':type==='warn'?' warn':'');
+  el.innerHTML=`<b>${esc(msg)}</b>`;
+  document.getElementById('toasts').appendChild(el);
+  setTimeout(()=>{el.classList.add('out');setTimeout(()=>el.remove(),300);},dur);
 }
 
-/* ===================== API ===================== */
+/* ===== AUTH ===== */
+const token = ()=>localStorage.getItem(LS_TOKEN);
+
 async function api(path,{method='GET',body=null}={}){
   const headers={'Content-Type':'application/json'};
   if(token()) headers['Authorization']='Bearer '+token();
@@ -427,30 +337,24 @@ async function api(path,{method='GET',body=null}={}){
   return res.json();
 }
 
-/* ===================== AUTH ===================== */
 $('#loginForm').addEventListener('submit',async e=>{
   e.preventDefault();
   const btn=$('#loginBtn'),err=$('#loginErr');
   err.textContent='';
   const username=$('#loginUser').value.trim();
   const password=$('#loginPass').value;
-  btn.disabled=true;btn.innerHTML='<span class="spinner"></span>';
+  btn.disabled=true;btn.textContent='Вход...';
   try{
     const data=await api('/auth/agent/login',{method:'POST',body:{username,password}});
     localStorage.setItem(LS_TOKEN,data.token||data.access_token);
-    if(data.agent) localStorage.setItem(LS_AGENT,JSON.stringify(data.agent));
+    // Load agent profile
+    try{
+      const me=await api('/agent/me');
+      localStorage.setItem(LS_AGENT,JSON.stringify(me));
+    }catch(e){}
     enterApp();
   }catch(ex){
-    // fallback to mock for offline/demo
-    if(ex.message==='Failed to fetch'||/NetworkError|fetch/i.test(ex.message)){
-      USE_MOCK=true;
-      localStorage.setItem(LS_TOKEN,'mock-token');
-      localStorage.setItem(LS_AGENT,JSON.stringify(MOCK.agent));
-      toast('Демо-режим (API недоступен)','',2600);
-      enterApp();
-    }else{
-      err.textContent=ex.message||'Не удалось войти';
-    }
+    err.textContent=ex.message||'Неверный логин или пароль';
   }finally{
     btn.disabled=false;btn.textContent='Войти';
   }
@@ -459,278 +363,523 @@ $('#loginForm').addEventListener('submit',async e=>{
 function doLogout(){
   localStorage.removeItem(LS_TOKEN);
   localStorage.removeItem(LS_AGENT);
-  state={tab:'clients',clientStack:false,currentClient:null,txCache:null};
-  $('#shell').classList.remove('active');
-  $('#loginScreen').style.display='flex';
+  $('#app').style.display='none';
+  $('#login').style.display='flex';
 }
 
-/* ===================== APP ENTRY ===================== */
 function enterApp(){
-  $('#loginScreen').style.display='none';
-  $('#shell').classList.add('active');
-  switchTab('clients');
-}
-
-/* ===================== NAV ===================== */
-document.querySelectorAll('.nav-item').forEach(btn=>{
-  btn.addEventListener('click',()=>switchTab(btn.dataset.tab));
-});
-
-function setActiveNav(tab){
-  document.querySelectorAll('.nav-item').forEach(b=>b.classList.toggle('active',b.dataset.tab===tab));
-}
-
-function showView(id){
-  document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));
-  $('#'+id).classList.add('active');
-}
-
-function setTopbar(html){$('#topbar').innerHTML=html;}
-
-function switchTab(tab){
-  state.tab=tab;state.clientStack=false;
-  setActiveNav(tab);
-  if(tab==='clients'){
-    setTopbar('<span class="logo-sm">scenti</span><h1 style="font-size:16px;font-weight:600;color:var(--muted)">Клиенты</h1>');
-    showView('view-clients');
-    if(!$('#clientsList').dataset.loaded) loadClients('');
-  }else if(tab==='tx'){
-    setTopbar('<h1>Мои транзакции</h1>');
-    showView('view-tx');
-    loadTransactions();
-  }else if(tab==='profile'){
-    setTopbar('<h1>Профиль</h1>');
-    showView('view-profile');
-    renderProfile();
-  }
-}
-
-/* ===================== CLIENTS ===================== */
-let searchTimer=null;
-$('#searchInput').addEventListener('input',e=>{
-  clearTimeout(searchTimer);
-  const q=e.target.value.trim();
-  searchTimer=setTimeout(()=>loadClients(q),400);
-});
-
-function skeletons(n){let h='';for(let i=0;i<n;i++)h+='<div class="skeleton"></div>';return h;}
-
-async function loadClients(search){
-  const list=$('#clientsList');
-  list.dataset.loaded='1';
-  list.innerHTML=skeletons(3);
+  $('#login').style.display='none';
+  $('#app').style.display='flex';
+  // Set agent name in sidebar
   try{
-    let users;
-    if(USE_MOCK){
-      const q=search.toLowerCase();
-      users=MOCK.users.filter(u=>!q||u.name.toLowerCase().includes(q)||u.phone.includes(q));
-    }else{
-      const data=await api('/agent/users?search='+encodeURIComponent(search));
-      users=Array.isArray(data)?data:(data.users||data.results||[]);
-    }
-    renderClients(users,search);
-  }catch(ex){
-    if(ex.message==='401')return;
-    list.innerHTML=`<div class="empty"><div class="em-ico">⚠️</div>${esc(ex.message)}</div>`;
-  }
+    const a=JSON.parse(localStorage.getItem(LS_AGENT)||'{}');
+    const name=a.name||'Агент';
+    $('#sideAgentName').textContent=name;
+    $('#sideAv').textContent=initials(name);
+  }catch(e){}
+  go('dash');
 }
 
-function renderClients(users,search){
-  const list=$('#clientsList');
-  if(!users.length){
-    list.innerHTML=`<div class="empty"><div class="em-ico">🔍</div>${search?'Клиенты не найдены':'Начните поиск клиента'}</div>`;
-    return;
-  }
-  list.innerHTML=users.map(u=>`
-    <div class="client-card" data-id="${u.id}">
-      <div class="avatar">${esc(initials(u.name))}</div>
-      <div class="client-info">
-        <div class="name">${esc(u.name)}</div>
-        <div class="biz">${esc(u.business||u.biz||'')}</div>
-        <div class="phone">
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.13.96.36 1.9.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.91.34 1.85.57 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
-          ${esc(u.phone)}
-        </div>
-      </div>
-      <svg class="chev" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="m9 18 6-6-6-6"/></svg>
-    </div>`).join('');
-  list.querySelectorAll('.client-card').forEach(c=>{
-    c.addEventListener('click',()=>{
-      const u=users.find(x=>String(x.id)===c.dataset.id);
-      openClient(u);
-    });
+/* ===== NAVIGATION ===== */
+$$('.nav-item').forEach(item=>{
+  item.addEventListener('click',()=>go(item.dataset.page));
+});
+
+function go(page){
+  $$('.nav-item').forEach(n=>n.classList.toggle('active',n.dataset.page===page));
+  const titles={dash:'Dashboard',clients:'Клиенты',txns:'Транзакции',gifts:'Подарки',grequests:'Заявки на подарки'};
+  $('#pageTitle').textContent=titles[page]||page;
+  const pages={dash:pageDash,clients:pageClients,txns:pageTxns,gifts:pageGifts,grequests:pageGRequests};
+  if(pages[page]) pages[page]();
+}
+
+/* ===== MODAL ===== */
+function openModal(html){
+  const ov=document.createElement('div');
+  ov.className='overlay';
+  ov.innerHTML=html;
+  document.body.appendChild(ov);
+  ov.addEventListener('click',e=>{if(e.target===ov)closeModal();});
+  document.querySelector('.overlay .x')?.addEventListener('click',closeModal);
+}
+function closeModal(){
+  document.querySelectorAll('.overlay').forEach(o=>{
+    o.style.animation='none';o.style.opacity='0';o.style.transition='opacity .2s';
+    setTimeout(()=>o.remove(),200);
   });
 }
 
-/* ===================== CLIENT DETAIL ===================== */
-function openClient(u){
-  state.currentClient=u;state.clientStack=true;
-  setTopbar('<button class="back-btn" id="backBtn"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="m15 18-6-6 6-6"/></svg>Назад</button>');
-  $('#backBtn').addEventListener('click',()=>switchTab('clients'));
-  const v=$('#view-client');
-  v.innerHTML=`
-    <div class="detail-head">
-      <div class="avatar">${esc(initials(u.name))}</div>
-      <div class="name">${esc(u.name)}</div>
-      <div class="biz">${esc(u.business||u.biz||'')}</div>
-      <div class="detail-rows">
-        <div class="detail-row"><span class="k">Телефон</span><span class="v">${esc(u.phone)}</span></div>
-        <div class="detail-row"><span class="k">Регион</span><span class="v">${esc(u.region||'—')}</span></div>
-        <div class="detail-row"><span class="k">Бизнес</span><span class="v">${esc(u.business||u.biz||'—')}</span></div>
+/* ===== PAGE: DASHBOARD ===== */
+async function pageDash(){
+  const c=$('#content');
+  c.innerHTML=`
+    <div class="stat-grid" id="dashStats">
+      ${Array(4).fill('<div class="stat"><div class="skeleton" style="height:88px"></div></div>').join('')}
+    </div>
+    <div class="dash-grid">
+      <div class="card card-pad">
+        <div class="section-head"><h2>Последние транзакции</h2><button class="btn btn-ghost btn-sm" onclick="go('txns')">Все →</button></div>
+        <div id="dashTxns"><div class="skeleton" style="height:200px;border-radius:10px"></div></div>
+      </div>
+      <div class="card card-pad">
+        <div class="section-head"><h2>Ожидают подтверждения</h2></div>
+        <div id="dashPending"><div class="skeleton" style="height:200px;border-radius:10px"></div></div>
+      </div>
+    </div>`;
+
+  try{
+    const [txns,users]=await Promise.all([
+      api('/agent/transactions').catch(()=>[]),
+      api('/agent/users?search=').catch(()=>[]),
+    ]);
+    const tArr=Array.isArray(txns)?txns:[];
+    const uArr=Array.isArray(users)?users:[];
+    const now=new Date();
+    const monthTx=tArr.filter(t=>{const d=new Date(t.created_at);return d.getMonth()===now.getMonth()&&d.getFullYear()===now.getFullYear()&&t.status!=='rejected';});
+    const pending=tArr.filter(t=>t.status==='pending');
+    const monthSum=monthTx.filter(t=>t.status==='approved'||t.status==='confirmed').reduce((s,t)=>s+(Number(t.amount)||0),0);
+
+    const cards=[
+      {label:'Моих клиентов',val:fmt(uArr.length),bg:'#eaf2ff',col:'var(--primary)',sub:'в моих районах'},
+      {label:'Транзакций в месяце',val:fmt(monthTx.length),bg:'#e3f8ef',col:'var(--success)',sub:'в этом месяце'},
+      {label:'Сумма продаж',val:fmt(monthSum),cur:'сум',bg:'#fdf3e3',col:'var(--warning)',sub:'в этом месяце'},
+      {label:'Ожидают подтверждения',val:fmt(pending.length),bg:'#fbe9e7',col:'var(--danger)',sub:pending.length>0?'требует внимания':'всё подтверждено'},
+    ];
+    $('#dashStats').innerHTML=cards.map(s=>`<div class="stat">
+      <div class="ico" style="background:${s.bg};color:${s.col}">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="10"/></svg>
+      </div>
+      <div class="label">${s.label}</div>
+      <div class="value">${s.val}${s.cur?`<span class="cur">${s.cur}</span>`:''}</div>
+      <div class="stat-sub">${s.sub}</div>
+    </div>`).join('');
+
+    const STATUS_MAP={pending:'pill-pending',approved:'pill-approved',confirmed:'pill-approved',rejected:'pill-rejected'};
+    const STATUS_LABEL={pending:'Ожидание',approved:'Подтверждено',confirmed:'Подтверждено',rejected:'Отклонено'};
+
+    const dtEl=$('#dashTxns');
+    if(!tArr.length){
+      dtEl.innerHTML='<div class="empty">Нет транзакций</div>';
+    }else{
+      dtEl.innerHTML=`<div class="txn-list">${tArr.slice(0,6).map(t=>{
+        const name=[t.first_name,t.last_name].filter(Boolean).join(' ')||t.user_name||'—';
+        return `<div class="txn-item">
+          <div class="avatar" style="width:34px;height:34px;font-size:12px">${initials(name)}</div>
+          <div style="flex:1;min-width:0"><b style="display:block;font-size:13px">${esc(name)}</b><small style="color:var(--muted);font-size:12px">${fmtDate(t.created_at)}</small></div>
+          <div class="amt"><b>${fmt(t.amount)} сум</b><small>+${fmt(t.cashback_amount||0)} кешбэк</small></div>
+        </div>`;
+      }).join('')}</div>`;
+    }
+
+    const dpEl=$('#dashPending');
+    if(!pending.length){
+      dpEl.innerHTML='<div class="empty" style="padding:40px 20px"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="40" height="40" style="margin-bottom:10px;opacity:.3"><polyline points="20,6 9,17 4,12"/></svg><div>Нет ожидающих</div></div>';
+    }else{
+      dpEl.innerHTML=`<div class="txn-list">${pending.slice(0,5).map(t=>{
+        const name=[t.first_name,t.last_name].filter(Boolean).join(' ')||'—';
+        return `<div class="txn-item">
+          <div class="avatar" style="width:34px;height:34px;font-size:12px">${initials(name)}</div>
+          <div style="flex:1;min-width:0"><b style="display:block;font-size:13px">${esc(name)}</b><small style="color:var(--muted);font-size:12px">${fmtDate(t.created_at)}</small></div>
+          <div class="amt"><b>${fmt(t.amount)} сум</b></div>
+        </div>`;
+      }).join('')}</div>`;
+    }
+  }catch(e){if(e.message!=='401')toast(e.message,'err');}
+}
+
+/* ===== PAGE: CLIENTS ===== */
+let _clients=[];let _clientQ='';let _clientPage=1;
+async function pageClients(){
+  const c=$('#content');
+  c.innerHTML=`
+    <div class="toolbar">
+      <div class="search">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+        <input class="input" id="clientSearch" placeholder="Поиск по имени или телефону..." value="${esc(_clientQ)}">
       </div>
     </div>
-    <button class="btn" id="saleBtn">+ Внести продажу</button>
-  `;
-  $('#saleBtn').addEventListener('click',()=>openSaleModal(u));
-  showView('view-client');
-}
-
-/* ===================== SALE MODAL ===================== */
-function openSaleModal(u){
-  const m=$('#saleModal');
-  m.innerHTML=`
-    <div class="modal">
-      <div class="modal-grip"></div>
-      <div class="card-title">💰 Новая продажа</div>
-      <div class="card-sub">Клиент: <b style="color:var(--text)">${esc(u.name)}</b></div>
-
-      <label style="display:block;font-size:13px;font-weight:600;margin-bottom:8px">Сумма покупки (сум)</label>
-      <input class="amount-input" id="saleAmount" inputmode="numeric" placeholder="0">
-      <div class="hint">Введите сумму, которую получили на руки</div>
-
-      <div class="cashback-box">
-        <div class="lbl">Кешбэк клиента · 10%</div>
-        <div class="val" id="cashbackVal">0 сум</div>
-      </div>
-
-      <label style="display:block;font-size:13px;font-weight:600;margin-bottom:8px">Заметка (опционально)</label>
-      <textarea class="note" id="saleNote" placeholder="Напр.: 2 диффузора + набор"></textarea>
-
-      <button class="btn btn-success mt8" id="saleSubmit" style="margin-top:18px">Отправить на подтверждение</button>
-      <button class="btn btn-light" id="saleCancel" style="margin-top:10px">Отмена</button>
+    <div class="table-wrap">
+      <table><thead><tr><th>Клиент</th><th>Телефон</th><th>Бизнес</th><th>Район</th><th>Баланс кешбэка</th><th>Дата рег.</th></tr></thead>
+      <tbody id="clientBody">${loadingRows(6)}</tbody></table>
+      <div id="clientPager"></div>
     </div>`;
-  m.classList.add('show');
-
-  const amountEl=$('#saleAmount'),cbEl=$('#cashbackVal');
-  amountEl.addEventListener('input',()=>{
-    let digits=amountEl.value.replace(/\D/g,'');
-    amountEl.value=digits?fmtNum(digits):'';
-    const amt=Number(digits)||0;
-    cbEl.textContent=fmtSum(Math.round(amt*0.1));
-  });
-  setTimeout(()=>amountEl.focus(),300);
-
-  $('#saleCancel').addEventListener('click',closeSaleModal);
-  m.addEventListener('click',e=>{if(e.target===m)closeSaleModal();});
-
-  $('#saleSubmit').addEventListener('click',async()=>{
-    const amount=Number(amountEl.value.replace(/\D/g,''))||0;
-    const note=$('#saleNote').value.trim();
-    if(amount<=0){toast('Введите сумму покупки','error');return;}
-    const btn=$('#saleSubmit');
-    btn.disabled=true;btn.innerHTML='<span class="spinner"></span>';
-    try{
-      if(USE_MOCK){
-        await new Promise(r=>setTimeout(r,600));
-        MOCK.tx.unshift({id:Date.now(),user_name:u.name,amount,cashback:Math.round(amount*0.1),note,status:'pending',created_at:new Date().toISOString()});
-      }else{
-        await api('/agent/transactions',{method:'POST',body:{user_id:u.id,amount,note}});
-      }
-      closeSaleModal();
-      toast('✅ Отправлено! Ожидает подтверждения супер-админа','success',4200);
-      setTimeout(()=>toast(`Кешбэк ${fmtSum(Math.round(amount*0.1))} будет начислен после подтверждения`,'',4200),400);
-    }catch(ex){
-      if(ex.message!=='401')toast(ex.message||'Ошибка отправки','error');
-      btn.disabled=false;btn.textContent='Отправить на подтверждение';
-    }
-  });
-}
-function closeSaleModal(){const m=$('#saleModal');m.classList.remove('show');m.innerHTML='';}
-
-/* ===================== TRANSACTIONS ===================== */
-async function loadTransactions(){
-  const list=$('#txList');
-  list.innerHTML=skeletons(3);
+  $('#clientSearch').addEventListener('input',e=>{_clientQ=e.target.value;_clientPage=1;renderClients();});
   try{
-    let tx;
-    if(USE_MOCK){await new Promise(r=>setTimeout(r,400));tx=MOCK.tx.slice();}
-    else{const data=await api('/agent/transactions');tx=Array.isArray(data)?data:(data.transactions||data.results||[]);}
-    renderTransactions(tx);
-  }catch(ex){
-    if(ex.message==='401')return;
-    list.innerHTML=`<div class="empty"><div class="em-ico">⚠️</div>${esc(ex.message)}</div>`;
-  }
+    const data=await api('/agent/users?search=');
+    _clients=Array.isArray(data)?data:(data.users||[]);
+    renderClients();
+  }catch(e){if(e.message!=='401')toast(e.message,'err');}
 }
 
-const STATUS={
-  pending:{cls:'pending',label:'Ожидает'},
-  approved:{cls:'approved',label:'Подтверждено'},
-  confirmed:{cls:'approved',label:'Подтверждено'},
-  rejected:{cls:'rejected',label:'Отклонено'},
-  declined:{cls:'rejected',label:'Отклонено'},
+function renderClients(){
+  const q=_clientQ.trim().toLowerCase();
+  const arr=q?_clients.filter(u=>{const n=((u.first_name||'')+(u.last_name||'')+' '+(u.business_name||'')+' '+(u.phone||'')).toLowerCase();return n.includes(q);}):_clients;
+  const p=paginate(arr,_clientPage,20);
+  const body=$('#clientBody');if(!body)return;
+  if(!p.items.length){body.innerHTML=`<tr><td colspan="6"><div class="empty">Нет клиентов</div></td></tr>`;$('#clientPager').innerHTML='';return;}
+  body.innerHTML=p.items.map(u=>{
+    const name=[u.first_name,u.last_name].filter(Boolean).join(' ')||u.business_name||'—';
+    return `<tr class="clickable" onclick="openClientModal(${JSON.stringify(JSON.stringify(u))})">
+      <td><div class="cell-user"><div class="avatar">${initials(name)}</div><div><b style="font-size:13.5px">${esc(name)}</b></div></div></td>
+      <td>${esc(u.phone||'—')}</td>
+      <td>${esc(u.business_name||'—')}</td>
+      <td>${esc(u.district_name||u.district||'—')}</td>
+      <td><b style="color:var(--primary)">${fmt(u.cashback_balance||0)} сум</b></td>
+      <td style="color:var(--muted)">${fmtDate(u.created_at)}</td>
+    </tr>`;
+  }).join('');
+  // pager
+  const pg=$('#clientPager');
+  if(p.total>1){
+    let h='<div class="pager"><span class="info">'+p.count+' клиентов</span><div class="pages">';
+    for(let i=1;i<=p.total;i++) h+=`<button class="pg-btn${i===p.page?' active':''}" onclick="_clientPage=${i};renderClients()">${i}</button>`;
+    h+='</div></div>';pg.innerHTML=h;
+  }else pg.innerHTML='';
+}
+
+window.openClientModal=function(jsonStr){
+  const u=JSON.parse(jsonStr);
+  const name=[u.first_name,u.last_name].filter(Boolean).join(' ')||u.business_name||'—';
+  openModal(`<div class="modal wide">
+    <div class="modal-head"><h3>Клиент</h3><button class="x">✕</button></div>
+    <div class="modal-body">
+      <div style="display:flex;align-items:center;gap:14px;margin-bottom:16px">
+        <div class="avatar" style="width:52px;height:52px;font-size:18px">${initials(name)}</div>
+        <div><b style="font-size:17px">${esc(name)}</b><div style="color:var(--muted);font-size:13px">${esc(u.business_name||'')}</div>
+        ${u.telegram_id?`<span style="display:inline-block;margin-top:4px;background:#eaf2ff;color:#2563eb;font-size:11px;font-weight:700;padding:3px 10px;border-radius:20px">ID ${esc(String(u.telegram_id))}</span>`:''}
+        </div>
+      </div>
+      <div class="balance-box">
+        <div><div class="lab">Баланс кешбэка</div><div class="num">${fmt(u.cashback_balance||0)} сум</div></div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px">
+        <div><div class="sub-label">Телефон</div><div>${esc(u.phone||'—')}</div></div>
+        <div><div class="sub-label">Бизнес</div><div>${esc(u.business_name||'—')}</div></div>
+        <div><div class="sub-label">Район</div><div>${esc(u.district_name||u.district||'—')}</div></div>
+        <div><div class="sub-label">Дата регистрации</div><div style="color:var(--muted)">${fmtDate(u.created_at)}</div></div>
+      </div>
+    </div>
+    <div class="modal-foot"><button class="btn btn-ghost x">Закрыть</button></div>
+  </div>`);
 };
 
-function renderTransactions(tx){
-  // stats this month
-  const now=new Date();
-  const monthTx=tx.filter(t=>{const d=new Date(t.created_at);return d.getMonth()===now.getMonth()&&d.getFullYear()===now.getFullYear();});
-  $('#statCount').textContent=monthTx.length;
-  $('#statSum').textContent=fmtNum(monthTx.reduce((s,t)=>s+(Number(t.amount)||0),0));
-
-  const list=$('#txList');
-  if(!tx.length){list.innerHTML='<div class="empty"><div class="em-ico">🧾</div>Пока нет транзакций</div>';return;}
-  list.innerHTML=tx.map(t=>{
-    const st=STATUS[t.status]||{cls:'pending',label:t.status||'—'};
-    const cb=t.cashback!=null?t.cashback:Math.round((Number(t.amount)||0)*0.1);
-    const name=t.user_name||t.client_name||t.name||'Клиент';
-    return `
-    <div class="tx-card">
-      <div class="tx-top">
-        <div class="tx-ico">🛍️</div>
-        <div class="tx-mid">
-          <div class="name">${esc(name)}</div>
-          <div class="date">${esc(fmtDate(t.created_at))}</div>
-        </div>
-        <div class="tx-amt">
-          <div class="a">${fmtSum(t.amount)}</div>
-          <div class="cb">Кешбэк: ${fmtNum(cb)}</div>
-        </div>
-      </div>
-      ${t.note?`<div class="tx-note">📝 ${esc(t.note)}</div>`:''}
-      <div class="tx-foot"><span class="pill ${st.cls}">${esc(st.label)}</span></div>
+/* ===== PAGE: TRANSACTIONS ===== */
+let _txns=[];let _txPage=1;
+async function pageTxns(){
+  const c=$('#content');
+  c.innerHTML=`
+    <div class="toolbar">
+      <div style="flex:1"></div>
+      <button class="btn btn-primary" onclick="openNewTx()">+ Создать транзакцию</button>
+    </div>
+    <div class="table-wrap">
+      <table><thead><tr><th>Клиент</th><th>Сумма</th><th>Кешбэк</th><th>Статус</th><th>Комментарий</th><th>Дата</th></tr></thead>
+      <tbody id="txBody">${loadingRows(6)}</tbody></table>
+      <div id="txPager"></div>
     </div>`;
+  try{
+    const data=await api('/agent/transactions');
+    _txns=Array.isArray(data)?data:(data.transactions||[]);
+    renderTxns();
+  }catch(e){if(e.message!=='401')toast(e.message,'err');}
+}
+
+const TX_STATUS={
+  pending:{cls:'pill-pending',label:'Ожидание'},
+  approved:{cls:'pill-approved',label:'Подтверждено'},
+  confirmed:{cls:'pill-approved',label:'Подтверждено'},
+  rejected:{cls:'pill-rejected',label:'Отклонено'},
+  refund:{cls:'pill-pending',label:'Возврат'},
+};
+
+function renderTxns(){
+  const p=paginate(_txns,_txPage,25);
+  const body=$('#txBody');if(!body)return;
+  if(!p.items.length){body.innerHTML=`<tr><td colspan="6"><div class="empty">Нет транзакций</div></td></tr>`;$('#txPager').innerHTML='';return;}
+  body.innerHTML=p.items.map(t=>{
+    const name=[t.first_name,t.last_name].filter(Boolean).join(' ')||t.user_name||'—';
+    const st=TX_STATUS[t.status]||{cls:'pill-pending',label:t.status||'—'};
+    return `<tr>
+      <td><div class="cell-user"><div class="avatar" style="width:32px;height:32px;font-size:12px">${initials(name)}</div><b>${esc(name)}</b></div></td>
+      <td><b>${fmt(t.amount)} сум</b></td>
+      <td style="color:var(--success);font-weight:700">+${fmt(t.cashback_amount||0)} сум</td>
+      <td><span class="pill ${st.cls}">${st.label}</span></td>
+      <td style="color:var(--muted)">${esc(t.note||'—')}</td>
+      <td style="color:var(--muted)">${fmtDate(t.created_at)}</td>
+    </tr>`;
+  }).join('');
+  const pg=$('#txPager');
+  if(p.total>1){
+    let h='<div class="pager"><span class="info">'+p.count+' транзакций</span><div class="pages">';
+    for(let i=1;i<=p.total;i++) h+=`<button class="pg-btn${i===p.page?' active':''}" onclick="_txPage=${i};renderTxns()">${i}</button>`;
+    h+='</div></div>';pg.innerHTML=h;
+  }else pg.innerHTML='';
+}
+
+/* NEW TX */
+let _newTxUser=null;let _allClients=[];
+window.openNewTx=async function(){
+  if(!_allClients.length){
+    try{const d=await api('/agent/users?all=true&search=');_allClients=Array.isArray(d)?d:(d.users||[]);}catch(e){}
+  }
+  _newTxUser=null;
+  openModal(`<div class="modal">
+    <div class="modal-head"><h3>Новая транзакция</h3><button class="x">✕</button></div>
+    <div class="modal-body">
+      <div class="sub-label" style="margin-top:0">Клиент</div>
+      <div class="user-search-wrap">
+        <input class="input" id="txClientSearch" placeholder="Поиск по имени или телефону..." oninput="txSearchClient(this.value)" autocomplete="off">
+        <div class="user-results" id="txUserResults"></div>
+      </div>
+      <div class="selected-user" id="txSelectedUser"></div>
+      <div class="sub-label">Сумма покупки</div>
+      <input class="input" id="txAmount" type="number" placeholder="0" inputmode="numeric" oninput="txUpdateCashback()">
+      <div class="cashback-hint" id="txCashbackHint"></div>
+      <div class="sub-label">Комментарий</div>
+      <input class="input" id="txNote" placeholder="Необязательно — например: 2 диффузора">
+    </div>
+    <div class="modal-foot">
+      <button class="btn btn-ghost x">Отмена</button>
+      <button class="btn btn-primary" id="txSubmitBtn" onclick="submitNewTx()">Отправить на подтверждение</button>
+    </div>
+  </div>`);
+};
+
+let _txSearchTimer=null;
+window.txSearchClient=function(q){
+  const res=$('#txUserResults');if(!res)return;
+  const query=q.trim().toLowerCase();
+  if(!query){res.classList.remove('open');return;}
+  clearTimeout(_txSearchTimer);
+  // Поиск по локальному кешу
+  const filtered=_allClients.filter(u=>{
+    const n=((u.first_name||'')+(u.last_name||'')+' '+(u.business_name||'')+' '+(u.phone||'')).toLowerCase();
+    return n.includes(query);
+  }).slice(0,8);
+  if(filtered.length){
+    renderTxResults(filtered,res);
+    return;
+  }
+  // Если локальный кеш пуст — ищем через API
+  res.innerHTML='<div class="user-result-item" style="color:var(--muted)">Поиск...</div>';
+  res.classList.add('open');
+  _txSearchTimer=setTimeout(async()=>{
+    try{
+      const d=await api('/agent/users?all=true&search='+encodeURIComponent(query));
+      const arr=Array.isArray(d)?d:(d.users||[]);
+      if(arr.length) _allClients=[..._allClients,...arr.filter(u=>!_allClients.find(c=>c.id===u.id))];
+      if(!arr.length){res.innerHTML='<div class="user-result-item" style="color:var(--muted)">Не найдено</div>';return;}
+      renderTxResults(arr,res);
+    }catch(e){res.innerHTML='<div class="user-result-item" style="color:var(--danger)">Ошибка поиска</div>';}
+  },300);
+};
+function renderTxResults(arr,res){
+  res.innerHTML=arr.map(u=>{
+    const nm=[u.first_name,u.last_name].filter(Boolean).join(' ')||u.business_name||'—';
+    return `<div class="user-result-item" onclick="txSelectUser(${u.id},'${esc(nm)}','${esc(u.phone||'')}')">
+      <div class="uri-av">${initials(nm)}</div>
+      <div><div class="uri-name">${esc(nm)}</div><div class="uri-ph">${esc(u.phone||'')}</div></div>
+    </div>`;
+  }).join('');
+  res.classList.add('open');
+};
+
+window.txSelectUser=function(id,name,phone){
+  _newTxUser={id,name,phone};
+  const si=$('#txSelectedUser');
+  if(si){
+    si.innerHTML=`<div class="uri-av" style="width:34px;height:34px;border-radius:9px;background:var(--primary);color:#fff;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;flex-shrink:0">${initials(name)}</div>
+      <div style="flex:1"><div style="font-weight:700;font-size:13px">${esc(name)}</div><div style="font-size:12px;color:var(--muted)">${esc(phone)}</div></div>
+      <button onclick="_newTxUser=null;document.getElementById('txSelectedUser').classList.remove('show')" style="font-size:20px;color:var(--muted)">×</button>`;
+    si.classList.add('show');
+  }
+  const sr=$('#txUserResults');if(sr)sr.classList.remove('open');
+  const sc=$('#txClientSearch');if(sc)sc.value='';
+  txUpdateCashback();
+};
+
+window.txUpdateCashback=function(){
+  const amt=Number(($('#txAmount')||{}).value||0);
+  const hint=$('#txCashbackHint');
+  if(!hint)return;
+  if(amt>0){hint.textContent=`Кешбэк клиенту: ${fmt(Math.round(amt*0.1))} сум (10%)`;hint.classList.add('show');}
+  else hint.classList.remove('show');
+};
+
+window.submitNewTx=async function(){
+  if(!_newTxUser){toast('Выберите клиента','err');return;}
+  const amount=Number(($('#txAmount')||{}).value||0);
+  if(amount<=0){toast('Введите сумму','err');return;}
+  const note=($('#txNote')||{}).value||'';
+  const btn=$('#txSubmitBtn');
+  if(btn){btn.disabled=true;btn.textContent='Отправка...';}
+  try{
+    await api('/agent/transactions',{method:'POST',body:{user_id:_newTxUser.id,amount,note}});
+    closeModal();
+    toast('Транзакция отправлена на подтверждение','',4000);
+    // refresh
+    const data=await api('/agent/transactions').catch(()=>[]);
+    _txns=Array.isArray(data)?data:[];
+    renderTxns();
+  }catch(ex){
+    if(ex.message!=='401')toast(ex.message||'Ошибка','err');
+    if(btn){btn.disabled=false;btn.textContent='Отправить на подтверждение';}
+  }
+};
+
+/* ===== PAGE: GIFTS ===== */
+async function pageGifts(){
+  const c=$('#content');
+  c.innerHTML=`<div id="giftsGrid" class="gift-grid">${Array(4).fill('<div class="gift-card"><div class="skeleton" style="height:140px"></div><div class="gift-card-body"><div class="skeleton" style="height:16px;margin-bottom:8px"></div><div class="skeleton" style="height:14px;width:60%"></div></div></div>').join('')}</div>`;
+  try{
+    const data=await api('/agent/gifts');
+    const gifts=Array.isArray(data)?data:[];
+    if(!gifts.length){$('#giftsGrid').innerHTML='<div class="empty" style="grid-column:1/-1">Подарков нет</div>';return;}
+    $('#giftsGrid').innerHTML=gifts.map(g=>`<div class="gift-card">
+      ${g.image_url
+        ?`<img src="${esc(g.image_url)}" alt="${esc(g.name_ru)}" onerror="this.style.display='none'">`
+        :`<div style="width:100%;height:140px;background:linear-gradient(135deg,#dbe6f7,#eef3fb);display:flex;align-items:center;justify-content:center;font-size:40px">🎁</div>`}
+      <div class="gift-card-body">
+        <div class="gift-card-name">${esc(g.name_ru)}</div>
+        <div class="gift-card-price">${fmt(g.price_cashback)} сум кешбэка</div>
+        ${g.stock!=null?`<div class="gift-card-stock">В наличии: ${g.stock} шт.</div>`:''}
+      </div>
+    </div>`).join('');
+  }catch(e){if(e.message!=='401')toast(e.message,'err');}
+}
+
+/* ===== PAGE: GIFT REQUESTS ===== */
+const GR_STAGES=[
+  {key:'pending',label:'Заявка'},
+  {key:'approved',label:'Одобрено'},
+  {key:'shipping',label:'Доставка'},
+  {key:'confirmed',label:'У клиента'},
+  {key:'delivered',label:'Получено'},
+];
+const GR_STATUS={
+  pending:{cls:'pill-pending',label:'В обработке'},
+  approved:{cls:'pill-approved',label:'Одобрено'},
+  shipping:{cls:'pill-shipping',label:'Доставка'},
+  confirmed:{cls:'pill-confirmed',label:'Подтверждение'},
+  delivered:{cls:'pill-delivered',label:'Доставлено'},
+  rejected:{cls:'pill-rejected',label:'Отклонено'},
+};
+
+let _grequests=[];
+async function pageGRequests(){
+  const c=$('#content');
+  c.innerHTML=`<div class="table-wrap">
+    <table><thead><tr><th>Клиент</th><th>Подарок</th><th>Цена</th><th>Статус</th><th>Дата</th></tr></thead>
+    <tbody id="grBody">${loadingRows(5)}</tbody></table>
+  </div>`;
+  try{
+    const data=await api('/agent/gift-requests');
+    _grequests=Array.isArray(data)?data:[];
+    renderGRequests();
+  }catch(e){if(e.message!=='401')toast(e.message,'err');}
+}
+
+function renderGRequests(){
+  const body=$('#grBody');if(!body)return;
+  if(!_grequests.length){body.innerHTML=`<tr><td colspan="5"><div class="empty">Нет заявок</div></td></tr>`;return;}
+  body.innerHTML=_grequests.map((r,i)=>{
+    const st=GR_STATUS[r.status]||{cls:'pill-pending',label:r.status};
+    const name=[r.first_name,r.last_name].filter(Boolean).join(' ')||r.user_name||'—';
+    return `<tr class="clickable" onclick="openGRModal(${i})">
+      <td><div class="cell-user"><div class="avatar" style="width:32px;height:32px;font-size:12px">${initials(name)}</div><b>${esc(name)}</b></div></td>
+      <td>${esc(r.gift_name||r.name_ru||'—')}</td>
+      <td><b style="color:var(--primary)">${fmt(r.price||r.price_cashback||0)} сум</b></td>
+      <td><span class="pill ${st.cls}">${st.label}</span></td>
+      <td style="color:var(--muted)">${fmtDate(r.created_at)}</td>
+    </tr>`;
   }).join('');
 }
 
-/* ===================== PROFILE ===================== */
-function renderProfile(){
-  let a;try{a=JSON.parse(localStorage.getItem(LS_AGENT))||{};}catch(e){a={};}
-  if(USE_MOCK&&(!a.name))a=MOCK.agent;
-  const districts=a.districts||a.regions||[];
-  $('#view-profile').innerHTML=`
-    <div class="profile-head">
-      <div class="avatar">${esc(initials(a.name||'A'))}</div>
-      <div class="name">${esc(a.name||'Агент')}</div>
-      <div class="phone">${esc(a.phone||'')}</div>
-    </div>
-    <div class="section-label">Мои районы</div>
-    <div style="margin-bottom:24px">
-      ${districts.length?districts.map(d=>`<div class="district"><span class="dot"></span>${esc(d)}</div>`).join(''):'<div class="empty" style="padding:24px">Районы не назначены</div>'}
-    </div>
-    <button class="btn btn-danger" id="logoutBtn">Выйти</button>
-  `;
-  $('#logoutBtn').addEventListener('click',doLogout);
-}
+const GR_TRANSITIONS={
+  pending:['approved','rejected'],
+  approved:['shipping','rejected'],
+  shipping:['confirmed','rejected'],
+  confirmed:['delivered'],
+  delivered:[],
+  rejected:[],
+};
+const GR_BTN_LABELS={
+  approved:'Одобрить',
+  shipping:'Передать в доставку',
+  confirmed:'Подтвердить у клиента',
+  delivered:'Отмечено доставленным',
+  rejected:'Отклонить',
+};
 
-/* ===================== BOOT ===================== */
-(function boot(){
-  if(token()){
-    if(token()==='mock-token')USE_MOCK=true;
-    enterApp();
-  }else{
-    $('#loginScreen').style.display='flex';
+window.openGRModal=function(idx){
+  const r=_grequests[idx];if(!r)return;
+  const name=[r.first_name,r.last_name].filter(Boolean).join(' ')||r.user_name||'—';
+  const st=GR_STATUS[r.status]||{cls:'pill-pending',label:r.status};
+  const flow=['pending','approved','shipping','confirmed','delivered'];
+  const cur=flow.indexOf(r.status);
+  const stepper=r.status==='rejected'?`<div style="color:var(--danger);font-weight:700;padding:12px 0">❌ Заявка отклонена</div>`
+    :`<div class="stepper">${flow.map((s,i)=>{
+      const done=i<cur,active=i===cur;
+      const stage=GR_STAGES.find(x=>x.key===s)||{label:s};
+      return `<div class="step-item">
+        <div class="step-col">
+          <div class="step-circle ${done?'done':active?'active':'idle'}">${done?'✓':i+1}</div>
+          <div class="step-label" style="color:${active?'var(--primary)':done?'var(--success)':'var(--muted)'};font-weight:${active?700:500}">${stage.label}</div>
+        </div>
+        ${i<flow.length-1?`<div class="step-line" style="background:${i<cur?'var(--success)':'#e8edf5'}"></div>`:''}
+      </div>`;
+    }).join('')}</div>`;
+
+  const allowed=GR_TRANSITIONS[r.status]||[];
+  const actionBtns=allowed.filter(s=>s!=='rejected').map(s=>
+    `<button class="btn btn-primary" onclick="agentSetGrStatus(${r.id},'${s}')">${GR_BTN_LABELS[s]||s}</button>`
+  ).join('');
+  const rejectBtn=allowed.includes('rejected')
+    ?`<button class="btn" style="background:#fee2e2;color:var(--danger);border:1px solid #fca5a5" onclick="agentSetGrStatus(${r.id},'rejected')">Отклонить</button>`:'';
+
+  openModal(`<div class="modal wide">
+    <div class="modal-head"><h3>Заявка на подарок</h3><button class="x">✕</button></div>
+    <div class="modal-body">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;margin-bottom:14px">
+        <div style="display:flex;align-items:center;gap:12px">
+          <div class="avatar" style="width:44px;height:44px;font-size:16px">${initials(name)}</div>
+          <div><b style="font-size:16px">${esc(name)}</b><div style="color:var(--muted);font-size:13px">${fmtDate(r.created_at)}</div></div>
+        </div>
+        <span class="pill ${st.cls}">${st.label}</span>
+      </div>
+      <div style="background:#f7faff;border-radius:var(--radius-sm);padding:14px;margin-bottom:16px">
+        <div style="font-weight:700;font-size:15px">${esc(r.gift_name||r.name_ru||'—')}</div>
+        <div style="color:var(--primary);font-weight:800;margin-top:4px">${fmt(r.price||r.price_cashback||0)} сум кешбэка</div>
+      </div>
+      <div class="sub-label" style="margin-top:0">Прогресс</div>
+      ${stepper}
+      ${r.admin_notes?`<div style="background:#fdf3e3;border-radius:var(--radius-sm);padding:12px 14px;margin-top:12px;font-size:13px"><b>Комментарий:</b> ${esc(r.admin_notes)}</div>`:''}
+    </div>
+    <div class="modal-foot" style="gap:8px;flex-wrap:wrap">
+      <button class="btn btn-ghost x" style="margin-right:auto">Закрыть</button>
+      ${rejectBtn}
+      ${actionBtns}
+    </div>
+  </div>`);
+};
+
+window.agentSetGrStatus=async function(grId,status){
+  try{
+    await api(`/agent/gift-requests/${grId}/status`,{method:'PATCH',body:{status}});
+    closeModal();
+    toast('Статус обновлён');
+    pageGRequests();
+  }catch(e){
+    toast(e.message||'Ошибка','err');
   }
-})();
+};
+
+/* ===== BOOT ===== */
+if(token()){
+  enterApp();
+}else{
+  $('#login').style.display='flex';
+}
 </script>
 </body>
 </html>
