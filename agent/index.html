@@ -913,14 +913,25 @@ window.openGRModal=function(idx){
 };
 
 window.agentSetGrStatus=async function(grId,status){
-  try{
-    await api(`/agent/gift-requests/${grId}/status`,{method:'PATCH',body:{status}});
-    closeModal();
-    toast('Статус обновлён');
-    pageGRequests();
-  }catch(e){
-    toast(e.message||'Ошибка','err');
-  }
+  const labels={approved:'одобрить заявку',shipping:'передать в доставку',delivered:'отметить как доставленный',rejected:'отклонить заявку'};
+  const label=labels[status]||'изменить статус';
+  closeModal();
+  await new Promise(resolve=>{
+    const foot=`<button class="btn btn-ghost" id="_cfNo">Отмена</button><button class="btn btn-primary" id="_cfYes">Да, подтвердить</button>`;
+    const body=`<p style="color:var(--muted)">Вы уверены, что хотите <b>${label}</b>?</p>`;
+    openModal(`<div class="modal"><div class="modal-head"><h3>Подтверждение</h3><button class="x">✕</button></div><div class="modal-body">${body}</div><div class="modal-foot">${foot}</div></div>`);
+    $('#_cfYes').onclick=()=>{closeModal();resolve(true);};
+    $('#_cfNo').onclick=()=>{closeModal();resolve(false);};
+  }).then(async ok=>{
+    if(!ok)return;
+    try{
+      await api(`/agent/gift-requests/${grId}/status`,{method:'PATCH',body:{status}});
+      toast('Статус обновлён');
+      pageGRequests();
+    }catch(e){
+      toast(e.message||'Ошибка','err');
+    }
+  });
 };
 
 /* ===== BOOT ===== */

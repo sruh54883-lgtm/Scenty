@@ -7,6 +7,8 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <style>
 /* ===================== TOKENS ===================== */
 :root{
@@ -63,25 +65,40 @@ a{color:inherit;text-decoration:none}
 /* ===================== LOGIN ===================== */
 #login{
   position:fixed;inset:0;
-  display:flex;align-items:center;justify-content:center;
-  background:radial-gradient(1200px 600px at 50% -10%,#15306f 0%,#0b0f1a 60%);
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  background:#eef2f8;
   z-index:1000;
 }
+.login-header{
+  position:fixed;top:0;left:0;right:0;height:56px;
+  background:#fff;border-bottom:1px solid #e4eaf4;
+  display:flex;align-items:center;padding:0 28px;z-index:2;
+}
+.login-header-logo{display:flex;align-items:center;gap:9px;text-decoration:none}
+.login-header-logo .lh-mark{
+  width:32px;height:32px;border-radius:9px;
+  background:linear-gradient(135deg,#0e37a3,#2e7bd6);
+  display:flex;align-items:center;justify-content:center;color:#fff;font-size:16px;font-weight:800;
+}
+.login-header-logo .lh-name{font-size:18px;font-weight:800;color:#0f1b35;letter-spacing:-.3px}
 .login-card{
-  width:380px;background:var(--card);border-radius:var(--radius-lg);
-  padding:40px 36px;box-shadow:var(--shadow-lg);
+  width:420px;background:#fff;border-radius:18px;
+  padding:44px 40px 40px;
+  box-shadow:0 4px 40px rgba(14,55,163,.10),0 1px 4px rgba(0,0,0,.06);
   animation:pop .35s cubic-bezier(.34,1.56,.64,1);
 }
-.login-logo{display:flex;align-items:center;gap:10px;justify-content:center;margin-bottom:6px}
-.login-logo .mark{
-  width:40px;height:40px;border-radius:11px;
-  background:linear-gradient(135deg,var(--primary),var(--light));
-  display:flex;align-items:center;justify-content:center;color:#fff;font-weight:800;font-size:20px;
+.login-brand{display:flex;flex-direction:column;align-items:center;margin-bottom:28px}
+.login-brand-icon{
+  width:60px;height:60px;border-radius:16px;
+  background:linear-gradient(135deg,#0e37a3,#2e7bd6);
+  display:flex;align-items:center;justify-content:center;
+  color:#fff;font-size:28px;font-weight:900;margin-bottom:14px;
+  box-shadow:0 8px 24px rgba(14,55,163,.28);
 }
-.login-logo .name{font-size:26px;font-weight:800;letter-spacing:-.5px}
-.login-sub{text-align:center;color:var(--muted);margin-bottom:28px;font-size:13px}
-.field{margin-bottom:16px}
-.field label{display:block;font-size:12.5px;font-weight:600;margin-bottom:7px;color:var(--text)}
+.login-brand-title{font-size:22px;font-weight:800;color:#0f1b35;margin-bottom:3px}
+.login-brand-sub{font-size:13px;color:#8897b0;font-weight:500}
+.field{margin-bottom:18px}
+.field label{display:block;font-size:13px;font-weight:600;margin-bottom:8px;color:#3a4a6b}
 .input{
   width:100%;height:46px;border:1.5px solid #e1e8f2;border-radius:var(--radius-sm);
   padding:0 14px;background:#fafcff;transition:border var(--t),box-shadow var(--t);
@@ -179,7 +196,7 @@ body.collapsed .sidebar-collapse{justify-content:center}
 .stat-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:18px;margin-bottom:26px}
 .stat{
   background:var(--card);border-radius:var(--radius);padding:20px;box-shadow:var(--shadow-sm);
-  position:relative;overflow:hidden;transition:transform var(--t),box-shadow var(--t);
+  position:relative;overflow:hidden;transition:transform var(--t),box-shadow var(--t);cursor:pointer;
 }
 .stat:hover{transform:translateY(-2px);box-shadow:var(--shadow-md)}
 .stat .ico{
@@ -190,6 +207,38 @@ body.collapsed .sidebar-collapse{justify-content:center}
 .stat .value{font-size:28px;font-weight:800;letter-spacing:-.6px}
 .stat .value .cur{font-size:15px;font-weight:700;color:var(--muted);margin-left:4px}
 .stat .pill{position:absolute;top:18px;right:18px;font-size:11px;font-weight:800;padding:4px 9px;border-radius:20px}
+.stat .trend{font-size:12px;font-weight:600;margin-top:6px;display:flex;align-items:center;gap:4px}
+.stat .trend.up{color:#16a34a}.stat .trend.down{color:#dc2626}.stat .trend.neu{color:var(--muted)}
+.stat-sub{font-size:12px;color:var(--muted);margin-top:2px}
+
+/* ===================== DRAWER ===================== */
+.drawer-overlay{position:fixed;inset:0;background:rgba(0,0,0,.35);z-index:1000;opacity:0;transition:opacity .25s;pointer-events:none}
+.drawer-overlay.open{opacity:1;pointer-events:all}
+.drawer{position:fixed;top:0;right:0;bottom:0;width:520px;max-width:95vw;background:#fff;z-index:1001;
+  box-shadow:-8px 0 40px rgba(0,0,0,.15);transform:translateX(100%);transition:transform .28s cubic-bezier(.4,0,.2,1);
+  display:flex;flex-direction:column}
+.drawer.open{transform:none}
+.drawer-head{padding:20px 22px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:12px;flex-shrink:0}
+.drawer-head h3{flex:1;font-size:17px;font-weight:800;letter-spacing:-.3px}
+.drawer-close{width:32px;height:32px;border-radius:8px;border:1px solid var(--border);background:#f8f9fc;
+  display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0}
+.drawer-body{flex:1;overflow-y:auto;padding:16px 22px}
+.drawer-body table{width:100%;border-collapse:collapse;font-size:13px}
+.drawer-body th{font-weight:700;color:var(--muted);padding:8px 10px;text-align:left;border-bottom:2px solid var(--border);white-space:nowrap}
+.drawer-body td{padding:10px 10px;border-bottom:1px solid var(--border);vertical-align:middle}
+.drawer-body tr:last-child td{border-bottom:none}
+.drawer-badge{display:inline-block;padding:3px 9px;border-radius:20px;font-size:11px;font-weight:700}
+.drawer-empty{text-align:center;padding:60px 20px;color:var(--muted);font-size:14px}
+
+/* ===================== DASH CHART ===================== */
+.dash-chart-wrap{background:var(--card);border-radius:var(--radius);padding:20px 22px;box-shadow:var(--shadow-sm);margin-bottom:18px}
+.dash-chart-title{font-size:15px;font-weight:800;margin-bottom:14px;letter-spacing:-.3px}
+.dash-chart-bars{display:flex;align-items:flex-end;gap:8px;height:80px}
+.dash-bar-col{flex:1;display:flex;flex-direction:column;align-items:center;gap:4px}
+.dash-bar{width:100%;border-radius:6px 6px 0 0;min-height:4px;transition:opacity .2s;cursor:default}
+.dash-bar:hover{opacity:.8}
+.dash-bar-label{font-size:10px;color:var(--muted);white-space:nowrap}
+.dash-bar-val{font-size:10px;font-weight:700;color:var(--text)}
 
 .card{background:var(--card);border-radius:var(--radius);box-shadow:var(--shadow-sm);overflow:hidden}
 .card-pad{padding:22px}
@@ -234,6 +283,10 @@ tbody tr.removing{animation:rowOut .45s forwards}
 .cell-user .meta small{color:var(--muted);font-size:12px}
 .thumb{width:48px;height:48px;border-radius:10px;object-fit:cover;background:#eef3fb;display:block}
 .thumb-fallback{width:48px;height:48px;border-radius:10px;background:linear-gradient(135deg,#dbe6f7,#eef3fb);display:flex;align-items:center;justify-content:center;color:var(--light)}
+.img-upload-wrap{display:flex;flex-direction:column;gap:6px}
+.img-upload-btn{display:inline-flex;align-items:center;gap:6px;padding:9px 16px;font-size:13px;border:2px dashed var(--border);border-radius:10px;background:#f8fafd;color:var(--primary);cursor:pointer;transition:.15s}
+.img-upload-btn:hover{background:#eef3fb;border-color:var(--primary)}
+.img-upload-preview img{max-height:80px;border-radius:8px;object-fit:cover;margin-top:2px}
 
 .badge-status{
   display:inline-flex;align-items:center;gap:6px;font-size:11.5px;font-weight:800;
@@ -244,7 +297,18 @@ tbody tr.removing{animation:rowOut .45s forwards}
 .st-confirmed,.st-approved,.st-active,.st-issued{background:#e3f8ef;color:var(--success)}
 .st-rejected,.st-inactive{background:#fbe9e7;color:var(--danger)}
 .st-neutral{background:#eef3fb;color:var(--muted)}
+.st-shipping{background:#e8f4fd;color:#1a6fb5}
+.st-confirming{background:#f0e8fd;color:#7c3aed}
 
+/* Rich-text broadcast editor */
+.bc-toolbar{display:flex;gap:4px;background:#f5f7fa;border:1px solid var(--border);border-bottom:none;padding:6px 8px;border-radius:10px 10px 0 0}
+.bc-tb-btn{background:none;border:1px solid transparent;border-radius:6px;padding:4px 10px;font-size:13px;cursor:pointer;color:var(--text);font-family:inherit;line-height:1.4;transition:background .15s}
+.bc-tb-btn:hover{background:#e8edf5;border-color:var(--border)}
+.bc-tb-btn.bc-tb-clear{font-style:italic;font-size:12px;color:var(--muted)}
+.bc-editor{min-height:110px;border:1px solid var(--border);border-radius:0 0 10px 10px;padding:12px 14px;font-size:14px;line-height:1.6;outline:none;background:#fff;word-break:break-word}
+.bc-editor:empty:before{content:attr(placeholder);color:var(--muted);pointer-events:none}
+.bc-editor:focus{border-color:var(--primary);box-shadow:0 0 0 3px rgba(37,99,235,.07)}
+.bc-editor a{color:var(--primary);text-decoration:underline}
 .tag{display:inline-block;background:#eef3fb;color:var(--light);font-size:11.5px;font-weight:700;padding:3px 10px;border-radius:7px}
 .chip{display:inline-flex;align-items:center;gap:6px;background:#eef3fb;color:var(--text);font-size:12px;font-weight:600;padding:5px 10px;border-radius:8px}
 .chip button{color:var(--muted);font-size:14px;line-height:1;display:flex}
@@ -325,6 +389,22 @@ tbody tr.removing{animation:rowOut .45s forwards}
 .ms-opt{display:flex;align-items:center;gap:8px;padding:5px 6px;border-radius:7px;cursor:pointer}
 .ms-opt:hover{background:#eef3fb}
 .ms-opt input{width:16px;height:16px;accent-color:var(--primary)}
+/* Двухуровневый выбор районов */
+.ag-pick{border:1.5px solid #e1e8f2;border-radius:var(--radius-sm);background:#fafcff;overflow:hidden}
+.ag-region-row{display:flex;align-items:center;padding:12px 14px;cursor:pointer;gap:10px;border-bottom:1px solid #f0f3f8;transition:background .15s}
+.ag-region-row:last-child{border-bottom:none}
+.ag-region-row:hover{background:#eef3fb}
+.ag-region-name{flex:1;font-size:14px;font-weight:600}
+.ag-region-cnt{min-width:22px;height:22px;border-radius:11px;background:var(--primary);color:#fff;font-size:11px;font-weight:800;display:flex;align-items:center;justify-content:center;padding:0 6px}
+.ag-region-chev{color:var(--muted);flex-shrink:0}
+.ag-back-row{display:flex;align-items:center;gap:8px;padding:11px 14px;cursor:pointer;border-bottom:2px solid #e1e8f2;font-weight:700;font-size:14px;color:var(--primary)}
+.ag-back-row:hover{background:#eef3fb}
+.ag-dist-list{max-height:260px;overflow-y:auto}
+.ag-dist-item{display:flex;align-items:center;gap:10px;padding:10px 14px;cursor:pointer;border-bottom:1px solid #f0f3f8;transition:background .15s}
+.ag-dist-item:last-child{border-bottom:none}
+.ag-dist-item:hover{background:#eef3fb}
+.ag-dist-item input{width:17px;height:17px;accent-color:var(--primary);flex-shrink:0}
+.ag-dist-item span{font-size:14px}
 
 /* ===================== TOASTS ===================== */
 #toasts{position:fixed;top:18px;right:18px;z-index:500;display:flex;flex-direction:column;gap:10px}
@@ -355,20 +435,65 @@ tbody tr.removing{animation:rowOut .45s forwards}
 
 .skeleton{background:linear-gradient(90deg,#eef3fb 25%,#f6f9ff 50%,#eef3fb 75%);background-size:200% 100%;animation:shimmer 1.2s infinite;border-radius:8px}
 @keyframes shimmer{to{background-position:-200% 0}}
+
+/* ===================== LOADING STATES ===================== */
+/* Top progress bar */
+#nprogress{position:fixed;top:0;left:0;right:0;height:3px;z-index:9999;pointer-events:none}
+#nprogress .bar{height:3px;background:var(--light);width:0;transition:width .25s ease;border-radius:0 2px 2px 0;box-shadow:0 0 8px rgba(46,123,214,.6)}
+#nprogress.done .bar{width:100%;opacity:0;transition:width .2s ease,opacity .3s .1s ease}
+
+/* Full-screen boot spinner */
+#boot-loader{position:fixed;inset:0;background:#f0f4fb;z-index:8888;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:18px;transition:opacity .35s ease}
+#boot-loader.hide{opacity:0;pointer-events:none}
+.boot-logo{width:54px;height:54px;background:var(--primary);border-radius:16px;display:flex;align-items:center;justify-content:center;color:#fff;font-size:26px;font-weight:800;box-shadow:0 8px 24px rgba(14,55,163,.25)}
+.boot-spinner{width:36px;height:36px;border:3px solid #dce8f9;border-top-color:var(--primary);border-radius:50%;animation:spin .7s linear infinite}
+.boot-text{font-size:13px;color:var(--muted);font-weight:500}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* Content area loading pulse */
+.page-loading{display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:260px;gap:14px;color:var(--muted);font-size:13px;font-weight:500}
+.page-loading .spin{width:28px;height:28px;border:2.5px solid #dce8f9;border-top-color:var(--primary);border-radius:50%;animation:spin .7s linear infinite}
+
+/* ===================== DASHBOARD MAP ===================== */
+.dash-grid{display:grid;grid-template-columns:1fr 380px;gap:18px;align-items:start;margin-top:0}
+#dash-map{height:420px;border-radius:16px;overflow:hidden;background:#e8f0fc;box-shadow:0 2px 16px 0 rgba(30,60,120,.10)}
+.leaflet-container{font-family:var(--font)!important;font-size:13px!important}
+.leaflet-popup-content-wrapper{border-radius:12px!important;box-shadow:0 4px 24px rgba(30,60,120,.14)!important}
+.leaflet-tooltip{background:#fff!important;border:1px solid #dce8f9!important;border-radius:10px!important;box-shadow:0 4px 12px rgba(30,60,120,.12)!important;padding:6px 12px!important;font-size:13px!important;color:#0f1b35!important}
+.leaflet-tooltip::before{display:none!important}
+.leaflet-control-zoom a{border-radius:8px!important;border:1px solid #dce8f9!important;color:#374b6e!important;font-size:16px!important}
+.leaflet-control-zoom{border:none!important;box-shadow:0 2px 8px rgba(30,60,120,.12)!important;border-radius:10px!important;overflow:hidden!important}
 </style>
 </head>
 <body class="">
 
+<!-- ===================== BOOT LOADER ===================== -->
+<div id="boot-loader">
+  <div class="boot-logo">S</div>
+  <div class="boot-spinner"></div>
+  <div class="boot-text">Загрузка...</div>
+</div>
+
+<!-- ===================== PROGRESS BAR ===================== -->
+<div id="nprogress"><div class="bar" id="npbar"></div></div>
+
 <!-- ===================== LOGIN ===================== -->
 <div id="login">
+  <div class="login-header">
+    <a class="login-header-logo">
+      <div class="lh-mark">S</div>
+      <span class="lh-name">scenti</span>
+    </a>
+  </div>
   <form class="login-card" id="loginForm">
-    <div class="login-logo">
-      <div class="mark">S</div>
-      <div class="name">scenti</div>
+    <div class="login-brand">
+      <div class="login-brand-icon">S</div>
+      <div class="login-brand-title">scenti</div>
+      <div class="login-brand-sub">Панель администратора</div>
     </div>
-    <div class="login-sub">Супер-админ панель</div>
+    <div style="font-size:20px;font-weight:800;color:#0f1b35;margin-bottom:22px">Вход</div>
     <div class="field">
-      <label>Логин</label>
+      <label>Имя пользователя</label>
       <input class="input" id="loginUser" autocomplete="username" placeholder="admin">
     </div>
     <div class="field">
@@ -376,7 +501,7 @@ tbody tr.removing{animation:rowOut .45s forwards}
       <input class="input" id="loginPass" type="password" autocomplete="current-password" placeholder="••••••••">
     </div>
     <div class="login-error" id="loginError"></div>
-    <button class="btn btn-primary btn-block" type="submit" id="loginBtn">Войти</button>
+    <button class="btn btn-block" type="submit" id="loginBtn" style="background:#0e1b33;color:#fff;height:50px;font-size:15px;border-radius:12px;margin-top:4px">Войти</button>
   </form>
 </div>
 
@@ -449,6 +574,7 @@ const I = {
   collapse:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 17l-5-5 5-5M18 17l-5-5 5-5"/></svg>',
   inbox:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M22 12h-6l-2 3h-4l-2-3H2"/><path d="M5.45 5.11L2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"/></svg>',
   file:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><path d="M13 2v7h7"/></svg>',
+  trash:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M8 6V4a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>',
 };
 
 /* ---------- STATE ---------- */
@@ -460,13 +586,21 @@ const State = {
   data: {}, // caches per page
 };
 
-/* ---------- REGIONS / DISTRICTS ---------- */
-const REGIONS = {
-  "Ташкент": ["Чиланзар","Юнусабад","Мирзо-Улугбек","Яккасарай","Сергели","Шайхантахур"],
-  "Самарканд": ["Самарканд г.","Каттакурган","Ургут"],
-  "Бухара": ["Бухара г.","Каган","Гиждуван"],
-  "Фергана": ["Фергана г.","Коканд","Маргилан"],
-};
+/* ---------- REGIONS / DISTRICTS (загружается из API) ---------- */
+let REGIONS_DATA = []; // [{id, name_ru, districts:[{id,name_ru}]}]
+async function loadRegions(){
+  try{
+    REGIONS_DATA = await api("/admin/regions");
+  }catch(e){
+    REGIONS_DATA = [];
+  }
+}
+// Совместимость: старый объект REGIONS (строки) для broadcast и агентов
+const REGIONS = {};
+function rebuildRegionsCompat(){
+  Object.keys(REGIONS).forEach(k=>delete REGIONS[k]);
+  REGIONS_DATA.forEach(r=>{ REGIONS[r.name_ru]=(r.districts||[]).map(d=>d.name_ru); });
+}
 
 /* ---------- HELPERS ---------- */
 const $ = (s,r=document)=>r.querySelector(s);
@@ -488,6 +622,48 @@ function fmtDateTime(d){
 }
 function daysAgo(n){const d=new Date();d.setDate(d.getDate()-n);return d.toISOString();}
 
+/* ---------- IMAGE UPLOAD WIDGET ---------- */
+/* Генерирует HTML виджета загрузки картинки. fieldId — id скрытого input с url */
+function imgUploadWidget(fieldId, currentUrl=""){
+  const uid = fieldId+"_file";
+  return `<div class="img-upload-wrap" id="${fieldId}_wrap">
+    <input type="hidden" id="${fieldId}" value="${esc(currentUrl)}">
+    <div class="img-upload-preview" id="${fieldId}_preview">
+      ${currentUrl?`<img src="${esc(currentUrl)}" onerror="this.style.display='none'">`:''}
+    </div>
+    <label class="btn btn-ghost img-upload-btn" for="${uid}" style="cursor:pointer">
+      ${I.file||'📎'} <span>Загрузить картинку</span>
+    </label>
+    <input type="file" id="${uid}" accept="image/*" style="display:none"
+      onchange="uploadImgFile(this,'${fieldId}')">
+    <div class="img-upload-hint" id="${fieldId}_hint" style="font-size:11px;color:var(--muted);margin-top:4px"></div>
+  </div>`;
+}
+
+async function uploadImgFile(input, fieldId){
+  const file = input.files[0];
+  if(!file) return;
+  const hint = $("#"+fieldId+"_hint");
+  const preview = $("#"+fieldId+"_preview");
+  hint.textContent = "Загружаем...";
+  try{
+    const fd = new FormData();
+    fd.append("file", file);
+    const headers = {};
+    if(State.token && State.token!=="demo-token") headers["Authorization"]="Bearer "+State.token;
+    const res = await fetch(API_BASE+"/admin/upload", {method:"POST", headers, body:fd});
+    if(!res.ok) throw new Error("HTTP "+res.status);
+    const data = await res.json();
+    const url = data.url;
+    $("#"+fieldId).value = url;
+    preview.innerHTML = `<img src="${esc(url)}" style="max-height:80px;border-radius:6px;margin-top:4px">`;
+    hint.textContent = "✅ Загружено";
+  }catch(e){
+    hint.textContent = "❌ Ошибка загрузки";
+    toast("Ошибка загрузки файла","err");
+  }
+}
+
 /* ---------- TOASTS ---------- */
 function toast(msg, type="ok", sub=""){
   const wrap = $("#toasts");
@@ -502,9 +678,12 @@ function toast(msg, type="ok", sub=""){
 
 /* ---------- API ---------- */
 async function api(path, opts={}){
-  const headers = Object.assign({"Content-Type":"application/json"}, opts.headers||{});
+  if(State.token==="demo-token") throw new Error("demo");
+  const isFormData = opts.body instanceof FormData;
+  const headers = isFormData ? {} : Object.assign({"Content-Type":"application/json"}, opts.headers||{});
   if(State.token) headers["Authorization"] = "Bearer "+State.token;
-  const res = await fetch(API_BASE+path, Object.assign({}, opts, {headers}));
+  const {_raw, ...fetchOpts} = opts;
+  const res = await fetch(API_BASE+path, Object.assign({}, fetchOpts, {headers}));
   if(res.status===401){ logout(); throw new Error("401"); }
   if(!res.ok){ throw new Error("HTTP "+res.status); }
   const ct = res.headers.get("content-type")||"";
@@ -512,7 +691,13 @@ async function api(path, opts={}){
 }
 // api with mock fallback
 async function apiOrMock(path, mockFn, opts){
-  try{ const r = await api(path, opts); State.useMock=false; return r; }
+  try{
+    const r = await api(path, opts);
+    State.useMock=false;
+    // Auto-unwrap {data: [...], total: ...} paginated format → plain array
+    if(r && !Array.isArray(r) && Array.isArray(r.data)) return r.data;
+    return r;
+  }
   catch(e){
     if(e.message==="401") throw e;
     State.useMock=true;
@@ -606,13 +791,27 @@ $("#nav").addEventListener("click",e=>{
   const it = e.target.closest(".nav-item");
   if(it) go(it.dataset.page);
 });
-function go(page){
+const URL_MAP={dash:'/admin/',users:'/admin/clients',txns:'/admin/transactions',gifts:'/admin/gifts',
+  claims:'/admin/orders',catalog:'/admin/catalog',agents:'/admin/agents',cast:'/admin/broadcast',
+  reminder:'/admin/reminders',policy:'/admin/policy',audit:'/admin/audit',backup:'/admin/backup'};
+const URL_TO_PAGE=Object.fromEntries(Object.entries(URL_MAP).map(([k,v])=>[v,k]));
+
+function go(page, pushHistory=true){
   State.page = page;
+  if(pushHistory && history.pushState){
+    history.pushState({page}, '', URL_MAP[page]||'/admin/');
+  }
   renderNav();
   const p = PAGES.find(x=>x.id===page);
-  $("#pageTitle").textContent = p.title;
-  ROUTES[page]();
+  if(p) $("#pageTitle").textContent = p.title;
+  npStart();
+  const r = ROUTES[page]();
+  if(r&&r.then) r.then(npDone).catch(npDone); else npDone();
 }
+window.addEventListener('popstate',e=>{
+  const page=e.state&&e.state.page;
+  if(page&&ROUTES[page]) go(page,false);
+});
 
 /* ============================================================
    COMPONENTS: pagination, modal
@@ -664,59 +863,248 @@ function emptyRow(cols,msg){
 /* ============================================================
    PAGE 0: DASHBOARD
    ============================================================ */
-async function pageDash(){
-  const c = $("#content");
-  c.innerHTML = `<div class="stat-grid" id="stats">
-    ${Array(4).fill('<div class="stat"><div class="skeleton" style="height:88px"></div></div>').join("")}
-  </div>
-  <div class="card card-pad">
-    <div class="section-head" style="margin-bottom:14px"><h2 style="font-size:18px">Последние ожидающие транзакции</h2></div>
-    <div id="dashTxn"></div>
-  </div>`;
+let _dashMap = null;
 
-  const [users, txns] = await Promise.all([
+async function pageDash(){
+  if(_dashMap){_dashMap.remove();_dashMap=null;}
+  const c = $("#content");
+  const skCard = '<div class="stat"><div class="skeleton" style="height:88px"></div></div>';
+  c.innerHTML = `
+    <div class="stat-grid" id="dashStats1">${Array(4).fill(skCard).join("")}</div>
+    <div class="stat-grid" id="dashStats2" style="grid-template-columns:repeat(4,1fr)">${Array(4).fill(skCard).join("")}</div>
+    <div class="dash-chart-wrap" id="dashChart" style="display:none"></div>
+    <div class="dash-grid" style="margin-top:18px">
+      <div class="card card-pad">
+        <div class="section-head" style="margin-bottom:12px"><h2 style="font-size:17px">Клиенты по регионам</h2></div>
+        <div id="dash-map"></div>
+      </div>
+      <div class="card card-pad">
+        <div class="section-head" style="margin-bottom:12px"><h2 style="font-size:17px">Ожидают подтверждения</h2></div>
+        <div id="dashTxn"><div class="skeleton" style="height:240px;border-radius:10px"></div></div>
+      </div>
+    </div>`;
+
+  const mockStats = {
+    total_users:0,pending_transactions:0,total_cashback_issued:0,total_cashback_spent:0,
+    new_users_today:0,new_users_7d:0,new_users_30d:0,txns_today_count:0,txns_today_sum:0,
+    txns_month_sum:0,active_gifts:0,pending_claims:0,daily_chart:[],
+  };
+  const [stats, users, txns, claims] = await Promise.all([
+    apiOrMock("/admin/stats", ()=>mockStats),
     apiOrMock("/admin/users", ()=>MOCK.users),
     apiOrMock("/admin/transactions", ()=>MOCK.txns),
+    apiOrMock("/admin/claims", ()=>MOCK.claims),
   ]);
   const uArr = Array.isArray(users)?users:(users.items||MOCK.users);
   const tArr = Array.isArray(txns)?txns:(txns.items||MOCK.txns);
-
-  const pending = tArr.filter(t=>t.status==="pending");
-  const confirmed = tArr.filter(t=>t.status==="confirmed");
-  const issuedCashback = confirmed.reduce((s,t)=>s+(t.cashback||0),0);
-  // spent = sum of issued/approved claims prices
-  const claims = await apiOrMock("/admin/claims", ()=>MOCK.claims);
   const cArr = Array.isArray(claims)?claims:(claims.items||MOCK.claims);
-  const spent = cArr.filter(x=>x.status==="issued").reduce((s,x)=>s+(x.price||0),0);
+  const pending = tArr.filter(t=>t.status==="pending");
+  const s = stats;
 
-  Badges.pendingTxn = pending.length;
-  Badges.pendingClaims = cArr.filter(x=>x.status==="pending").length;
+  Badges.pendingTxn = s.pending_transactions ?? pending.length;
+  Badges.pendingClaims = s.pending_claims ?? cArr.filter(x=>x.status==="pending").length;
   renderNav();
 
-  const stats=[
-    {label:"Всего клиентов",val:fmt(uArr.length),ic:I.users,bg:"#eaf2ff",col:"var(--primary)"},
-    {label:"Ожидают подтверждения",val:fmt(pending.length),ic:I.clock,bg:"#fdf3e3",col:"var(--warning)",pill:pending.length>0?`<span class="pill" style="background:var(--danger);color:#fff">требует действий</span>`:""},
-    {label:"Выдано кешбэка",val:fmt(issuedCashback),cur:"сум",ic:I.coin,bg:"#e3f8ef",col:"var(--success)"},
-    {label:"Потрачено кешбэка",val:fmt(spent),cur:"сум",ic:I.gift,bg:"#f3eaff",col:"#7b46c9"},
+  // --- ROW 1: Ключевые показатели ---
+  const row1 = [
+    {
+      label:"Всего клиентов", val:fmt(s.total_users??uArr.length),
+      ic:I.users, bg:"#eaf2ff", col:"var(--primary)", detail:"all_users",
+      sub: s.new_users_30d!=null ? `+${s.new_users_30d} за месяц` : "",
+    },
+    {
+      label:"Ожидают подтверждения", val:fmt(s.pending_transactions??pending.length),
+      ic:I.clock, bg:"#fdf3e3", col:"var(--warning)", detail:"pending_txns",
+      pill:(s.pending_transactions??pending.length)>0?`<span class="pill" style="background:var(--danger);color:#fff;position:absolute;top:14px;right:14px;font-size:10px">срочно</span>`:"",
+    },
+    {
+      label:"Выдано кешбэка", val:fmt(s.total_cashback_issued??0), cur:"сум",
+      ic:I.coin, bg:"#e3f8ef", col:"var(--success)", detail:"approved_txns",
+      sub: s.txns_month_sum!=null ? `${fmt(s.txns_month_sum)} сум за месяц` : "",
+    },
+    {
+      label:"Потрачено кешбэка", val:fmt(s.total_cashback_spent??0), cur:"сум",
+      ic:I.gift, bg:"#f3eaff", col:"#7b46c9", detail:"all_activity",
+      sub: s.pending_claims!=null ? `Заявок ожидает: ${s.pending_claims}` : "",
+    },
   ];
-  $("#stats").innerHTML = stats.map(s=>`<div class="stat">
-    ${s.pill||""}
-    <div class="ico" style="background:${s.bg};color:${s.col}">${s.ic}</div>
-    <div class="label">${s.label}</div>
-    <div class="value">${s.val}${s.cur?`<span class="cur">${s.cur}</span>`:""}</div>
-  </div>`).join("");
 
-  if(State.useMock) toast("API недоступен — показаны демо-данные","warn");
+  // --- ROW 2: Операционные метрики ---
+  const row2 = [
+    {
+      label:"Новых сегодня", val:fmt(s.new_users_today??0),
+      ic:I.users, bg:"#eaf2ff", col:"var(--primary)", detail:"new_users_today",
+      sub:"клиентов за сегодня",
+    },
+    {
+      label:"Новых за 7 дней", val:fmt(s.new_users_7d??0),
+      ic:I.users, bg:"#e3f8ef", col:"var(--success)", detail:"new_users_7d",
+      sub:"клиентов за неделю",
+    },
+    {
+      label:"Транзакций сегодня", val:fmt(s.txns_today_count??0),
+      ic:I.coin, bg:"#fff3e0", col:"#f59e0b", detail:"today_txns",
+      sub: s.txns_today_sum!=null ? `${fmt(s.txns_today_sum)} сум` : "",
+    },
+    {
+      label:"Активных подарков", val:fmt(s.active_gifts??0),
+      ic:I.gift, bg:"#f3eaff", col:"#7b46c9", detail:"active_gifts",
+      sub:"в каталоге",
+    },
+  ];
 
+  function renderStatCard(s){
+    return `<div class="stat" onclick="openDrawer('${s.detail}')">
+      ${s.pill||""}
+      <div class="ico" style="background:${s.bg};color:${s.col}">${s.ic}</div>
+      <div class="label">${s.label}</div>
+      <div class="value">${s.val}${s.cur?`<span class="cur">${s.cur}</span>`:""}</div>
+      ${s.sub?`<div class="stat-sub">${s.sub}</div>`:""}
+      <div style="position:absolute;bottom:14px;right:14px;color:var(--muted);opacity:.4">
+        <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M5 3l4 4-4 4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </div>
+    </div>`;
+  }
+
+  $("#dashStats1").innerHTML = row1.map(renderStatCard).join("");
+  $("#dashStats2").innerHTML = row2.map(renderStatCard).join("");
+
+  // --- CHART: последние 7 дней ---
+  const chart = s.daily_chart||[];
+  if(chart.length>0){
+    const chartEl = $("#dashChart");
+    chartEl.style.display="";
+    const maxVal = Math.max(1,...chart.map(d=>d.txn_count));
+    const days = ["Вс","Пн","Вт","Ср","Чт","Пт","Сб"];
+    chartEl.innerHTML=`
+      <div class="dash-chart-title">Транзакции за 7 дней</div>
+      <div class="dash-chart-bars">
+        ${chart.map(d=>{
+          const pct = Math.round((d.txn_count/maxVal)*100);
+          const date = new Date(d.day);
+          const dayName = days[date.getDay()];
+          const dd = String(date.getDate()).padStart(2,"0");
+          const mm = String(date.getMonth()+1).padStart(2,"0");
+          return `<div class="dash-bar-col">
+            <div class="dash-bar-val">${d.txn_count}</div>
+            <div class="dash-bar" style="height:${Math.max(4,pct*0.7)}px;background:var(--primary);opacity:${0.45+pct/200}" title="${d.txn_count} транзакций · ${fmt(d.cashback_sum)} сум кешбэка"></div>
+            <div class="dash-bar-label">${dayName} ${dd}.${mm}</div>
+          </div>`;
+        }).join("")}
+      </div>`;
+  }
+
+  // Map: count clients by region name
+  const byRegion = {};
+  uArr.forEach(u=>{ const rn=u.region||u.region_name||""; if(rn) byRegion[rn]=(byRegion[rn]||0)+1; });
+  initDashMap(byRegion);
+
+  // Pending transactions list
   const dt = $("#dashTxn");
-  if(!pending.length){ dt.innerHTML = `<div class="empty">${I.check}<div>Нет ожидающих транзакций</div></div>`; return; }
-  dt.innerHTML = `<div class="txn-list" style="max-height:none">${pending.slice(0,6).map(t=>`
-    <div class="txn-item">
-      <div class="avatar" style="width:36px;height:36px;font-size:13px">${initials(t.user_name)}</div>
-      <div><b style="font-weight:700">${esc(t.user_name)}</b><small class="muted">${esc(t.agent_name||"—")} · ${fmtDate(t.created_at)}</small></div>
-      <div class="amt"><b>${fmtSum(t.amount)}</b><small>кешбэк ${fmtSum(t.cashback)}</small></div>
-    </div>`).join("")}</div>
-    <button class="btn btn-ghost btn-sm" style="margin-top:14px" onclick="go('txns')">Все транзакции →</button>`;
+  if(!pending.length){
+    dt.innerHTML = `<div class="empty">${I.check}<div>Нет ожидающих транзакций</div></div>`;
+  } else {
+    dt.innerHTML = `<div class="txn-list" style="max-height:340px">${pending.slice(0,8).map(t=>`
+      <div class="txn-item">
+        <div class="avatar" style="width:36px;height:36px;font-size:13px">${initials(t.user_name)}</div>
+        <div><b style="font-weight:700;display:block">${esc(t.user_name)}</b><small class="muted">${esc(t.agent_name||"—")} · ${fmtDate(t.created_at)}</small></div>
+        <div class="amt"><b>${fmtSum(t.amount)}</b><small>+${fmtSum(t.cashback)}</small></div>
+      </div>`).join("")}</div>
+      <button class="btn btn-ghost btn-sm" style="margin-top:10px;width:100%" onclick="go('txns')">Все транзакции →</button>`;
+  }
+  if(State.useMock) toast("API недоступен — демо-данные","warn");
+}
+
+function initDashMap(byRegion){
+  const el = $("#dash-map");
+  if(!el || typeof L === "undefined") return;
+  if(_dashMap){_dashMap.remove();_dashMap=null;}
+
+  // Ключи совпадают с name_ru из таблицы regions в БД
+  const UZ_COORDS = {
+    "Город Ташкент":             {lat:41.2995,lng:69.2401},
+    "Ташкентская область":       {lat:41.1,   lng:69.8},
+    "Самаркандская область":     {lat:39.6547,lng:66.9597},
+    "Бухарская область":         {lat:39.7681,lng:64.4556},
+    "Ферганская область":        {lat:40.3842,lng:71.7843},
+    "Андижанская область":       {lat:40.7829,lng:72.3442},
+    "Наманганская область":      {lat:41.0011,lng:71.6558},
+    "Кашкадарьинская область":   {lat:38.862, lng:65.7928},
+    "Сурхандарьинская область":  {lat:37.940, lng:67.5676},
+    "Навоийская область":        {lat:40.100, lng:65.3828},
+    "Хорезмская область":        {lat:41.556, lng:60.6239},
+    "Джизакская область":        {lat:40.116, lng:67.8422},
+    "Сырдарьинская область":     {lat:40.840, lng:68.6633},
+    "Республика Каракалпакстан": {lat:43.730, lng:59.0143},
+  };
+
+  _dashMap = L.map(el, {
+    zoomControl: true,
+    scrollWheelZoom: false,
+    attributionControl: true,
+  }).setView([41.38, 63.8], 5);
+
+  L.tileLayer("https://{s}.basemaps.cartocdn.com/light_nolabels/{z}/{x}/{y}{r}.png", {
+    attribution:'© <a href="https://carto.com/">CARTO</a> © <a href="https://www.openstreetmap.org/">OSM</a>',
+    maxZoom: 18,
+  }).addTo(_dashMap);
+
+  // Подписи городов поверх (отдельный слой)
+  L.tileLayer("https://{s}.basemaps.cartocdn.com/light_only_labels/{z}/{x}/{y}{r}.png", {
+    maxZoom: 18, pane: "shadowPane",
+  }).addTo(_dashMap);
+
+  const counts = Object.values(byRegion);
+  const maxCount = counts.length ? Math.max(1,...counts) : 1;
+  const regions = REGIONS_DATA.length ? REGIONS_DATA : Object.keys(UZ_COORDS).map(n=>({name_ru:n}));
+
+  regions.forEach(r=>{
+    const coord = UZ_COORDS[r.name_ru];
+    if(!coord) return;
+    const count = byRegion[r.name_ru] || 0;
+    const hasData = count > 0;
+
+    if(hasData){
+      const radius = 5 + Math.round((count / maxCount) * 14);
+      // Glow ring
+      L.circleMarker([coord.lat, coord.lng], {
+        radius: radius + 4,
+        color: "transparent",
+        fillColor: "#3B82F6",
+        fillOpacity: 0.13,
+        weight: 0,
+        interactive: false,
+      }).addTo(_dashMap);
+      // Main bubble
+      L.circleMarker([coord.lat, coord.lng], {
+        radius,
+        color: "#1D4ED8",
+        fillColor: "#3B82F6",
+        weight: 2,
+        opacity: 0.9,
+        fillOpacity: 0.72,
+      })
+      .bindTooltip(
+        `<b style="color:#0f1b35">${r.name_ru}</b><br><span style="color:#3B82F6;font-weight:700">${count}</span> клиент${count===1?'':count>1&&count<5?'а':'ов'}`,
+        {sticky: true, direction: "top", offset: [0, -4]}
+      )
+      .addTo(_dashMap);
+    } else {
+      L.circleMarker([coord.lat, coord.lng], {
+        radius: 5,
+        color: "#94a3b8",
+        fillColor: "#cbd5e1",
+        weight: 1,
+        opacity: 0.5,
+        fillOpacity: 0.3,
+      })
+      .bindTooltip(`<b style="color:#64748b">${r.name_ru}</b><br><span style="color:#94a3b8">0 клиентов</span>`, {sticky:true, direction:"top", offset:[0,-4]})
+      .addTo(_dashMap);
+    }
+  });
+
+  // Всегда показываем Узбекистан целиком
+  _dashMap.fitBounds([[37.1, 56.0], [45.6, 73.1]], {padding: [30, 30], maxZoom: 6});
 }
 
 /* ============================================================
@@ -731,7 +1119,7 @@ async function pageUsers(){
     </div>
     <div class="table-wrap">
       <table><thead><tr>
-        <th>Имя</th><th>Бизнес</th><th>Телефон</th><th>Регион</th><th>Баланс</th><th>Дата рег.</th><th></th>
+        <th>Имя</th><th>Бизнес</th><th>Телефон / Telegram</th><th>Регион</th><th>Баланс</th><th>Дата рег.</th><th></th>
       </tr></thead><tbody id="uBody">${loadingTable(7)}</tbody></table>
       <div id="uPager"></div>
     </div>`;
@@ -754,50 +1142,127 @@ function renderUsers(){
     <tr class="clickable" onclick="openUser(${u.id})">
       <td><div class="cell-user"><div class="avatar">${initials(u.name)}</div><div class="meta"><b>${esc(u.name)}</b><small>${esc(u.district||u.region||"")}</small></div></div></td>
       <td>${esc(u.business||"—")}</td>
-      <td class="mono nowrap">${esc(u.phone||"—")}</td>
+      <td class="mono nowrap"><div>${esc(u.phone||"—")}</div>${u.username?`<small class="muted">@${esc(u.username)}</small>`:u.telegram_id?`<small class="muted">TG: ${u.telegram_id}</small>`:""}</td>
       <td>${esc(u.region||"—")}</td>
       <td class="t-strong mono">${fmtSum(u.balance)}</td>
       <td class="muted nowrap">${fmtDate(u.created_at)}</td>
-      <td class="t-actions"><button class="btn btn-ghost btn-sm btn-icon">${I.eye}</button></td>
+      <td class="t-actions" onclick="event.stopPropagation()">
+        <button class="btn btn-ghost btn-sm btn-icon" title="Открыть" onclick="openUser(${u.id})">${I.eye}</button>
+        <button class="btn btn-ghost btn-sm btn-icon" title="Удалить" style="color:var(--danger)" onclick="deleteUser(${u.id},'${esc(u.name)}')">${I.trash}</button>
+      </td>
     </tr>`).join("");
   $("#uPager").innerHTML=pagerHTML(p,"uGo");
 }
+window.deleteUser = async (id, name) => {
+  if(!confirm(`Удалить клиента «${name}»? Действие необратимо.`)) return;
+  try{
+    await api("/admin/users/"+id, {method:"DELETE"});
+    Clients.list = Clients.list.filter(x=>x.id!==id);
+    renderUsers(); toast("Клиент удалён","warn");
+  }catch(e){ if(e.message==="401")return; toast("Ошибка удаления","err"); }
+};
 window.openUser = async id=>{
   const u = Clients.list.find(x=>x.id===id);
   if(!u) return;
-  const txns = (await apiOrMock("/admin/transactions",()=>MOCK.txns));
-  const tArr=(Array.isArray(txns)?txns:(txns.items||MOCK.txns)).filter(t=>t.user_id===id);
-  const regionOpts=Object.keys(REGIONS).map(r=>`<option ${r===u.region?'selected':''}>${r}</option>`).join("");
-  const distOpts=(REGIONS[u.region]||[]).map(d=>`<option ${d===u.district?'selected':''}>${d}</option>`).join("");
+
+  // Загружаем детали пользователя (с region_id, district_id) и транзакции
+  let detail = null;
+  try{ detail = await api("/admin/users/"+id); }catch(e){}
+  const fullUser = detail ? detail.user : {};
+  const tArr = detail ? (detail.transactions||[]) : [];
+
+  const curRegionId = fullUser.region_id || null;
+  const curDistrictId = fullUser.district_id || null;
+
+  function buildRegionOpts(selId){
+    return `<option value="">— Не выбран —</option>`+
+      REGIONS_DATA.map(r=>`<option value="${r.id}" ${r.id===selId?'selected':''}>${esc(r.name_ru)}</option>`).join("");
+  }
+  function buildDistOpts(regionId, selId){
+    const reg = REGIONS_DATA.find(r=>r.id===regionId);
+    const dists = reg ? reg.districts||[] : [];
+    return `<option value="">— Не выбран —</option>`+
+      dists.map(d=>`<option value="${d.id}" ${d.id===selId?'selected':''}>${esc(d.name_ru)}</option>`).join("");
+  }
+
   const body=`
-    <div class="detail-hero"><div class="avatar">${initials(u.name)}</div><div><b>${esc(u.name)}</b><span class="muted">${esc(u.business||"")}</span></div></div>
+    <div class="detail-hero"><div class="avatar">${initials(u.name)}</div><div>
+      <b>${esc(u.name)}</b>
+      <span class="muted">${esc(u.business||"")}</span>
+      ${u.telegram_id?`<span style="display:inline-block;margin-top:4px;background:#eaf2ff;color:#2563eb;font-size:11px;font-weight:700;padding:3px 10px;border-radius:20px;letter-spacing:.3px">ID ${esc(String(u.telegram_id))}</span>`:""}
+    </div></div>
     <div class="balance-box"><div><div class="lab">Текущий баланс кешбэка</div><div class="num">${fmtSum(u.balance)}</div></div>
-      <div style="text-align:right"><div class="lab">Всего начислено</div><div class="num" style="font-size:18px">${fmtSum(u.total_cashback)}</div></div></div>
+      <div style="text-align:right"><div class="lab">Всего начислено</div><div class="num" style="font-size:18px">${fmtSum(u.total_cashback??u.balance??0)}</div></div></div>
     <div class="form-grid">
       <div class="full"><label class="sub-label" style="margin-top:0">Имя</label><input class="input" id="euName" value="${esc(u.name)}"></div>
       <div><label class="sub-label" style="margin-top:0">Телефон</label><input class="input" id="euPhone" value="${esc(u.phone||"")}"></div>
       <div><label class="sub-label" style="margin-top:0">Бизнес</label><input class="input" id="euBiz" value="${esc(u.business||"")}"></div>
-      <div><label class="sub-label" style="margin-top:0">Регион</label><select class="input" id="euRegion">${regionOpts}</select></div>
-      <div><label class="sub-label" style="margin-top:0">Район</label><select class="input" id="euDist">${distOpts}</select></div>
+      <div><label class="sub-label" style="margin-top:0">Регион</label><select class="input" id="euRegion">${buildRegionOpts(curRegionId)}</select></div>
+      <div><label class="sub-label" style="margin-top:0">Район</label><select class="input" id="euDist">${buildDistOpts(curRegionId, curDistrictId)}</select></div>
       <div class="full"><label class="sub-label" style="margin-top:0">Баланс (сум)</label><input class="input mono" id="euBal" type="number" value="${u.balance}"></div>
     </div>
     <div class="sub-label">История транзакций (${tArr.length})</div>
     <div class="txn-list">${tArr.length?tArr.map(t=>`
       <div class="txn-item">
-        <span class="badge-status st-${t.status==='confirmed'?'confirmed':t.status==='rejected'?'rejected':'pending'}">${statusRu(t.status)}</span>
-        <div class="amt"><b>${fmtSum(t.amount)}</b><small>${fmtDate(t.created_at)} · кешбэк ${fmtSum(t.cashback)}</small></div>
+        <span class="badge-status st-${t.status==='rejected'?'rejected':t.status==='pending'?'pending':'confirmed'}">${txnStatusRu(t.status)}</span>
+        <div class="amt"><b>${fmtSum(t.amount)}</b><small>${fmtDate(t.created_at)} · кешбэк ${fmtSum(t.cashback_amount||t.cashback||0)}</small></div>
       </div>`).join(""):`<div class="muted" style="padding:8px">Транзакций нет</div>`}</div>`;
+
   const foot=`<button class="btn btn-ghost x">Отмена</button><button class="btn btn-primary" id="euSave">Сохранить изменения</button>`;
   openModal(modalShell("Клиент",body,foot),{wide:true});
-  $("#euRegion").onchange=function(){ $("#euDist").innerHTML=(REGIONS[this.value]||[]).map(d=>`<option>${d}</option>`).join(""); };
+
+  $("#euRegion").onchange=function(){
+    const rid=+this.value||null;
+    $("#euDist").innerHTML=buildDistOpts(rid, null);
+  };
+
   $("#euSave").onclick=async()=>{
-    const payload={name:$("#euName").value,phone:$("#euPhone").value,business:$("#euBiz").value,region:$("#euRegion").value,district:$("#euDist").value,balance:+$("#euBal").value};
-    try{ await api("/admin/users/"+id,{method:"PUT",body:JSON.stringify(payload)}); }catch(e){ if(e.message==="401")return; }
-    Object.assign(u,payload);
-    closeModal(); renderUsers(); toast("Изменения сохранены");
+    const rid=+$("#euRegion").value||null;
+    const did=+$("#euDist").value||null;
+    const payload={
+      first_name:$("#euName").value,
+      phone:$("#euPhone").value,
+      business_name:$("#euBiz").value,
+      cashback_balance:Math.max(0,+$("#euBal").value),
+    };
+    if(rid) payload.region_id=rid;
+    if(did) payload.district_id=did;
+    try{
+      await api("/admin/users/"+id,{method:"PUT",body:JSON.stringify(payload)});
+      u.name=payload.first_name; u.phone=payload.phone; u.business=payload.business_name; u.balance=payload.cashback_balance;
+      const reg=REGIONS_DATA.find(r=>r.id===rid);
+      const dist=reg&&reg.districts.find(d=>d.id===did);
+      if(reg) u.region=reg.name_ru;
+      if(dist) u.district=dist.name_ru;
+      closeModal(); renderUsers(); toast("Изменения сохранены");
+    }catch(e){
+      if(e.message==="401")return;
+      toast("Ошибка сохранения","err");
+    }
   };
 };
-function statusRu(s){return {pending:"Ожидает",confirmed:"Подтверждена",rejected:"Отклонена",approved:"Одобрена",issued:"Выдана",active:"Активен",inactive:"Скрыт"}[s]||s;}
+function statusRu(s){
+  return {
+    pending:"В обработке",
+    approved:"Одобрено",
+    shipping:"У службы доставки",
+    confirmed:"Ожидает подтверждения",
+    delivered:"Клиент подтвердил",
+    rejected:"Отклонена",
+    issued:"Клиент подтвердил",
+    active:"Активен",
+    inactive:"Скрыт"
+  }[s]||s;
+}
+function txnStatusRu(s){
+  return {
+    pending:"Ожидает",
+    confirmed:"Подтверждена",
+    approved:"Подтверждена",
+    rejected:"Отклонена",
+    refund:"Возврат"
+  }[s]||s;
+}
 
 /* ============================================================
    PAGE 2: TRANSACTIONS
@@ -805,7 +1270,9 @@ function statusRu(s){return {pending:"Ожидает",confirmed:"Подтвер�
 const Txns = {list:[], tab:"pending", page:1};
 async function pageTxns(){
   const c=$("#content");
-  c.innerHTML=`<div id="txnTabs"></div>
+  c.innerHTML=`<div class="toolbar"><div class="spacer"></div>
+    <button class="btn btn-primary btn-sm" onclick="openCreateTx()">${I.plus}<span>Создать транзакцию</span></button></div>
+    <div id="txnTabs"></div>
     <div class="table-wrap">
       <table><thead><tr><th>Клиент</th><th>Агент</th><th>Сумма покупки</th><th>Кешбэк (10%)</th><th>Дата</th><th>Статус</th><th></th></tr></thead>
       <tbody id="txnBody">${loadingTable(7)}</tbody></table>
@@ -816,15 +1283,172 @@ async function pageTxns(){
   Badges.pendingTxn=Txns.list.filter(t=>t.status==="pending").length; renderNav();
   renderTxns();
 }
+
+window.openCreateTx=async function(){
+  const body=`
+    <div style="display:flex;flex-direction:column;gap:16px">
+      <div>
+        <label class="form-label">Пользователь Telegram</label>
+        <div id="ctxDropWrap" style="position:relative">
+          <div id="ctxTrigger" style="display:flex;align-items:center;justify-content:space-between;padding:10px 14px;border:1.5px solid var(--border,#e2e8f0);border-radius:var(--radius-sm);cursor:pointer;background:#fff;user-select:none;min-height:42px" onclick="ctxToggle()">
+            <span id="ctxTriggerText" style="color:var(--muted)">Поиск: имя, @username, телефон, Telegram ID…</span>
+            <svg id="ctxArrow" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="flex-shrink:0;transition:.2s"><polyline points="18 15 12 9 6 15"/></svg>
+          </div>
+          <div id="ctxDrop" style="display:none;position:absolute;z-index:999;left:0;right:0;background:#fff;border:1.5px solid var(--border,#e2e8f0);border-top:none;border-radius:0 0 var(--radius-sm) var(--radius-sm);box-shadow:var(--shadow-md)">
+            <div style="padding:8px">
+              <input id="ctxSearch" class="input" placeholder="Поиск: имя, @username, телефон, Telegram ID…" autocomplete="off" style="margin:0">
+            </div>
+            <div id="ctxList" style="max-height:220px;overflow-y:auto"></div>
+          </div>
+        </div>
+        <input type="hidden" id="ctxUserId">
+      </div>
+      <div>
+        <label class="form-label">Сумма покупки (UZS)</label>
+        <input class="input" id="ctxAmount" type="number" min="1" step="1000" placeholder="Например: 500000">
+      </div>
+      <div id="ctxCashbackPreview" style="display:none;background:var(--success);color:#fff;border-radius:var(--radius-sm);padding:11px 14px;font-weight:700;font-size:15px">
+        💰 Кешбэк: <span id="ctxCashbackVal">0</span> UZS (10%)
+      </div>
+      <div>
+        <label class="form-label">Примечание (необязательно)</label>
+        <input class="input" id="ctxNote" placeholder="Например: Продажа в шоуруме">
+      </div>
+    </div>`;
+  const foot=`<button class="btn btn-ghost x">Отмена</button><button class="btn btn-primary" id="ctxDo">${I.plus} Создать транзакцию</button>`;
+  openModal(modalShell("Создать транзакцию",body,foot));
+
+  let allUsers=[], selectedUserId=null, dropOpen=false;
+
+  function userLabel(u){
+    const name=(u.first_name||u.name||"").trim()+(u.last_name&&!u.name?" "+u.last_name:"");
+    const uname=u.username?` @${u.username}`:"";
+    const tg=u.telegram_id?` · tg ${u.telegram_id}`:"";
+    return `#${u.id}${tg} · ${name||"—"}${uname}`;
+  }
+
+  function renderList(q){
+    const list=$("#ctxList"); if(!list)return;
+    const low=q.toLowerCase();
+    const matches=!q?allUsers:allUsers.filter(u=>{
+      return (u.first_name||"").toLowerCase().includes(low)
+          || (u.last_name||"").toLowerCase().includes(low)
+          || (u.name||"").toLowerCase().includes(low)
+          || (u.username||"").toLowerCase().includes(low)
+          || (u.phone||"").includes(q)
+          || String(u.telegram_id||"").includes(q)
+          || String(u.id).includes(q);
+    });
+    if(!matches.length){
+      list.innerHTML=`<div style="padding:12px 14px;color:var(--muted);font-size:13px">Не найдено</div>`;
+      return;
+    }
+    list.innerHTML=matches.slice(0,50).map(u=>`
+      <div class="ctx-item" data-id="${u.id}" onclick="ctxSelect(${u.id})" style="padding:10px 14px;cursor:pointer;font-size:13px;border-bottom:1px solid #f0f4fb;transition:background .12s">
+        <span style="font-weight:700;color:var(--primary)">#${u.id}</span>
+        ${u.telegram_id?`<span style="color:var(--muted)"> · tg ${u.telegram_id}</span>`:""}
+        <span style="margin-left:4px">${esc((u.first_name||u.name||"").trim()+(u.last_name&&!u.name?" "+u.last_name:""))||"—"}</span>
+        ${u.username?`<span style="color:var(--muted)"> @${esc(u.username)}</span>`:""}
+      </div>`).join("");
+    // hover
+    list.querySelectorAll(".ctx-item").forEach(el=>{
+      el.onmouseenter=()=>el.style.background="#f0f4fb";
+      el.onmouseleave=()=>el.style.background=selectedUserId==el.dataset.id?"#2E7BD6":"";
+    });
+    // highlight selected
+    if(selectedUserId){
+      const sel=list.querySelector(`[data-id="${selectedUserId}"]`);
+      if(sel)sel.style.background="#2E7BD6",sel.style.color="#fff";
+    }
+  }
+
+  window.ctxToggle=function(){
+    dropOpen=!dropOpen;
+    const drop=$("#ctxDrop"),arrow=$("#ctxArrow");
+    drop.style.display=dropOpen?"block":"none";
+    arrow.style.transform=dropOpen?"rotate(180deg)":"";
+    if(dropOpen){setTimeout(()=>$("#ctxSearch")&&$("#ctxSearch").focus(),50);}
+  };
+
+  window.ctxSelect=function(id){
+    selectedUserId=id;
+    const u=allUsers.find(x=>x.id===id);
+    if(u){
+      $("#ctxTriggerText").textContent=userLabel(u);
+      $("#ctxTriggerText").style.color="var(--text)";
+      $("#ctxUserId").value=id;
+    }
+    // close
+    dropOpen=false;
+    $("#ctxDrop").style.display="none";
+    $("#ctxArrow").style.transform="";
+    // re-render to show selection
+    renderList($("#ctxSearch")?$("#ctxSearch").value:"");
+  };
+
+  // close on outside click
+  setTimeout(()=>{
+    document.addEventListener("click",function outsideCtx(e){
+      if(!e.target.closest("#ctxDropWrap")){
+        dropOpen=false;
+        const d=$("#ctxDrop"); if(d)d.style.display="none";
+        const a=$("#ctxArrow"); if(a)a.style.transform="";
+        document.removeEventListener("click",outsideCtx);
+      }
+    });
+  },100);
+
+  // load users
+  try{
+    const r=await api("/admin/users?limit=1000");
+    allUsers=(r.data||r.items||[]);
+  }catch(e){ allUsers=[]; }
+  renderList("");
+
+  const srch=$("#ctxSearch");
+  if(srch)srch.oninput=e=>renderList(e.target.value);
+
+  const amtEl=$("#ctxAmount");
+  if(amtEl)amtEl.oninput=function(){
+    const v=parseFloat(this.value)||0;
+    const cb=Math.round(v*0.10);
+    const prev=$("#ctxCashbackPreview");
+    if(prev)prev.style.display=cb>0?"block":"none";
+    const val=$("#ctxCashbackVal");
+    if(val)val.textContent=cb.toLocaleString("ru-RU");
+  };
+
+  const doBtn=$("#ctxDo");
+  if(doBtn)doBtn.onclick=async function(){
+    const userId=parseInt($("#ctxUserId").value||"0");
+    const amount=parseFloat(amtEl?amtEl.value:0);
+    const note=$("#ctxNote")?$("#ctxNote").value.trim():"";
+    if(!userId){toast("Выберите клиента","err");return;}
+    if(!amount||amount<=0){toast("Введите сумму покупки","err");return;}
+    this.disabled=true; this.textContent="Создаём…";
+    try{
+      const r=await api("/admin/transactions",{method:"POST",body:JSON.stringify({user_id:userId,amount,note})});
+      closeModal();
+      toast("Транзакция создана","ok",`Кешбэк ${Math.round(r.cashback_amount??r.cashback??0).toLocaleString("ru-RU")} UZS — ожидает подтверждения`);
+      const data=await apiOrMock("/admin/transactions",()=>MOCK.txns);
+      Txns.list=Array.isArray(data)?data:(data.items||MOCK.txns);
+      Badges.pendingTxn=Txns.list.filter(t=>t.status==="pending").length;
+      renderNav(); renderTxns();
+    }catch(e){
+      this.disabled=false; this.innerHTML=`${I.plus} Создать транзакцию`;
+      toast("Ошибка","err",e.message||"Проверьте данные");
+    }
+  };
+};
 function renderTxns(){
-  const counts={pending:0,confirmed:0,rejected:0};
-  Txns.list.forEach(t=>counts[t.status]!==undefined&&counts[t.status]++);
+  const counts={pending:0,approved:0,rejected:0};
+  Txns.list.forEach(t=>{if(t.status==="confirmed")counts.approved++;else if(counts[t.status]!==undefined)counts[t.status]++;});
   $("#txnTabs").innerHTML=`<div class="tabs">
     <div class="tab ${Txns.tab==='pending'?'active':''}" onclick="txnTab('pending')">Ожидают ${counts.pending?`<span class="cnt">${counts.pending}</span>`:""}</div>
-    <div class="tab ${Txns.tab==='confirmed'?'active':''}" onclick="txnTab('confirmed')">Подтверждённые</div>
+    <div class="tab ${Txns.tab==='approved'?'active':''}" onclick="txnTab('approved')">Подтверждённые</div>
     <div class="tab ${Txns.tab==='rejected'?'active':''}" onclick="txnTab('rejected')">Отклонённые</div>
   </div>`;
-  const arr=Txns.list.filter(t=>t.status===Txns.tab);
+  const arr=Txns.list.filter(t=>Txns.tab==='approved'?(t.status==='approved'||t.status==='confirmed'):t.status===Txns.tab);
   const p=paginate(arr,Txns.page,20);
   const body=$("#txnBody"); if(!body)return;
   if(!p.items.length){body.innerHTML=emptyRow(7,"Нет транзакций");$("#txnPager").innerHTML="";return;}
@@ -833,12 +1457,12 @@ function renderTxns(){
       <td><div class="cell-user"><div class="avatar">${initials(t.user_name)}</div><div class="meta"><b>${esc(t.user_name)}</b></div></div></td>
       <td>${esc(t.agent_name||"—")}</td>
       <td class="t-strong mono">${fmtSum(t.amount)}</td>
-      <td class="mono" style="color:var(--success);font-weight:700">${fmtSum(t.cashback)}</td>
+      <td class="mono" style="color:var(--success);font-weight:700">${fmtSum(t.cashback_amount??t.cashback??0)}</td>
       <td class="muted nowrap">${fmtDateTime(t.created_at)}</td>
-      <td><span class="badge-status st-${t.status==='confirmed'?'confirmed':t.status==='rejected'?'rejected':'pending'}">${statusRu(t.status)}</span></td>
+      <td><span class="badge-status st-${(t.status==='approved'||t.status==='confirmed')?'approved':t.status==='rejected'?'rejected':'pending'}">${txnStatusRu(t.status)}</span></td>
       <td class="t-actions">${t.status==='pending'
         ? `<button class="btn btn-success btn-sm" onclick="txnConfirm(${t.id})">${I.check}<span style="margin-left:2px">Подтвердить</span></button>
-           <button class="btn btn-ghost btn-sm" onclick="txnReject(${t.id})" style="color:var(--danger)">${I.x}</button>`
+           <button class="btn btn-ghost btn-sm" onclick="txnReject(${t.id})" style="color:var(--danger);font-size:12px">Отклонить</button>`
         : t.reason?`<span class="muted" title="${esc(t.reason)}">${esc(t.reason)}</span>`:""}</td>
     </tr>`).join("");
   $("#txnPager").innerHTML=pagerHTML(p,"txnGo");
@@ -846,11 +1470,31 @@ function renderTxns(){
 window.txnTab=t=>{Txns.tab=t;Txns.page=1;renderTxns();};
 window.txnGo=p=>{Txns.page=p;renderTxns();};
 window.txnConfirm=async id=>{
-  const row=$(`#txnBody tr[data-id="${id}"]`);
-  try{ await api("/admin/transactions/"+id+"/confirm",{method:"POST"}); }catch(e){ if(e.message==="401")return; }
-  const t=Txns.list.find(x=>x.id===id); if(t)t.status="confirmed";
-  if(row){row.classList.add("removing");setTimeout(()=>{Badges.pendingTxn=Txns.list.filter(x=>x.status==="pending").length;renderNav();renderTxns();},450);}
-  toast("Транзакция подтверждена","ok","Кешбэк начислен клиенту");
+  const t=Txns.list.find(x=>x.id===id);
+  const cashback=t?fmtSum(t.cashback):"";
+  const client=t?esc(t.user_name):"";
+  const body=`<p style="margin:0 0 8px">Вы подтверждаете транзакцию?</p>
+    <div style="background:var(--bg);border-radius:10px;padding:14px 16px;font-size:14px;line-height:1.7">
+      <b>${client}</b><br>
+      Кешбэк: <span style="color:var(--success);font-weight:700">${cashback}</span> будет зачислен на счёт клиента
+    </div>`;
+  const foot=`<button class="btn btn-ghost x">Отмена</button><button class="btn btn-success" id="txnConfirmDo">Да, подтвердить</button>`;
+  openModal(modalShell("Подтвердить транзакцию",body,foot));
+  $("#txnConfirmDo").onclick=async()=>{
+    $("#txnConfirmDo").disabled=true; $("#txnConfirmDo").textContent="Подтверждаем…";
+    try{
+      await api("/admin/transactions/"+id+"/approve",{method:"POST"});
+      closeModal();
+      if(t) t.status="approved";
+      const row=$(`#txnBody tr[data-id="${id}"]`);
+      if(row){row.classList.add("removing");setTimeout(()=>{Badges.pendingTxn=Txns.list.filter(x=>x.status==="pending").length;renderNav();renderTxns();},450);}
+      toast("Транзакция подтверждена","ok","Кешбэк начислен клиенту");
+    }catch(e){
+      $("#txnConfirmDo").disabled=false; $("#txnConfirmDo").textContent="Да, подтвердить";
+      if(e.message==="401")return;
+      toast("Ошибка подтверждения","err");
+    }
+  };
 };
 window.txnReject=id=>{
   const body=`<p style="margin-bottom:14px;color:var(--muted)">Укажите причину отклонения — клиент увидит её.</p>
@@ -860,12 +1504,19 @@ window.txnReject=id=>{
   $("#rejDo").onclick=async()=>{
     const reason=$("#rejReason").value.trim();
     if(!reason){toast("Введите причину","err");return;}
-    try{ await api("/admin/transactions/"+id+"/reject",{method:"POST",body:JSON.stringify({reason})}); }catch(e){ if(e.message==="401")return; }
-    const t=Txns.list.find(x=>x.id===id); if(t){t.status="rejected";t.reason=reason;}
-    closeModal();
-    const row=$(`#txnBody tr[data-id="${id}"]`);
-    if(row){row.classList.add("removing");setTimeout(()=>{Badges.pendingTxn=Txns.list.filter(x=>x.status==="pending").length;renderNav();renderTxns();},450);}
-    toast("Транзакция отклонена","warn");
+    $("#rejDo").disabled=true; $("#rejDo").textContent="Отклоняем…";
+    try{
+      await api("/admin/transactions/"+id+"/reject",{method:"POST",body:JSON.stringify({note:reason})});
+      const t=Txns.list.find(x=>x.id===id); if(t){t.status="rejected";t.reason=reason;}
+      closeModal();
+      const row=$(`#txnBody tr[data-id="${id}"]`);
+      if(row){row.classList.add("removing");setTimeout(()=>{Badges.pendingTxn=Txns.list.filter(x=>x.status==="pending").length;renderNav();renderTxns();},450);}
+      toast("Транзакция отклонена","warn");
+    }catch(e){
+      $("#rejDo").disabled=false; $("#rejDo").textContent="Отклонить транзакцию";
+      if(e.message==="401")return;
+      toast("Ошибка отклонения","err");
+    }
   };
 };
 
@@ -884,46 +1535,55 @@ async function pageGifts(){
   renderGifts();
 }
 function thumb(url,name){
-  return url?`<img class="thumb" src="${esc(url)}" onerror="this.outerHTML='<div class=\\'thumb-fallback\\'>${I.gift}</div>'">`:`<div class="thumb-fallback">${I.gift}</div>`;
+  return url?`<img class="thumb" src="${esc(url)}" onerror="this.style.display='none'">`:`<div class="thumb-fallback">${I.gift}</div>`;
 }
 function renderGifts(){
   const body=$("#gBody"); if(!body)return;
   if(!Gifts.list.length){body.innerHTML=emptyRow(6,"Нет подарков");return;}
   body.innerHTML=Gifts.list.map(g=>`
     <tr>
-      <td>${thumb(g.image,g.name_ru)}</td>
+      <td>${thumb(g.image_url,g.name_ru)}</td>
       <td><div class="t-strong">${esc(g.name_ru)}</div><small class="muted">${esc(g.name_uz||"")}</small></td>
-      <td class="t-strong mono">${fmtSum(g.price)}</td>
-      <td>${g.stock==null?'<span class="tag">∞ безлимит</span>':`<span class="${g.stock<=3?'':''}">${g.stock} шт</span>`}</td>
-      <td><span class="badge-status ${g.active?'st-active':'st-inactive'}">${g.active?'Активен':'Скрыт'}</span></td>
+      <td class="t-strong mono">${fmtSum(g.price_cashback)}</td>
+      <td>${g.stock_quantity==null?'<span class="tag">∞ безлимит</span>':`<span>${g.stock_quantity} шт</span>`}</td>
+      <td><span class="badge-status ${g.is_active?'st-active':'st-inactive'}">${g.is_active?'Активен':'Скрыт'}</span></td>
       <td class="t-actions">
-        <button class="btn btn-ghost btn-sm btn-icon" onclick="giftEdit(${g.id})">${I.edit}</button>
-        <button class="btn btn-ghost btn-sm" onclick="giftToggle(${g.id})">${g.active?'Скрыть':'Показать'}</button>
+        <button class="btn btn-ghost btn-sm btn-icon" title="Редактировать" onclick="giftEdit(${g.id})">${I.eye}</button>
+        <button class="btn btn-ghost btn-sm" onclick="giftToggle(${g.id})">${g.is_active?'Скрыть':'Показать'}</button>
+        <button class="btn btn-ghost btn-sm btn-icon" title="Удалить" style="color:var(--danger)" onclick="giftDelete(${g.id},'${esc(g.name_ru)}')">${I.trash}</button>
       </td></tr>`).join("");
 }
+window.giftDelete=async(id,name)=>{
+  if(!confirm(`Удалить подарок «${name}»? Действие необратимо.`)) return;
+  try{
+    await api("/admin/gifts/"+id,{method:"DELETE"});
+    Gifts.list=Gifts.list.filter(x=>x.id!==id);
+    renderGifts(); toast("Подарок удалён","warn");
+  }catch(e){ if(e.message==="401")return; toast("Ошибка удаления","err"); }
+};
 window.giftToggle=async id=>{
   const g=Gifts.list.find(x=>x.id===id); if(!g)return;
-  g.active=!g.active;
-  try{ await api("/admin/gifts/"+id,{method:"PUT",body:JSON.stringify(g)}); }catch(e){ if(e.message==="401")return; }
-  renderGifts(); toast(g.active?"Подарок показан":"Подарок скрыт");
+  g.is_active=!g.is_active;
+  try{ await api("/admin/gifts/"+id,{method:"PUT",body:JSON.stringify({is_active:g.is_active})}); }catch(e){ if(e.message==="401")return; }
+  renderGifts(); toast(g.is_active?"Подарок показан":"Подарок скрыт");
 };
 window.giftEdit=id=>{
-  const g=id?Gifts.list.find(x=>x.id===id):{name_ru:"",name_uz:"",desc_ru:"",desc_uz:"",image:"",price:"",stock:"",active:true};
+  const g=id?Gifts.list.find(x=>x.id===id):{name_ru:"",name_uz:"",description_ru:"",description_uz:"",image_url:"",price_cashback:"",stock_quantity:"",is_active:true};
   const body=`<div class="form-grid">
     <div><label class="sub-label" style="margin-top:0">Название RU</label><input class="input" id="gNameRu" value="${esc(g.name_ru)}"></div>
     <div><label class="sub-label" style="margin-top:0">Название UZ</label><input class="input" id="gNameUz" value="${esc(g.name_uz)}"></div>
-    <div class="full"><label class="sub-label" style="margin-top:0">Описание RU</label><textarea class="input" id="gDescRu">${esc(g.desc_ru)}</textarea></div>
-    <div class="full"><label class="sub-label" style="margin-top:0">Описание UZ</label><textarea class="input" id="gDescUz">${esc(g.desc_uz)}</textarea></div>
-    <div class="full"><label class="sub-label" style="margin-top:0">URL картинки</label><input class="input" id="gImg" value="${esc(g.image)}" placeholder="https://..."></div>
-    <div><label class="sub-label" style="margin-top:0">Цена в кешбэке (сум)</label><input class="input mono" id="gPrice" type="number" value="${g.price}"></div>
-    <div><label class="sub-label" style="margin-top:0">Кол-во (пусто = ∞)</label><input class="input mono" id="gStock" type="number" value="${g.stock==null?'':g.stock}"></div>
-    <div class="full check-row"><label class="switch"><input type="checkbox" id="gActive" ${g.active?'checked':''}><span class="slider"></span></label><label for="gActive">Активен</label></div>
+    <div class="full"><label class="sub-label" style="margin-top:0">Описание RU</label><textarea class="input" id="gDescRu">${esc(g.description_ru||"")}</textarea></div>
+    <div class="full"><label class="sub-label" style="margin-top:0">Описание UZ</label><textarea class="input" id="gDescUz">${esc(g.description_uz||"")}</textarea></div>
+    <div class="full"><label class="sub-label" style="margin-top:0">Картинка</label>${imgUploadWidget('gImg', g.image_url||"")}</div>
+    <div><label class="sub-label" style="margin-top:0">Цена в кешбэке (сум)</label><input class="input mono" id="gPrice" type="number" value="${g.price_cashback||""}"></div>
+    <div><label class="sub-label" style="margin-top:0">Кол-во (пусто = ∞)</label><input class="input mono" id="gStock" type="number" value="${g.stock_quantity==null?'':g.stock_quantity}"></div>
+    <div class="full check-row"><label class="switch"><input type="checkbox" id="gActive" ${g.is_active?'checked':''}><span class="slider"></span></label><label for="gActive">Активен</label></div>
   </div>`;
   const foot=`<button class="btn btn-ghost x">Отмена</button><button class="btn btn-primary" id="gSave">${id?'Сохранить':'Добавить'}</button>`;
   openModal(modalShell(id?"Редактировать подарок":"Новый подарок",body,foot));
   $("#gSave").onclick=async()=>{
-    const payload={name_ru:$("#gNameRu").value,name_uz:$("#gNameUz").value,desc_ru:$("#gDescRu").value,desc_uz:$("#gDescUz").value,
-      image:$("#gImg").value,price:+$("#gPrice").value,stock:$("#gStock").value===""?null:+$("#gStock").value,active:$("#gActive").checked};
+    const payload={name_ru:$("#gNameRu").value,name_uz:$("#gNameUz").value,description_ru:$("#gDescRu").value,description_uz:$("#gDescUz").value,
+      image_url:$("#gImg").value,price_cashback:+$("#gPrice").value,stock_quantity:$("#gStock").value===""?null:+$("#gStock").value,is_active:$("#gActive").checked};
     if(!payload.name_ru){toast("Введите название","err");return;}
     try{
       if(id){await api("/admin/gifts/"+id,{method:"PUT",body:JSON.stringify(payload)}); Object.assign(g,payload);}
@@ -950,40 +1610,80 @@ async function pageClaims(){
   renderClaims();
 }
 function renderClaims(){
-  const counts={pending:0,approved:0,issued:0,rejected:0};
-  Claims.list.forEach(x=>counts[x.status]!==undefined&&counts[x.status]++);
+  const counts={pending:0,approved:0,shipping:0,confirmed:0,delivered:0,rejected:0};
+  Claims.list.forEach(x=>{
+    if(x.status==="issued") counts.delivered++;
+    else if(counts[x.status]!==undefined) counts[x.status]++;
+  });
   $("#clTabs").innerHTML=`<div class="tabs">
-    ${[["pending","Ожидают"],["approved","Одобрены"],["issued","Выданы"],["rejected","Отклонены"]].map(([k,l])=>
-      `<div class="tab ${Claims.tab===k?'active':''}" onclick="clTab('${k}')">${l} ${counts[k]?`<span class="cnt">${counts[k]}</span>`:""}</div>`).join("")}
+    ${[["pending","В обработке"],["approved","Одобрено"],["shipping","У доставки"],["confirmed","Ожидает клиента"],["delivered","Завершённые"],["rejected","Отклонённые"]].map(([k,l])=>
+      `<div class="tab ${Claims.tab===k?'active':''}" onclick="clTab('${k}')">${l} ${counts[k]&&k!=='rejected'?`<span class="cnt">${counts[k]}</span>`:""}</div>`).join("")}
   </div>`;
-  const arr=Claims.list.filter(x=>x.status===Claims.tab);
+  const arr=Claims.list.filter(x=>Claims.tab==='delivered'?(x.status==='delivered'||x.status==='issued'):x.status===Claims.tab);
   const p=paginate(arr,Claims.page,20);
   const body=$("#clBody"); if(!body)return;
   if(!p.items.length){body.innerHTML=emptyRow(6,"Нет заявок");$("#clPager").innerHTML="";return;}
   body.innerHTML=p.items.map(x=>{
     let act="";
-    if(x.status==="pending")act=`<button class="btn btn-success btn-sm" onclick="clSet(${x.id},'approved')">Одобрить</button><button class="btn btn-ghost btn-sm" style="color:var(--danger)" onclick="clReject(${x.id})">${I.x}</button>`;
-    else if(x.status==="approved")act=`<button class="btn btn-primary btn-sm" onclick="clSet(${x.id},'issued')">Выдать</button><button class="btn btn-ghost btn-sm" style="color:var(--danger)" onclick="clReject(${x.id})">${I.x}</button>`;
-    const st=x.status==="approved"?"approved":x.status==="issued"?"issued":x.status==="rejected"?"rejected":"pending";
-    return `<tr data-id="${x.id}">
+    const trash=`<button class="btn btn-ghost btn-sm btn-icon" style="color:var(--danger)" title="Отклонить" onclick="clReject(${x.id})">${I.trash}</button>`;
+    if(x.status==="pending")act=`<button class="btn btn-success btn-sm" onclick="clSet(${x.id},'approved')">${I.check}<span style="margin-left:4px">Одобрить</span></button>${trash}`;
+    else if(x.status==="approved")act=`<button class="btn btn-primary btn-sm" onclick="clSet(${x.id},'shipping')">🚚<span style="margin-left:4px">Передать доставке</span></button>${trash}`;
+    else if(x.status==="shipping")act=`<button class="btn btn-primary btn-sm" onclick="clSet(${x.id},'confirmed')">📦<span style="margin-left:4px">Запросить подтверждение</span></button>${trash}`;
+    else if(x.status==="confirmed")act=`<button class="btn btn-ghost btn-sm" disabled style="opacity:.6;cursor:default">ожидает клиента…</button>`;
+    const stMap={approved:'approved',shipping:'shipping',confirmed:'confirming',delivered:'confirmed',issued:'confirmed',rejected:'rejected'};
+    const st=stMap[x.status]||'pending';
+    return `<tr class="clickable" data-id="${x.id}" onclick="clOpen(${x.id})">
       <td><div class="cell-user"><div class="avatar">${initials(x.user_name)}</div><div class="meta"><b>${esc(x.user_name)}</b></div></div></td>
       <td>${esc(x.gift_name)}</td>
       <td class="t-strong mono">${fmtSum(x.price)}</td>
       <td class="muted nowrap">${fmtDate(x.created_at)}</td>
       <td><span class="badge-status st-${st}">${statusRu(x.status)}</span></td>
-      <td class="t-actions">${act}</td></tr>`;
+      <td class="t-actions" onclick="event.stopPropagation()">${I.eye?`<button class="btn btn-ghost btn-sm btn-icon" title="Открыть" onclick="clOpen(${x.id})">${I.eye}</button>`:""} ${act}</td></tr>`;
   }).join("");
   $("#clPager").innerHTML=pagerHTML(p,"clGo");
 }
+window.clOpen=id=>{
+  const x=Claims.list.find(c=>c.id===id);if(!x)return;
+  const stMap={approved:'approved',shipping:'shipping',confirmed:'confirming',delivered:'confirmed',issued:'confirmed',rejected:'rejected'};
+  const st=stMap[x.status]||'pending';
+  let act="";
+  if(x.status==="pending")act=`<button class="btn btn-success" onclick="clSet(${x.id},'approved').then(()=>closeModal())">Одобрить</button><button class="btn btn-ghost" style="color:var(--danger)" onclick="closeModal();clReject(${x.id})">Отклонить</button>`;
+  else if(x.status==="approved")act=`<button class="btn btn-primary" onclick="clSet(${x.id},'shipping').then(()=>closeModal())">Передать доставке 🚚</button>`;
+  else if(x.status==="shipping")act=`<button class="btn btn-primary" onclick="clSet(${x.id},'confirmed').then(()=>closeModal())">Запросить подтверждение 📦</button>`;
+  const body=`
+    <div class="detail-hero"><div class="avatar">${initials(x.user_name)}</div><div><b>${esc(x.user_name)}</b></div></div>
+    <div class="stat-grid" style="grid-template-columns:1fr 1fr;margin-bottom:18px">
+      <div class="stat"><div class="label">Подарок</div><div class="value" style="font-size:16px">${esc(x.gift_name)}</div></div>
+      <div class="stat"><div class="label">Стоимость (кешбэк)</div><div class="value">${fmtSum(x.price)}</div></div>
+      <div class="stat"><div class="label">Дата заявки</div><div class="value" style="font-size:15px">${fmtDate(x.created_at)}</div></div>
+      <div class="stat"><div class="label">Статус</div><div class="value"><span class="badge-status st-${st}">${statusRu(x.status)}</span></div></div>
+    </div>
+    ${x.reason?`<div class="info-banner" style="background:#fff3f3;color:var(--danger)">Причина отклонения: ${esc(x.reason)}</div>`:""}`;
+  const foot=`<button class="btn btn-ghost x">Закрыть</button>${act}`;
+  openModal(modalShell("Заявка на подарок",body,foot));
+};
 window.clTab=t=>{Claims.tab=t;Claims.page=1;renderClaims();};
 window.clGo=p=>{Claims.page=p;renderClaims();};
 window.clSet=async(id,status)=>{
   const x=Claims.list.find(c=>c.id===id);if(!x)return;
-  try{ await api("/admin/claims/"+id,{method:"PUT",body:JSON.stringify({status})}); }catch(e){ if(e.message==="401")return; }
-  x.status=status;
-  const row=$(`#clBody tr[data-id="${id}"]`);
-  if(row){row.classList.add("removing");setTimeout(()=>{Badges.pendingClaims=Claims.list.filter(c=>c.status==="pending").length;renderNav();renderClaims();},450);}
-  toast(status==="approved"?"Заявка одобрена":"Подарок выдан");
+  const labels={approved:'одобрить заявку',shipping:'передать подарок в доставку',confirmed:'запросить подтверждение у клиента',delivered:'отметить как доставленный'};
+  const label=labels[status]||'изменить статус';
+  const giftName=esc(x.gift_name||x.name_ru||'');
+  await new Promise(resolve=>{
+    const foot=`<button class="btn btn-ghost" id="_cfNo">Отмена</button><button class="btn btn-primary" id="_cfYes">Подтвердить</button>`;
+    const body=`<p style="color:var(--muted);margin-bottom:8px">Вы уверены, что хотите <b>${label}</b>?</p><p style="font-size:13px;color:var(--text)">${giftName}</p>`;
+    openModal(modalShell('Подтверждение',body,foot));
+    $('#_cfYes').onclick=()=>{closeModal();resolve(true);};
+    $('#_cfNo').onclick=()=>{closeModal();resolve(false);};
+  }).then(async ok=>{
+    if(!ok)return;
+    try{ await api("/admin/claims/"+id,{method:"PUT",body:JSON.stringify({status})}); }catch(e){ if(e.message==="401")return; }
+    x.status=status;
+    const row=$(`#clBody tr[data-id="${id}"]`);
+    if(row){row.classList.add("removing");setTimeout(()=>{Badges.pendingClaims=Claims.list.filter(c=>c.status==="pending").length;renderNav();renderClaims();},450);}
+    const msgs={approved:"Заявка одобрена",shipping:"Передано службе доставки",confirmed:"Запрос подтверждения отправлен клиенту"};
+    toast(msgs[status]||"Статус обновлён");
+  });
 };
 window.clReject=id=>{
   const body=`<p style="margin-bottom:14px;color:var(--muted)">Причина отклонения заявки:</p><textarea class="input" id="clReason" placeholder="Причина..."></textarea>`;
@@ -997,7 +1697,8 @@ window.clReject=id=>{
     closeModal();
     const row=$(`#clBody tr[data-id="${id}"]`);
     if(row){row.classList.add("removing");setTimeout(()=>{Badges.pendingClaims=Claims.list.filter(c=>c.status==="pending").length;renderNav();renderClaims();},450);}
-    toast("Заявка отклонена","warn");
+    else{Badges.pendingClaims=Claims.list.filter(c=>c.status==="pending").length;renderNav();renderClaims();}
+    toast("Заявка отклонена · клиенту отправлено уведомление","warn");
   };
 };
 
@@ -1015,49 +1716,182 @@ async function pageCatalog(){
   Catalog.list=Array.isArray(data)?data:(data.items||MOCK.catalog);
   renderCatalog();
 }
+function catThumb(it){
+  if(it.image_url){
+    return `<img src="${esc(it.image_url)}" class="thumb" style="margin-right:10px;vertical-align:middle;display:inline-block" onerror="this.style.display='none'">`;
+  }
+  const icon=it.type==='device'?I.catalog:I.gift;
+  return `<span class="thumb-fallback" style="margin-right:10px;vertical-align:middle;display:inline-flex">${icon}</span>`;
+}
 function renderCatalog(){
   const body=$("#catBody");if(!body)return;
   if(!Catalog.list.length){body.innerHTML=emptyRow(5,"Каталог пуст");return;}
   body.innerHTML=Catalog.list.map(it=>`
-    <tr>
+    <tr class="clickable" data-id="${it.id}" onclick="catEdit(${it.id})">
       <td><span class="tag" style="background:${it.type==='device'?'#eaf2ff':'#f3eaff'};color:${it.type==='device'?'var(--primary)':'#7b46c9'}">${it.type==='device'?'Аппарат':'Аромат'}</span></td>
-      <td><div class="t-strong">${esc(it.name_ru)}</div><small class="muted">${esc(it.name_uz||"")}</small></td>
+      <td style="display:flex;align-items:center;padding-top:14px;padding-bottom:14px">
+        ${catThumb(it)}
+        <div>
+          <div class="t-strong">${esc(it.name_ru)}</div>
+          <small class="muted">${esc(it.name_uz||"")}</small>
+        </div>
+      </td>
       <td class="muted">${esc(it.tag_ru||"—")}</td>
-      <td><span class="badge-status ${it.active?'st-active':'st-inactive'}">${it.active?'Активен':'Скрыт'}</span></td>
-      <td class="t-actions"><button class="btn btn-ghost btn-sm btn-icon" onclick="catEdit(${it.id})">${I.edit}</button>
-      <button class="btn btn-ghost btn-sm" onclick="catToggle(${it.id})">${it.active?'Скрыть':'Показать'}</button></td>
+      <td><span class="badge-status ${it.is_active?'st-active':'st-inactive'}">${it.is_active?'Активен':'Скрыт'}</span></td>
+      <td class="t-actions" onclick="event.stopPropagation()">
+        <button class="btn btn-ghost btn-sm btn-icon" title="Просмотр" onclick="catView(${it.id})">${I.eye}</button>
+        <button class="btn btn-primary btn-sm" onclick="catEdit(${it.id})">${I.edit} Изменить</button>
+        <button class="btn btn-ghost btn-sm" onclick="catToggle(${it.id})">${it.is_active?'Скрыть':'Показать'}</button>
+        <button class="btn btn-ghost btn-sm btn-icon" title="Удалить" style="color:var(--danger)" onclick="catDelete(${it.id},'${esc(it.name_ru)}')">${I.trash}</button>
+      </td>
     </tr>`).join("");
 }
+window.catView=id=>{
+  const it=Catalog.list.find(x=>x.id===id); if(!it) return;
+  const dis='disabled style="background:var(--bg);color:#0f1b35;opacity:1;cursor:default"';
+  const imgHtml=it.image_url
+    ?`<img src="${esc(it.image_url)}" style="width:100%;max-height:200px;object-fit:contain;border-radius:12px;margin-bottom:16px;background:#f4f7fc">`
+    :'';
+  const _rawSpecs=it.specs;
+  const _specsArr=Array.isArray(_rawSpecs)?_rawSpecs:(_rawSpecs&&typeof _rawSpecs==='object'?Object.entries(_rawSpecs):[]);
+  const specsHtml=_specsArr.map(s=>`
+    <div style="display:flex;gap:8px;font-size:13px;padding:8px 0;border-bottom:1px solid var(--bg)">
+      <span style="color:var(--muted)">${esc(s[0]||'')}</span>
+      <span style="margin-left:auto;font-weight:600;color:#0f1b35">${esc(s[1]||'')}</span>
+    </div>`).join('');
+  const featsHtml=(it.features||[]).map(f=>`<span class="tag" style="margin:2px">${esc(f)}</span>`).join('');
+
+  const body=`
+    ${imgHtml}
+    <div class="form-grid">
+      <div class="full">
+        <select class="input" ${dis}>
+          <option ${it.type==='device'?'selected':''}>Аппарат</option>
+          <option ${it.type==='scent'?'selected':''}>Аромат</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="sub-label" style="margin-top:16px">🌐 НАЗВАНИЕ</div>
+    <div class="form-grid">
+      <div>
+        <label class="sub-label" style="margin-top:0;font-size:11px">RU</label>
+        <input class="input" value="${esc(it.name_ru||'')}" ${dis} placeholder="Название на русском">
+      </div>
+      <div>
+        <label class="sub-label" style="margin-top:0;font-size:11px">UZ</label>
+        <input class="input" value="${esc(it.name_uz||'')}" ${dis} placeholder="O'zbekcha nomi">
+      </div>
+    </div>
+
+    <div class="sub-label" style="margin-top:16px">📝 ОПИСАНИЕ</div>
+    <div class="form-grid">
+      <div class="full">
+        <label class="sub-label" style="margin-top:0;font-size:11px">RU</label>
+        <textarea class="input" rows="4" ${dis} style="resize:none;background:var(--bg);color:#0f1b35;opacity:1;cursor:default">${esc(it.description_ru||'')}</textarea>
+      </div>
+      <div class="full">
+        <label class="sub-label" style="margin-top:0;font-size:11px">UZ</label>
+        <textarea class="input" rows="4" ${dis} style="resize:none;background:var(--bg);color:#0f1b35;opacity:1;cursor:default">${esc(it.description_uz||'')}</textarea>
+      </div>
+    </div>
+
+    <div class="sub-label" style="margin-top:16px">🏷 ТЕГ (КОРОТКОЕ ОПИСАНИЕ)</div>
+    <div class="form-grid">
+      <div>
+        <label class="sub-label" style="margin-top:0;font-size:11px">RU</label>
+        <input class="input" value="${esc(it.tag_ru||'')}" ${dis} placeholder="До 200 кв.м">
+      </div>
+      <div>
+        <label class="sub-label" style="margin-top:0;font-size:11px">UZ</label>
+        <input class="input" value="${esc(it.tag_uz||'')}" ${dis} placeholder="200 kv.m gacha">
+      </div>
+    </div>
+    ${specsHtml?`<div style="margin-top:16px"><div class="sub-label">⚙️ Характеристики</div>${specsHtml}</div>`:''}
+    ${featsHtml?`<div style="margin-top:16px"><div class="sub-label">✨ Особенности</div><div>${featsHtml}</div></div>`:''}`;
+
+  const foot=`<button class="btn btn-ghost x">Отмена</button><button class="btn btn-primary" onclick="catEdit(${it.id})">${I.edit} Изменить</button>`;
+  openModal(modalShell(esc(it.name_ru||'Позиция'),body,foot));
+};
+window.catDelete=async(id,name)=>{
+  if(!confirm(`Удалить «${name}» из каталога? Действие необратимо.`)) return;
+  try{
+    await api("/admin/catalog/"+id,{method:"DELETE"});
+    Catalog.list=Catalog.list.filter(x=>x.id!==id);
+    renderCatalog(); toast("Удалено из каталога","warn");
+  }catch(e){ if(e.message==="401")return; toast("Ошибка удаления","err"); }
+};
 window.catToggle=async id=>{
-  const it=Catalog.list.find(x=>x.id===id);if(!it)return;it.active=!it.active;
-  try{ await api("/admin/catalog/"+id,{method:"PUT",body:JSON.stringify(it)}); }catch(e){ if(e.message==="401")return; }
-  renderCatalog();toast(it.active?"Показано":"Скрыто");
+  const it=Catalog.list.find(x=>x.id===id);if(!it)return;it.is_active=!it.is_active;
+  try{ await api("/admin/catalog/"+id,{method:"PUT",body:JSON.stringify({is_active:it.is_active})}); }catch(e){ if(e.message==="401")return; }
+  renderCatalog();toast(it.is_active?"Показано":"Скрыто");
 };
 let catSpecs=[],catFeatures=[];
 window.catEdit=id=>{
-  const it=id?Catalog.list.find(x=>x.id===id):{type:"device",name_ru:"",name_uz:"",desc_ru:"",desc_uz:"",tag_ru:"",tag_uz:"",image:"",active:true,specs:[],features:[]};
-  catSpecs=(it.specs||[]).map(s=>[...s]); catFeatures=[...(it.features||[])];
-  const body=`<div class="form-grid">
-    <div class="full"><label class="sub-label" style="margin-top:0">Тип</label><select class="input" id="cType"><option value="device" ${it.type==='device'?'selected':''}>Аппарат</option><option value="scent" ${it.type==='scent'?'selected':''}>Аромат</option></select></div>
-    <div><label class="sub-label" style="margin-top:0">Название RU</label><input class="input" id="cNameRu" value="${esc(it.name_ru)}"></div>
-    <div><label class="sub-label" style="margin-top:0">Название UZ</label><input class="input" id="cNameUz" value="${esc(it.name_uz)}"></div>
-    <div class="full"><label class="sub-label" style="margin-top:0">Описание RU</label><textarea class="input" id="cDescRu">${esc(it.desc_ru)}</textarea></div>
-    <div class="full"><label class="sub-label" style="margin-top:0">Описание UZ</label><textarea class="input" id="cDescUz">${esc(it.desc_uz)}</textarea></div>
-    <div><label class="sub-label" style="margin-top:0">Тег RU</label><input class="input" id="cTagRu" value="${esc(it.tag_ru)}"></div>
-    <div><label class="sub-label" style="margin-top:0">Тег UZ</label><input class="input" id="cTagUz" value="${esc(it.tag_uz)}"></div>
-    <div class="full"><label class="sub-label" style="margin-top:0">URL картинки</label><input class="input" id="cImg" value="${esc(it.image)}"></div>
+  const it=id?Catalog.list.find(x=>x.id===id):{type:"device",name_ru:"",name_uz:"",description_ru:"",description_uz:"",tag_ru:"",tag_uz:"",image_url:"",is_active:true,specs:{},features:[]};
+  if(!it){toast("Позиция не найдена","err");return;}
+  // specs — JSONB dict из БД, нужно конвертировать в массив пар [ключ, значение]
+  const rawSpecs = it.specs;
+  if(Array.isArray(rawSpecs)){
+    catSpecs = rawSpecs.map(s=>Array.isArray(s)?[...s]:[String(s||''),'']);
+  } else if(rawSpecs && typeof rawSpecs==='object'){
+    catSpecs = Object.entries(rawSpecs).map(([k,v])=>[String(k||''),String(v||'')]);
+  } else {
+    catSpecs = [];
+  }
+  catFeatures=[...(it.features||[])];
+  const body=`
+  <div class="form-grid">
+    <div class="full"><label class="sub-label" style="margin-top:0">Тип</label>
+      <select class="input" id="cType">
+        <option value="device" ${it.type==='device'?'selected':''}>Аппарат</option>
+        <option value="scent" ${it.type==='scent'?'selected':''}>Аромат</option>
+      </select>
+    </div>
   </div>
-  <div class="sub-label">Характеристики</div><div id="cSpecs"></div>
-  <button class="btn btn-ghost btn-sm" onclick="catAddSpec()">${I.plus}<span>Добавить характеристику</span></button>
-  <div class="sub-label">Особенности</div><div class="chips-edit" id="cFeatures"></div>
-  <div class="row gap-8" style="margin-top:10px"><input class="input" id="cFeatInput" placeholder="Новая особенность" style="flex:1" onkeydown="if(event.key==='Enter'){event.preventDefault();catAddFeature();}"><button class="btn btn-ghost btn-sm" onclick="catAddFeature()">${I.plus}</button></div>
-  <div class="full check-row" style="margin-top:16px"><label class="switch"><input type="checkbox" id="cActive" ${it.active?'checked':''}><span class="slider"></span></label><label for="cActive">Активен</label></div>`;
+
+  <div class="sub-label" style="margin-top:14px">🌐 Название</div>
+  <div class="form-grid">
+    <div><label class="sub-label" style="margin-top:0;font-size:11px">RU</label><input class="input" id="cNameRu" value="${esc(it.name_ru)}" placeholder="Название на русском"></div>
+    <div><label class="sub-label" style="margin-top:0;font-size:11px">UZ</label><input class="input" id="cNameUz" value="${esc(it.name_uz)}" placeholder="O'zbekcha nomi"></div>
+  </div>
+
+  <div class="sub-label" style="margin-top:14px">📝 Описание</div>
+  <div class="form-grid">
+    <div class="full"><label class="sub-label" style="margin-top:0;font-size:11px">RU</label><textarea class="input" id="cDescRu" rows="3">${esc(it.description_ru||"")}</textarea></div>
+    <div class="full"><label class="sub-label" style="margin-top:0;font-size:11px">UZ</label><textarea class="input" id="cDescUz" rows="3">${esc(it.description_uz||"")}</textarea></div>
+  </div>
+
+  <div class="sub-label" style="margin-top:14px">🏷 Тег (короткое описание)</div>
+  <div class="form-grid">
+    <div><label class="sub-label" style="margin-top:0;font-size:11px">RU</label><input class="input" id="cTagRu" value="${esc(it.tag_ru||"")}" placeholder="До 200 кв.м"></div>
+    <div><label class="sub-label" style="margin-top:0;font-size:11px">UZ</label><input class="input" id="cTagUz" value="${esc(it.tag_uz||"")}" placeholder="200 kv.m gacha"></div>
+  </div>
+
+  <div class="sub-label" style="margin-top:14px">🖼 Картинка</div>
+  <div style="margin-bottom:12px">${imgUploadWidget('cImg', it.image_url||"")}</div>
+
+  <div class="sub-label">⚙️ Характеристики</div>
+  <div id="cSpecs"></div>
+  <button class="btn btn-ghost btn-sm" onclick="catAddSpec()" style="margin-top:6px">${I.plus}<span>Добавить характеристику</span></button>
+
+  <div class="sub-label" style="margin-top:14px">✨ Особенности</div>
+  <div class="chips-edit" id="cFeatures"></div>
+  <div class="row gap-8" style="margin-top:10px">
+    <input class="input" id="cFeatInput" placeholder="Новая особенность" style="flex:1" onkeydown="if(event.key==='Enter'){event.preventDefault();catAddFeature();}">
+    <button class="btn btn-ghost btn-sm" onclick="catAddFeature()">${I.plus}</button>
+  </div>
+
+  <div class="check-row" style="margin-top:16px">
+    <label class="switch"><input type="checkbox" id="cActive" ${it.is_active?'checked':''}><span class="slider"></span></label>
+    <label for="cActive" style="cursor:pointer">Активен (виден в WebApp)</label>
+  </div>`;
   const foot=`<button class="btn btn-ghost x">Отмена</button><button class="btn btn-primary" id="cSave">${id?'Сохранить':'Добавить'}</button>`;
   openModal(modalShell(id?"Редактировать позицию":"Новая позиция",body,foot),{wide:true});
   renderSpecs();renderFeatures();
   $("#cSave").onclick=async()=>{
-    const payload={type:$("#cType").value,name_ru:$("#cNameRu").value,name_uz:$("#cNameUz").value,desc_ru:$("#cDescRu").value,desc_uz:$("#cDescUz").value,
-      tag_ru:$("#cTagRu").value,tag_uz:$("#cTagUz").value,image:$("#cImg").value,active:$("#cActive").checked,
+    const payload={type:$("#cType").value,name_ru:$("#cNameRu").value,name_uz:$("#cNameUz").value,description_ru:$("#cDescRu").value,description_uz:$("#cDescUz").value,
+      tag_ru:$("#cTagRu").value,tag_uz:$("#cTagUz").value,image_url:$("#cImg").value,is_active:$("#cActive").checked,
       specs:collectSpecs(),features:catFeatures.slice()};
     if(!payload.name_ru){toast("Введите название","err");return;}
     try{
@@ -1074,7 +1908,7 @@ function renderSpecs(){
     <button class="btn btn-ghost btn-icon btn-sm" style="color:var(--danger)" onclick="catDelSpec(${i})">${I.x}</button></div>`).join("");
   $$("#cSpecs input").forEach(inp=>inp.oninput=function(){catSpecs[+this.dataset.si][+this.dataset.k]=this.value;});
 }
-function collectSpecs(){return catSpecs.filter(s=>s[0]||s[1]);}
+function collectSpecs(){return Object.fromEntries(catSpecs.filter(s=>s[0]||s[1]));}
 window.catAddSpec=()=>{catSpecs.push(["",""]);renderSpecs();};
 window.catDelSpec=i=>{catSpecs.splice(i,1);renderSpecs();};
 function renderFeatures(){
@@ -1107,85 +1941,364 @@ function renderAgents(){
       <td>${(a.districts||[]).map(d=>`<span class="tag" style="margin:1px">${esc(d)}</span>`).join(" ")||"—"}</td>
       <td class="t-strong">${fmt(a.txn_month||0)}</td>
       <td class="t-strong mono">${fmtSum(a.sales_month)}</td>
-      <td class="t-actions" onclick="event.stopPropagation()"><button class="btn btn-ghost btn-sm btn-icon" onclick="agentEdit(${a.id})">${I.edit}</button></td>
+      <td class="t-actions" onclick="event.stopPropagation()">
+        <button class="btn btn-ghost btn-sm btn-icon" title="Статистика" onclick="agentStats(${a.id})">${I.eye}</button>
+        <button class="btn btn-ghost btn-sm btn-icon" title="Редактировать" onclick="agentEdit(${a.id})">${I.edit}</button>
+        <button class="btn btn-ghost btn-sm btn-icon" title="Удалить" style="color:var(--danger)" onclick="agentDelete(${a.id},'${esc(a.name)}')">${I.trash}</button>
+      </td>
     </tr>`).join("");
 }
-window.agentStats=id=>{
+window.agentStats=async id=>{
   const a=Agents.list.find(x=>x.id===id);if(!a)return;
-  // synth daily stats
-  const days=[...Array(7)].map((_,i)=>({d:fmtDate(daysAgo(6-i)),t:Math.floor(Math.random()*5),s:Math.floor(Math.random()*2000000)}));
-  const body=`<div class="detail-hero"><div class="avatar">${initials(a.name)}</div><div><b>${esc(a.name)}</b><span class="muted">@${esc(a.username||"")} · ${esc(a.phone)}</span></div></div>
+  const body0=`<div class="detail-hero"><div class="avatar">${initials(a.name)}</div><div><b>${esc(a.name)}</b><span class="muted">@${esc(a.username||"")} · ${esc(a.phone)}</span></div></div>
     <div class="stat-grid" style="grid-template-columns:1fr 1fr;margin-bottom:18px">
       <div class="stat"><div class="label">Транзакций за месяц</div><div class="value">${fmt(a.txn_month||0)}</div></div>
       <div class="stat"><div class="label">Сумма продаж</div><div class="value" style="font-size:22px">${fmtSum(a.sales_month)}</div></div>
     </div>
     <div class="sub-label">Районы обслуживания</div>
     <div style="margin-bottom:6px">${(a.districts||[]).map(d=>`<span class="tag" style="margin:2px">${esc(d)}</span>`).join("")||"—"}</div>
-    <div class="sub-label">Активность по дням (демо)</div>
-    <div class="txn-list" style="max-height:none">${days.map(x=>`<div class="txn-item"><span class="muted">${x.d}</span><div class="amt"><b>${fmt(x.t)} транз.</b><small>${fmtSum(x.s)}</small></div></div>`).join("")}</div>`;
-  openModal(modalShell("Статистика агента",body,`<button class="btn btn-ghost x">Закрыть</button>`),{wide:true});
+    <div class="sub-label">Активность за 30 дней</div>
+    <div id="agStatDaily"><div class="page-loading" style="min-height:80px"><div class="spin"></div></div></div>`;
+  openModal(modalShell("Статистика агента",body0,`<button class="btn btn-ghost x">Закрыть</button>`),{wide:true});
+  try{
+    const r=await api(`/admin/agents/${id}/stats`);
+    const daily=(r.daily||[]);
+    const el=$("#agStatDaily");
+    if(!el)return;
+    if(!daily.length){el.innerHTML=`<div class="muted" style="padding:8px">Нет данных за последние 30 дней</div>`;return;}
+    el.innerHTML=`<div class="txn-list" style="max-height:none">${daily.map(x=>`
+      <div class="txn-item">
+        <span class="muted">${fmtDate(x.day)}</span>
+        <div class="amt"><b>${fmt(x.txn_count)} транз.</b><small>${fmtSum(x.total_amount)}</small></div>
+      </div>`).join("")}</div>`;
+  }catch(e){
+    const el=$("#agStatDaily");
+    if(el)el.innerHTML=`<div class="muted" style="padding:8px">Не удалось загрузить данные</div>`;
+  }
 };
-let agentDistricts=new Set();
+let agentDistricts=new Set(); // stores district IDs (integers)
 window.agentEdit=id=>{
   const a=id?Agents.list.find(x=>x.id===id):{name:"",phone:"",username:"",districts:[]};
-  agentDistricts=new Set(a.districts||[]);
-  const ms=Object.entries(REGIONS).map(([reg,dists])=>`<div class="ms-group"><strong>${reg}</strong>${
-    dists.map(d=>`<label class="ms-opt"><input type="checkbox" value="${esc(d)}" ${agentDistricts.has(d)?'checked':''} onchange="agentToggleDist(this)">${esc(d)}</label>`).join("")
-  }</div>`).join("");
+  // Build name→id map from REGIONS_DATA
+  const nameToId={};
+  REGIONS_DATA.forEach(r=>(r.districts||[]).forEach(d=>{nameToId[d.name_ru]=d.id;}));
+  // If agent has district_ids directly, use those; otherwise convert names→ids
+  const srcIds = a.district_ids && a.district_ids.length ? a.district_ids
+    : (a.districts||[]).map(n=>nameToId[n]).filter(x=>x!=null);
+  agentDistricts=new Set(srcIds);
+
+  function buildRegionList(){
+    return REGIONS_DATA.map(r=>{
+      const cnt=(r.districts||[]).filter(d=>agentDistricts.has(d.id)).length;
+      return `<div class="ag-region-row" onclick="agPickRegion(${r.id})">
+        <span class="ag-region-name">${esc(r.name_ru)}</span>
+        ${cnt>0?`<span class="ag-region-cnt" id="agRCnt-${r.id}">${cnt}</span>`:`<span class="ag-region-cnt" id="agRCnt-${r.id}" style="display:none">${cnt}</span>`}
+        <svg class="ag-region-chev" width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M6 4l4 4-4 4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </div>`;
+    }).join("");
+  }
+
   const body=`<div class="form-grid">
     <div><label class="sub-label" style="margin-top:0">Имя</label><input class="input" id="aName" value="${esc(a.name)}"></div>
     <div><label class="sub-label" style="margin-top:0">Телефон</label><input class="input" id="aPhone" value="${esc(a.phone)}"></div>
     <div><label class="sub-label" style="margin-top:0">Username (для входа)</label><input class="input" id="aUser" value="${esc(a.username)}"></div>
     <div><label class="sub-label" style="margin-top:0">Пароль ${id?'(оставьте пустым)':''}</label><input class="input" id="aPass" type="password" placeholder="${id?'без изменений':'новый пароль'}"></div>
   </div>
-  <div class="sub-label">Районы обслуживания</div><div class="ms-box">${ms}</div>`;
+  <div class="sub-label">Районы обслуживания</div>
+  <div class="ag-pick" id="agDistPicker">
+    <div id="agRegionList">${buildRegionList()}</div>
+    <div id="agDistView" style="display:none">
+      <div class="ag-back-row" onclick="agBackToRegions()">
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M10 4L6 8l4 4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        <span id="agActiveRegionName"></span>
+      </div>
+      <div class="ag-dist-list" id="agDistItems"></div>
+    </div>
+  </div>`;
   const foot=`<button class="btn btn-ghost x">Отмена</button><button class="btn btn-primary" id="aSave">${id?'Сохранить':'Добавить'}</button>`;
   openModal(modalShell(id?"Редактировать агента":"Новый агент",body,foot),{wide:true});
   $("#aSave").onclick=async()=>{
-    const payload={name:$("#aName").value,phone:$("#aPhone").value,username:$("#aUser").value,districts:[...agentDistricts]};
+    const idToName={};
+    REGIONS_DATA.forEach(r=>(r.districts||[]).forEach(d=>{idToName[d.id]=d.name_ru;}));
+    const distNames=[...agentDistricts].map(did=>idToName[did]||String(did));
+    const payload={name:$("#aName").value,phone:$("#aPhone").value,username:$("#aUser").value,
+      district_ids:[...agentDistricts].map(Number)};
     const pass=$("#aPass").value; if(pass)payload.password=pass;
     if(!payload.name||!payload.username){toast("Имя и username обязательны","err");return;}
     try{
-      if(id){await api("/admin/agents/"+id,{method:"PUT",body:JSON.stringify(payload)});Object.assign(a,payload);}
-      else{const r=await api("/admin/agents",{method:"POST",body:JSON.stringify(payload)});Agents.list.push(Object.assign({id:r.id||Date.now(),txn_month:0,sales_month:0},payload));}
-    }catch(e){if(e.message==="401")return;if(id)Object.assign(a,payload);else Agents.list.push(Object.assign({id:Date.now(),txn_month:0,sales_month:0},payload));}
+      if(id){await api("/admin/agents/"+id,{method:"PUT",body:JSON.stringify(payload)});Object.assign(a,payload);a.districts=distNames;}
+      else{const r=await api("/admin/agents",{method:"POST",body:JSON.stringify(payload)});Agents.list.push(Object.assign({id:r.id||Date.now(),txn_month:0,sales_month:0},payload,{districts:distNames}));}
+    }catch(e){if(e.message==="401")return;if(id){Object.assign(a,payload);a.districts=distNames;}else Agents.list.push(Object.assign({id:Date.now(),txn_month:0,sales_month:0},payload,{districts:distNames}));}
     closeModal();renderAgents();toast(id?"Агент обновлён":"Агент добавлен");
   };
 };
-window.agentToggleDist=el=>{ el.checked?agentDistricts.add(el.value):agentDistricts.delete(el.value); };
+window.agentDelete=async(id,name)=>{
+  if(!confirm(`Деактивировать агента «${name}»?`))return;
+  try{
+    await api("/admin/agents/"+id,{method:"DELETE"});
+    Agents.list=Agents.list.filter(x=>x.id!==id);
+    renderAgents();toast("Агент деактивирован","warn");
+  }catch(e){if(e.message==="401")return;toast("Ошибка удаления","err");}
+};
+window.agentToggleDist=(el,useId,regionId)=>{
+  const v = useId ? +el.value : el.value;
+  el.checked ? agentDistricts.add(v) : agentDistricts.delete(v);
+  if(regionId) agUpdateRegionCnt(regionId);
+};
+window.agPickRegion=function(regionId){
+  const region=REGIONS_DATA.find(r=>r.id===regionId);
+  if(!region)return;
+  document.getElementById("agRegionList").style.display="none";
+  document.getElementById("agDistView").style.display="";
+  document.getElementById("agActiveRegionName").textContent=region.name_ru;
+  document.getElementById("agDistItems").innerHTML=(region.districts||[]).map(d=>`
+    <label class="ag-dist-item">
+      <input type="checkbox" value="${d.id}" ${agentDistricts.has(d.id)?'checked':''} onchange="agentToggleDist(this,true,${regionId})">
+      <span>${esc(d.name_ru)}</span>
+    </label>`).join("");
+};
+window.agBackToRegions=function(){
+  document.getElementById("agDistView").style.display="none";
+  document.getElementById("agRegionList").style.display="";
+};
+window.agUpdateRegionCnt=function(regionId){
+  const region=REGIONS_DATA.find(r=>r.id===regionId);
+  if(!region)return;
+  const cnt=(region.districts||[]).filter(d=>agentDistricts.has(d.id)).length;
+  const el=document.getElementById("agRCnt-"+regionId);
+  if(el){el.textContent=cnt;el.style.display=cnt>0?"":"none";}
+};
 
 /* ============================================================
    PAGE 7: BROADCAST
    ============================================================ */
-function pageCast(){
-  const c=$("#content");
-  const regionOpts=Object.keys(REGIONS).map(r=>`<option value="${r}">${r}</option>`).join("");
-  c.innerHTML=`<div class="card card-pad setting-card">
-    <div class="section-head" style="margin-bottom:18px"><h2 style="font-size:18px">Рассылка клиентам</h2></div>
-    <div class="form-grid">
-      <div class="full"><label class="sub-label" style="margin-top:0">Аудитория</label>
-        <select class="input" id="bcAud" onchange="document.getElementById('bcRegionWrap').classList.toggle('hidden',this.value!=='region')">
-          <option value="all">Все клиенты</option><option value="region">По региону</option></select></div>
-      <div class="full hidden" id="bcRegionWrap"><label class="sub-label" style="margin-top:0">Регион</label><select class="input" id="bcRegion">${regionOpts}</select></div>
-      <div class="full"><label class="sub-label" style="margin-top:0">Текст RU</label><textarea class="input" id="bcRu" style="min-height:110px" placeholder="Текст сообщения на русском"></textarea></div>
-      <div class="full"><label class="sub-label" style="margin-top:0">Текст UZ</label><textarea class="input" id="bcUz" style="min-height:110px" placeholder="O'zbekcha matn"></textarea></div>
-    </div>
-    <button class="btn btn-primary" style="margin-top:18px" onclick="castSend()">${I.cast}<span>Отправить рассылку</span></button>
-  </div>`;
+const Cast={history:[]};
+
+// Хелперы rich-text редактора
+function bcFmt(cmd,val){
+  const ed=document.getElementById('bcEdRu');
+  if(ed){ed.focus();}
+  if(cmd==='createLink'){
+    const url=prompt('Введите URL:','https://');
+    if(!url)return;
+    document.execCommand('createLink',false,url);
+    // Добавить target=_blank
+    const ed2=document.getElementById('bcEdRu')||document.getElementById('bcEdUz');
+    if(ed2) ed2.querySelectorAll('a').forEach(a=>{a.target='_blank';});
+  } else {
+    document.execCommand(cmd,false,val||null);
+  }
 }
-window.castSend=()=>{
-  const ru=$("#bcRu").value.trim(),uz=$("#bcUz").value.trim();
+function bcFmtUz(cmd){
+  const ed=document.getElementById('bcEdUz');
+  if(ed){ed.focus();}
+  if(cmd==='createLink'){
+    const url=prompt('Введите URL:','https://');
+    if(!url)return;
+    document.execCommand('createLink',false,url);
+    if(ed) ed.querySelectorAll('a').forEach(a=>{a.target='_blank';});
+  } else {
+    document.execCommand(cmd,false,null);
+  }
+}
+// Конвертация contenteditable HTML → Telegram HTML
+function htmlToTgHtml(el){
+  if(!el) return '';
+  let html = el.innerHTML
+    .replace(/<br\s*\/?>/gi,'\n')
+    .replace(/<\/p>/gi,'\n').replace(/<p[^>]*>/gi,'')
+    .replace(/<\/div>/gi,'\n').replace(/<div[^>]*>/gi,'')
+    .replace(/<strong[^>]*>(.*?)<\/strong>/gis,'<b>$1</b>')
+    .replace(/<em[^>]*>(.*?)<\/em>/gis,'<i>$1</i>')
+    .replace(/<a\s+href="([^"]+)"[^>]*>(.*?)<\/a>/gis,'<a href="$1">$2</a>')
+    .replace(/<[^>]+>/g,'')  // убираем остальные теги
+    .replace(/&amp;/g,'&').replace(/&lt;/g,'<').replace(/&gt;/g,'>').replace(/&nbsp;/g,' ');
+  return html.trim();
+}
+
+async function pageCast(){
+  const c=$("#content");
+  const regionOpts=REGIONS_DATA.map(r=>`<option value="${r.id}">${esc(r.name_ru)}</option>`).join("");
+  // Минимальное datetime для поля (сейчас + 5 мин)
+  const nowPlus5=new Date(Date.now()+5*60000);
+  const dtMin=nowPlus5.toISOString().slice(0,16);
+  c.innerHTML=`
+    <div class="card card-pad" style="margin-bottom:20px">
+      <div class="section-head" style="margin-bottom:18px">
+        <h2 style="font-size:18px">${I.cast} Новая рассылка</h2>
+      </div>
+      <div class="form-grid">
+
+        <!-- АУДИТОРИЯ -->
+        <div class="full">
+          <label class="sub-label" style="margin-top:0">📢 Аудитория</label>
+          <select class="input" id="bcAud" onchange="
+            document.getElementById('bcRegionWrap').classList.toggle('hidden',this.value!=='region');
+            document.getElementById('bcLangWrap').classList.toggle('hidden',this.value==='language');
+          ">
+            <option value="all">Все клиенты</option>
+            <option value="region">По региону</option>
+            <option value="language">По языку</option>
+          </select>
+        </div>
+        <div class="full hidden" id="bcRegionWrap">
+          <label class="sub-label" style="margin-top:0">📍 Регион</label>
+          <select class="input" id="bcRegion">${regionOpts}</select>
+        </div>
+
+        <!-- ФИЛЬТР ПО ЯЗЫКУ -->
+        <div class="full" id="bcLangWrap">
+          <label class="sub-label" style="margin-top:0">🌐 Язык получателей</label>
+          <select class="input" id="bcLang">
+            <option value="">Все языки</option>
+            <option value="ru">🇷🇺 Русский</option>
+            <option value="uz">🇺🇿 O'zbek</option>
+          </select>
+          <span class="muted" style="font-size:12px">Отправить только пользователям с выбранным языком</span>
+        </div>
+
+        <!-- ТЕКСТ RU -->
+        <div class="full">
+          <label class="sub-label" style="margin-top:0">✏️ Текст RU</label>
+          <div class="bc-toolbar">
+            <button type="button" class="bc-tb-btn" onclick="bcFmt('bold')" title="Жирный"><b>B</b></button>
+            <button type="button" class="bc-tb-btn" onclick="bcFmt('italic')" title="Курсив"><i>I</i></button>
+            <button type="button" class="bc-tb-btn" onclick="bcFmt('underline')" title="Подчёркнутый"><u>U</u></button>
+            <button type="button" class="bc-tb-btn" onclick="bcFmt('createLink')" title="Ссылка">🔗</button>
+            <button type="button" class="bc-tb-btn bc-tb-clear" onclick="bcFmt('removeFormat')" title="Сбросить">Tx</button>
+          </div>
+          <div class="bc-editor" id="bcEdRu" contenteditable="true" placeholder="Текст сообщения на русском…"></div>
+        </div>
+
+        <!-- ТЕКСТ UZ -->
+        <div class="full">
+          <label class="sub-label">✏️ Текст UZ</label>
+          <div class="bc-toolbar">
+            <button type="button" class="bc-tb-btn" onclick="bcFmtUz('bold')"><b>B</b></button>
+            <button type="button" class="bc-tb-btn" onclick="bcFmtUz('italic')"><i>I</i></button>
+            <button type="button" class="bc-tb-btn" onclick="bcFmtUz('underline')"><u>U</u></button>
+            <button type="button" class="bc-tb-btn" onclick="bcFmtUz('createLink')">🔗</button>
+            <button type="button" class="bc-tb-btn bc-tb-clear" onclick="bcFmtUz('removeFormat')">Tx</button>
+          </div>
+          <div class="bc-editor" id="bcEdUz" contenteditable="true" placeholder="O'zbekcha matn…"></div>
+          <span class="muted" style="font-size:12px">Если оставить пустым — отправится RU текст всем</span>
+        </div>
+
+        <!-- ОТЛОЖЕННАЯ ОТПРАВКА -->
+        <div class="full">
+          <label class="sub-label">⏰ Отложенная отправка</label>
+          <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+            <label style="display:flex;align-items:center;gap:8px;font-size:14px;cursor:pointer">
+              <input type="checkbox" id="bcScheduleCheck" onchange="document.getElementById('bcScheduleWrap').classList.toggle('hidden',!this.checked)" style="width:16px;height:16px">
+              Запланировать отправку
+            </label>
+          </div>
+          <div class="hidden" id="bcScheduleWrap" style="margin-top:12px">
+            <input type="datetime-local" class="input" id="bcScheduleAt" min="${dtMin}" style="max-width:260px">
+            <div class="muted" style="font-size:12px;margin-top:6px">Укажите дату и время отправки (по вашему часовому поясу)</div>
+          </div>
+        </div>
+
+      </div>
+
+      <div style="display:flex;gap:12px;margin-top:20px;flex-wrap:wrap">
+        <button class="btn btn-primary" onclick="castSend(false)">${I.cast}<span>Отправить сейчас</span></button>
+        <button class="btn btn-ghost" onclick="castSend(true)">⏰ Запланировать</button>
+      </div>
+    </div>
+
+    <!-- ИСТОРИЯ РАССЫЛОК -->
+    <div class="card card-pad">
+      <div class="section-head" style="margin-bottom:14px">
+        <h2 style="font-size:18px">${I.log} История рассылок</h2>
+      </div>
+      <div class="table-wrap">
+        <table><thead><tr>
+          <th>Дата</th><th>Аудитория</th><th>Текст</th>
+          <th>Статус</th><th style="text-align:right">Отправлено</th>
+        </tr></thead>
+        <tbody id="castHistBody">${loadingTable(5)}</tbody></table>
+      </div>
+    </div>`;
+  try{
+    Cast.history = await api("/admin/broadcasts");
+  }catch(e){ Cast.history=[]; }
+  renderCastHistory();
+}
+
+function renderCastHistory(){
+  const body=$("#castHistBody"); if(!body) return;
+  if(!Cast.history.length){body.innerHTML=emptyRow(5,"Рассылок пока не было");return;}
+  body.innerHTML=Cast.history.map(b=>{
+    const audMap={all:"👥 Все",region:`📍 ${esc(b.region_name||"Регион")}`,language:`🌐 ${b.lang_filter==="ru"?"Русский":"O'zbek"}`};
+    const aud=audMap[b.target]||"👥 Все";
+    const langBadge=b.lang_filter?`<span class="tag" style="margin-left:4px">${b.lang_filter==="ru"?"🇷🇺":"🇺🇿"}</span>`:"";
+    const preview=esc((b.message_ru||"").replace(/<[^>]+>/g,"").slice(0,60))+(((b.message_ru||"").length>60)?"…":"");
+    const sent=b.sent_count||0;
+    const isPending=b.is_sent===false;
+    const statusBadge=isPending
+      ? `<span class="tag st-shipping">⏰ ${b.scheduled_at?fmtDateTime(b.scheduled_at):"Запланировано"}</span>`
+      : `<span class="tag st-confirmed">✓ Отправлено</span>`;
+    return `<tr>
+      <td class="mono nowrap">${fmtDateTime(b.created_at)}</td>
+      <td>${aud}${langBadge}</td>
+      <td style="max-width:260px;color:var(--text)">${preview}</td>
+      <td>${statusBadge}</td>
+      <td style="text-align:right">${isPending?'—':`<b class="t-strong">${fmt(sent)}</b> <span class="muted">чел.</span>`}</td>
+    </tr>`;
+  }).join("");
+}
+
+window.castSend=(scheduleMode)=>{
+  const edRu=document.getElementById('bcEdRu'), edUz=document.getElementById('bcEdUz');
+  const ru=htmlToTgHtml(edRu), uz=htmlToTgHtml(edUz);
   if(!ru&&!uz){toast("Введите текст рассылки","err");return;}
-  const aud=$("#bcAud").value, region=aud==="region"?$("#bcRegion").value:null;
-  const audLabel=aud==="all"?"всем клиентам":`клиентам региона «${region}»`;
+  const aud=$("#bcAud").value;
+  const regionId=aud==="region"?(+$("#bcRegion").value||null):null;
+  const langFilter=$("#bcLang").value||null;
+  const regionName=aud==="region"?(REGIONS_DATA.find(r=>r.id===regionId)||{}).name_ru||"":null;
+  const scheduleCheck=document.getElementById('bcScheduleCheck');
+  const scheduleAt=document.getElementById('bcScheduleAt');
+  const useSchedule = scheduleMode || (scheduleCheck&&scheduleCheck.checked);
+  const scheduledAt = useSchedule&&scheduleAt&&scheduleAt.value ? new Date(scheduleAt.value).toISOString() : null;
+
+  if(useSchedule&&!scheduledAt){toast("Укажите дату и время отправки","err");return;}
+
+  const audLabel = aud==="all" ? "всем клиентам"
+    : aud==="region" ? `клиентам региона «${regionName||regionId}»`
+    : `клиентам (язык: ${langFilter==="ru"?"русский":"O'zbek"})`;
+
+  const preview=`<div style="background:var(--bg);border-radius:10px;padding:12px 14px;margin-top:10px;font-size:13px;white-space:pre-wrap;max-height:160px;overflow:auto">${ru.replace(/\n/g,'<br>')}</div>`;
+  const schedInfo = scheduledAt ? `<div class="info-banner" style="margin-top:10px">⏰ Будет отправлено: <b>${fmtDateTime(scheduledAt)}</b></div>` : '';
   const body=`<p style="font-size:15px">Отправить рассылку <b>${audLabel}</b>?</p>
-    <div class="info-banner" style="margin-top:14px">${I.bell}<span>Сообщение получат все подходящие клиенты в Telegram. Действие необратимо.</span></div>`;
-  const foot=`<button class="btn btn-ghost x">Отмена</button><button class="btn btn-primary" id="castDo">Отправить</button>`;
+    ${preview}${schedInfo}
+    <div class="info-banner" style="margin-top:14px">${I.bell}<span>${scheduledAt?"Рассылка будет запланирована и отправлена автоматически.":"Сообщение получат все подходящие клиенты в Telegram. Действие необратимо."}</span></div>`;
+  const btnLabel = scheduledAt ? "⏰ Запланировать" : `${I.cast} Отправить`;
+  const foot=`<button class="btn btn-ghost x">Отмена</button><button class="btn btn-primary" id="castDo">${btnLabel}</button>`;
   openModal(modalShell("Подтверждение рассылки",body,foot));
   $("#castDo").onclick=async()=>{
-    try{ await api("/admin/broadcast",{method:"POST",body:JSON.stringify({audience:aud,region,text_ru:ru,text_uz:uz})}); }catch(e){ if(e.message==="401")return; }
-    closeModal();toast("Рассылка запущена","ok",audLabel);
-    $("#bcRu").value="";$("#bcUz").value="";
+    const btn=$("#castDo");
+    btn.disabled=true; btn.textContent=scheduledAt?"Планируем…":"Отправляем…";
+    const bcPayload={target:aud,message_ru:ru,message_uz:uz||ru,parse_mode:"HTML"};
+    if(regionId) bcPayload.region_id=regionId;
+    if(langFilter) bcPayload.lang_filter=langFilter;
+    if(scheduledAt) bcPayload.scheduled_at=scheduledAt;
+    try{
+      const r=await api("/admin/broadcast",{method:"POST",body:JSON.stringify(bcPayload)});
+      closeModal();
+      if(scheduledAt){
+        toast(`Рассылка запланирована на ${fmtDateTime(scheduledAt)}`,"ok");
+      } else {
+        toast(`Рассылка отправлена — ${fmt(r.sent_count||r.recipients||0)} получателей`,"ok");
+      }
+      if(edRu) edRu.innerHTML="";
+      if(edUz) edUz.innerHTML="";
+      try{ Cast.history=await api("/admin/broadcasts"); renderCastHistory(); }catch(e){}
+    }catch(e){
+      if(e.message==="401")return;
+      closeModal();
+      toast("Ошибка при отправке рассылки","err");
+    }
   };
 };
 
@@ -1222,10 +2335,29 @@ async function pagePolicy(){
     <div class="section-head" style="margin-bottom:18px"><h2 style="font-size:18px">Политика конфиденциальности</h2></div>
     <label class="sub-label" style="margin-top:0">Контент RU</label><textarea class="input" id="polRu" style="min-height:160px">${esc(d.ru)}</textarea>
     <label class="sub-label">Контент UZ</label><textarea class="input" id="polUz" style="min-height:160px">${esc(d.uz)}</textarea>
-    <label class="sub-label">URL PDF файла</label><input class="input" id="polPdf" value="${esc(d.pdf)}" placeholder="https://.../policy.pdf">
-    <button class="btn btn-primary" style="margin-top:18px" onclick="polSave()">Сохранить</button>
+    <label class="sub-label">PDF файл (прикрепить)</label>
+    <input type="hidden" id="polPdf" value="${esc(d.pdf)}">
+    <label id="polPdfLabel" style="display:flex;align-items:center;gap:12px;padding:12px 16px;border:2px dashed var(--border);border-radius:10px;cursor:pointer;margin-bottom:14px;background:#fafbfd;transition:border-color .2s" onmouseover="this.style.borderColor='var(--primary)'" onmouseout="this.style.borderColor='var(--border)'">
+      <span style="font-size:22px">${I.file}</span>
+      <div>
+        <div id="polPdfName" style="font-size:14px;font-weight:600;color:var(--text)">${d.pdf ? '📎 '+d.pdf.split('/').pop() : 'Нажмите чтобы выбрать PDF'}</div>
+        <div class="muted" style="font-size:12px;margin-top:2px">${d.pdf ? '<span style=\"color:var(--primary)\">Заменить файл</span>' : '.pdf, .doc, .docx — макс. 20 МБ'}</div>
+      </div>
+      <input type="file" id="polPdfFile" accept=".pdf,.doc,.docx" style="display:none" onchange="polUploadFile(this)">
+    </label>
+    <button class="btn btn-primary" style="margin-top:4px" onclick="polSave()">Сохранить</button>
   </div>`;
 }
+window.polUploadFile=async(input)=>{
+  const file=input.files[0]; if(!file)return;
+  const fd=new FormData(); fd.append("file",file);
+  try{
+    const data=await api("/admin/upload-doc",{method:"POST",body:fd,_raw:true});
+    $("#polPdf").value=data.url;
+    $("#polPdfName").textContent="📎 "+data.filename;
+    toast("Файл загружен");
+  }catch(e){ toast("Ошибка загрузки файла","err"); }
+};
 window.polSave=async()=>{
   const payload={ru:$("#polRu").value,uz:$("#polUz").value,pdf:$("#polPdf").value};
   try{ await api("/admin/policy",{method:"PUT",body:JSON.stringify(payload)}); }catch(e){ if(e.message==="401")return; }
@@ -1255,10 +2387,11 @@ function renderAudit(){
   if(Audit.date)arr=arr.filter(a=>new Date(a.created_at).toISOString().slice(0,10)===Audit.date);
   if(!arr.length){body.innerHTML=emptyRow(4,"Нет записей");return;}
   body.innerHTML=arr.map(a=>{
-    const isAdmin=(a.who||"").startsWith("admin");
+    const who=a.admin||a.who||"";
+    const det=a.details?(typeof a.details==='object'?JSON.stringify(a.details):String(a.details)):"";
     return `<tr><td class="muted nowrap">${fmtDateTime(a.created_at)}</td>
-    <td class="t-strong">${esc(a.action)}</td><td class="muted">${esc(a.details)}</td>
-    <td><span class="badge-status ${isAdmin?'st-confirmed':'st-neutral'}">${esc(a.who)}</span></td></tr>`;
+    <td class="t-strong">${esc(a.action)}</td><td class="muted">${esc(det)}</td>
+    <td><span class="badge-status ${who?'st-approved':'st-neutral'}">${esc(who||"—")}</span></td></tr>`;
   }).join("");
 }
 window.auClear=()=>{Audit.date="";const i=$("#auDate");if(i)i.value="";renderAudit();};
@@ -1283,11 +2416,34 @@ async function pageBackup(){
   </div>`;
 }
 window.doBackup=async()=>{
-  const btn=$("#bkBtn");btn.disabled=true;btn.style.opacity=".7";btn.innerHTML=`<div class="skeleton" style="width:18px;height:18px;border-radius:50%"></div><span>Создание...</span>`;
-  try{ await api("/admin/backup",{method:"POST"}); }catch(e){ if(e.message==="401")return; }
-  const name="backup_"+new Date().toISOString().slice(0,10)+".sql";
-  MOCK.backups.unshift({id:Date.now(),name,size:"2.4 MB",created_at:new Date().toISOString()});
-  setTimeout(()=>{toast("Бэкап создан","ok",name);pageBackup();},900);
+  const btn=$("#bkBtn");
+  btn.disabled=true; btn.style.opacity=".7";
+  btn.innerHTML=`<div class="spin" style="width:16px;height:16px;border-width:2px;margin-right:6px"></div><span>Создание и скачивание...</span>`;
+  try{
+    const BASE=window.API_BASE||"";
+    const resp=await fetch(BASE+"/admin/backup",{
+      method:"POST",
+      headers:{"Authorization":"Bearer "+State.token,"Content-Type":"application/json"}
+    });
+    if(!resp.ok){
+      const err=await resp.json().catch(()=>({}));
+      throw new Error(err.detail||"Ошибка сервера "+resp.status);
+    }
+    const blob=await resp.blob();
+    const cd=resp.headers.get("Content-Disposition")||"";
+    const match=cd.match(/filename="?([^"]+)"?/);
+    const name=match?match[1]:"scenti_backup.sql";
+    const url=URL.createObjectURL(blob);
+    const a=document.createElement("a"); a.href=url; a.download=name; a.click();
+    URL.revokeObjectURL(url);
+    toast("Бэкап скачан","ok",name);
+    setTimeout(pageBackup, 500);
+  }catch(e){
+    toast("Ошибка бэкапа","err",e.message);
+  }finally{
+    const b=$("#bkBtn");
+    if(b){b.disabled=false;b.style.opacity="";b.innerHTML=`${I.backup}<span>Создать бэкап БД</span>`;}
+  }
 };
 
 /* ============================================================
@@ -1304,7 +2460,7 @@ $("#loginForm").addEventListener("submit",async e=>{
   const u=$("#loginUser").value.trim(),p=$("#loginPass").value;
   const err=$("#loginError"),btn=$("#loginBtn");
   err.textContent="";
-  if(!u||!p){err.textContent="Введите логин и пароль";return;}
+  if(!u){err.textContent="Введите логин";return;}
   btn.disabled=true;btn.textContent="Вход...";
   try{
     const res=await fetch(API_BASE+"/auth/admin/login",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({username:u,password:p})});
@@ -1317,15 +2473,14 @@ $("#loginForm").addEventListener("submit",async e=>{
     localStorage.setItem("scenti_admin_name",State.adminName);
     enterApp();
   }catch(err2){
-    // demo fallback login
-    if(u==="admin"&&(p==="admin"||p==="admin123")){
+    // demo fallback: если API недоступна — входим с любым паролем для admin (токен НЕ сохраняем в localStorage)
+    if(u==="admin"){
       State.token="demo-token";State.adminName="Администратор";
-      localStorage.setItem("scenti_admin_token",State.token);
-      localStorage.setItem("scenti_admin_name",State.adminName);
-      toast("Демо-режим (API недоступен)","warn");
+      // намеренно НЕ сохраняем demo-token в localStorage — только на сессию
+      toast("Демо-режим — API работает в офлайн","warn");
       enterApp();
     }else{
-      err.textContent="Неверный логин или пароль (демо: admin / admin)";
+      err.textContent="Неверный логин или пароль";
     }
   }finally{btn.disabled=false;btn.textContent="Войти";}
 });
@@ -1346,13 +2501,45 @@ $("#collapseBtn").addEventListener("click",()=>{
 });
 if(localStorage.getItem("scenti_collapsed"))document.body.classList.add("collapsed");
 
-function enterApp(){
+/* ============ PROGRESS BAR ============ */
+let _npTimer=null;
+function npStart(){
+  const b=$("#npbar"); if(!b)return;
+  clearTimeout(_npTimer);
+  b.style.transition="none"; b.style.width="0";
+  requestAnimationFrame(()=>{ b.style.transition="width 12s cubic-bezier(.1,0,.2,1)"; b.style.width="85%"; });
+  $("#nprogress").classList.remove("done");
+}
+function npDone(){
+  const b=$("#npbar"); if(!b)return;
+  b.style.transition="width .2s ease"; b.style.width="100%";
+  _npTimer=setTimeout(()=>{ b.style.opacity="0"; setTimeout(()=>{ b.style.opacity=""; b.style.width="0"; b.style.transition="none"; },350); },200);
+}
+
+/* ============ BOOT LOADER ============ */
+function hideBoot(){
+  const el=$("#boot-loader"); if(!el)return;
+  el.classList.add("hide");
+  setTimeout(()=>el.remove(),400);
+}
+
+async function enterApp(){
+  // Show app shell immediately (sidebar visible, content blank)
   $("#login").classList.add("hidden");
   $("#app").classList.remove("hidden");
   $("#topName").textContent=State.adminName;
   $("#topAvatar").textContent=initials(State.adminName);
   renderNav();
-  go("dash");
+  // Show spinner in content while regions load
+  $("#content").innerHTML=`<div class="page-loading"><div class="spin"></div><span>Загрузка данных...</span></div>`;
+  npStart();
+  await loadRegions();
+  rebuildRegionsCompat();
+  npDone();
+  hideBoot();
+  const _rawPath = window.location.pathname.replace(/\/$/, '') || '/admin';
+  const initPage = URL_TO_PAGE[window.location.pathname] || URL_TO_PAGE[_rawPath] || 'dash';
+  go(initPage, false);
 }
 
 /* auto-collapse on small screens */
@@ -1360,8 +2547,145 @@ function autoCollapse(){ if(window.innerWidth<1100)document.body.classList.add("
 window.addEventListener("resize",()=>{ if(window.innerWidth<1100)document.body.classList.add("collapsed"); });
 
 /* boot */
-if(State.token){ enterApp(); } else { $("#loginUser").focus(); }
+// Не входить автоматически с demo-token из localStorage — показать логин
+if(State.token && State.token!=="demo-token"){ enterApp(); } else { State.token=null; localStorage.removeItem("scenti_admin_token"); hideBoot(); $("#loginUser").focus(); }
 autoCollapse();
+
+/* ===================== DRAWER ===================== */
+(function(){
+  const overlay = document.createElement("div");
+  overlay.className = "drawer-overlay";
+  overlay.id = "drawerOverlay";
+  const drawer = document.createElement("div");
+  drawer.className = "drawer";
+  drawer.id = "drawer";
+  drawer.innerHTML = `
+    <div class="drawer-head">
+      <h3 id="drawerTitle">—</h3>
+      <div class="drawer-close" onclick="closeDrawer()">
+        <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M1 1l12 12M13 1L1 13" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+      </div>
+    </div>
+    <div class="drawer-body" id="drawerBody"></div>`;
+  document.body.appendChild(overlay);
+  document.body.appendChild(drawer);
+  overlay.addEventListener("click", ()=>closeDrawer());
+})();
+
+window.openDrawer = async function(type){
+  const overlay=document.getElementById("drawerOverlay");
+  const drawer=document.getElementById("drawer");
+  const body=document.getElementById("drawerBody");
+  const title=document.getElementById("drawerTitle");
+  overlay.classList.add("open");
+  drawer.classList.add("open");
+  body.innerHTML=`<div class="drawer-empty">Загрузка...</div>`;
+  title.textContent="Загрузка...";
+  try{
+    const data = await api(`/admin/dashboard/detail?type=${type}`);
+    title.textContent = data.title || "Детали";
+    if(!data.rows || !data.rows.length){
+      body.innerHTML=`<div class="drawer-empty">Нет данных</div>`;
+      return;
+    }
+    if(data.type==="users"){
+      body.innerHTML=`<table>
+        <thead><tr><th>#</th><th>Имя</th><th>Телефон</th><th>Баланс</th><th>Дата</th></tr></thead>
+        <tbody>${data.rows.map((u,i)=>`<tr>
+          <td class="muted">${i+1}</td>
+          <td><b>${esc(u.name||"—")}</b></td>
+          <td class="muted" style="font-size:12px">${esc(u.phone||u.telegram_id||"—")}</td>
+          <td style="font-weight:700;color:var(--primary)">${fmt(u.cashback_balance||0)} <span class="muted" style="font-size:11px">сум</span></td>
+          <td class="muted" style="font-size:12px">${fmtDate(u.created_at)}</td>
+        </tr>`).join("")}</tbody>
+      </table>`;
+    } else if(data.type==="txns"){
+      const pillMap={pending:["#fdf3e3","#c47a00","Ожидание"],approved:["#e3f8ef","#16a34a","Одобрено"],rejected:["#fde8e8","#dc2626","Отклонено"]};
+      body.innerHTML=`<table>
+        <thead><tr><th>#</th><th>Клиент</th><th>Агент</th><th>Сумма</th><th>Кешбэк</th><th>Статус</th><th>Дата</th></tr></thead>
+        <tbody>${data.rows.map((t,i)=>{
+          const [bg,cl,lb]=pillMap[t.status]||["#f0f0f0","#666",t.status];
+          return `<tr>
+            <td class="muted">${i+1}</td>
+            <td><b>${esc(t.user_name||"—")}</b></td>
+            <td class="muted" style="font-size:12px">${esc(t.agent_name||"—")}</td>
+            <td style="font-weight:700">${fmt(t.amount||0)}</td>
+            <td style="font-weight:700;color:var(--success)">+${fmt(t.cashback_amount||0)}</td>
+            <td><span class="drawer-badge" style="background:${bg};color:${cl}">${lb}</span></td>
+            <td class="muted" style="font-size:12px">${fmtDate(t.created_at)}</td>
+          </tr>`;
+        }).join("")}</tbody>
+      </table>`;
+    } else if(data.type==="claims"){
+      const pillMap={pending:["#fdf3e3","#c47a00","Ожидание"],approved:["#e3f8ef","#16a34a","Одобрено"],rejected:["#fde8e8","#dc2626","Отклонено"],shipping:["#eaf2ff","#2563eb","Доставка"],delivered:["#e3f8ef","#16a34a","Доставлено"]};
+      body.innerHTML=`<table>
+        <thead><tr><th>#</th><th>Клиент</th><th>Подарок</th><th>Цена</th><th>Статус</th><th>Дата</th></tr></thead>
+        <tbody>${data.rows.map((r,i)=>{
+          const [bg,cl,lb]=pillMap[r.status]||["#f0f0f0","#666",r.status];
+          return `<tr>
+            <td class="muted">${i+1}</td>
+            <td><b>${esc(r.user_name||"—")}</b></td>
+            <td>${esc(r.gift_name||"—")}</td>
+            <td style="font-weight:700;color:var(--primary)">${fmt(r.price||0)} <span class="muted" style="font-size:11px">сум</span></td>
+            <td><span class="drawer-badge" style="background:${bg};color:${cl}">${lb}</span></td>
+            <td class="muted" style="font-size:12px">${fmtDate(r.created_at)}</td>
+          </tr>`;
+        }).join("")}</tbody>
+      </table>`;
+    } else if(data.type==="gifts"){
+      body.innerHTML=`<table>
+        <thead><tr><th>#</th><th>Название</th><th>Цена (кешбэк)</th><th>Остаток</th><th>Добавлен</th></tr></thead>
+        <tbody>${data.rows.map((g,i)=>`<tr>
+          <td class="muted">${i+1}</td>
+          <td><b>${esc(g.name_ru||"—")}</b><br><small class="muted">${esc(g.name_uz||"")}</small></td>
+          <td style="font-weight:700;color:var(--primary)">${fmt(g.price_cashback||0)} <span class="muted" style="font-size:11px">сум</span></td>
+          <td style="font-weight:700">${g.stock!=null?g.stock:"∞"}</td>
+          <td class="muted" style="font-size:12px">${fmtDate(g.created_at)}</td>
+        </tr>`).join("")}</tbody>
+      </table>`;
+    } else if(data.type==="all_activity"){
+      const txnPillMap={pending:["#fdf3e3","#c47a00","Ожидание"],approved:["#e3f8ef","#16a34a","Одобрено"],rejected:["#fde8e8","#dc2626","Отклонено"],refund:["#FFF0D4","#C47A00","Возврат"]};
+      const claimPillMap={pending:["#fdf3e3","#c47a00","Ожидание"],approved:["#e3f8ef","#16a34a","Одобрено"],rejected:["#fde8e8","#dc2626","Отклонено"],shipping:["#eaf2ff","#2563eb","Доставка"],delivered:["#e3f8ef","#16a34a","Доставлено"],confirmed:["#e3f8ef","#16a34a","Подтверждено"]};
+      const tabs=[
+        {id:"act-txns",  label:`Покупки (${data.txns.length})`},
+        {id:"act-claims",label:`Подарки (${data.claims.length})`},
+        {id:"act-spends",label:`Оплаты кешбэком (${data.spends.length})`},
+      ];
+      body.innerHTML=`
+        <div style="display:flex;gap:6px;margin-bottom:14px;flex-wrap:wrap" id="actTabs">
+          ${tabs.map((t,i)=>`<button onclick="actTab('${t.id}')" id="btn-${t.id}" style="padding:6px 14px;border-radius:20px;font-size:13px;font-weight:700;border:1px solid var(--border);cursor:pointer;background:${i===0?'var(--primary)':'#f5f7fa'};color:${i===0?'#fff':'var(--text)'}">${t.label}</button>`).join("")}
+        </div>
+        <div id="act-txns">
+          ${data.txns.length?`<table><thead><tr><th>#</th><th>Клиент</th><th>Сумма</th><th>Кешбэк</th><th>Статус</th><th>Дата</th></tr></thead><tbody>
+          ${data.txns.map((t,i)=>{const[bg,cl,lb]=txnPillMap[t.status]||["#f0f0f0","#666",t.status];return`<tr><td class="muted">${i+1}</td><td><b>${esc(t.user_name||"—")}</b><br><small class="muted">${esc(t.agent_name||"")}</small></td><td style="font-weight:700">${fmt(t.amount||0)}</td><td style="color:var(--success);font-weight:700">+${fmt(t.cashback_amount||0)}</td><td><span class="drawer-badge" style="background:${bg};color:${cl}">${lb}</span></td><td class="muted" style="font-size:12px">${fmtDate(t.created_at)}</td></tr>`;}).join("")}
+          </tbody></table>`:`<div class="drawer-empty">Нет покупок</div>`}
+        </div>
+        <div id="act-claims" style="display:none">
+          ${data.claims.length?`<table><thead><tr><th>#</th><th>Клиент</th><th>Подарок</th><th>Цена</th><th>Статус</th><th>Дата</th></tr></thead><tbody>
+          ${data.claims.map((r,i)=>{const[bg,cl,lb]=claimPillMap[r.status]||["#f0f0f0","#666",r.status];return`<tr><td class="muted">${i+1}</td><td><b>${esc(r.user_name||"—")}</b></td><td>${esc(r.gift_name||"—")}</td><td style="font-weight:700;color:var(--primary)">${fmt(r.price||0)} сум</td><td><span class="drawer-badge" style="background:${bg};color:${cl}">${lb}</span></td><td class="muted" style="font-size:12px">${fmtDate(r.created_at)}</td></tr>`;}).join("")}
+          </tbody></table>`:`<div class="drawer-empty">Нет заявок на подарки</div>`}
+        </div>
+        <div id="act-spends" style="display:none">
+          ${data.spends.length?`<table><thead><tr><th>#</th><th>Клиент</th><th>Списано</th><th>Дата</th></tr></thead><tbody>
+          ${data.spends.map((s,i)=>`<tr><td class="muted">${i+1}</td><td><b>${esc(s.user_name||"—")}</b></td><td style="font-weight:700;color:#dc2626">-${fmt(s.amount||0)} сум</td><td class="muted" style="font-size:12px">${fmtDate(s.created_at)}</td></tr>`).join("")}
+          </tbody></table>`:`<div class="drawer-empty">Нет оплат кешбэком</div>`}
+        </div>`;
+    }
+  }catch(e){
+    body.innerHTML=`<div class="drawer-empty">Ошибка загрузки</div>`;
+  }
+};
+window.closeDrawer = function(){
+  document.getElementById("drawerOverlay").classList.remove("open");
+  document.getElementById("drawer").classList.remove("open");
+};
+window.actTab = function(id){
+  ["act-txns","act-claims","act-spends"].forEach(k=>{
+    const el=document.getElementById(k); if(el) el.style.display=k===id?"":"none";
+    const btn=document.getElementById("btn-"+k);
+    if(btn){btn.style.background=k===id?"var(--primary)":"#f5f7fa";btn.style.color=k===id?"#fff":"var(--text)";}
+  });
+};
 </script>
 </body>
 </html>

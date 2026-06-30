@@ -257,6 +257,30 @@ async def update_gift_request_status(
         body.note,
         gr_id,
     )
+
+    # Уведомить пользователя в Telegram
+    row = await db.fetchrow(
+        """
+        SELECT u.telegram_id, u.language, g.name_ru
+        FROM gift_requests gr
+        JOIN users u ON u.id = gr.user_id
+        JOIN gifts g ON g.id = gr.gift_id
+        WHERE gr.id = $1
+        """,
+        gr_id,
+    )
+    if row and row["telegram_id"]:
+        try:
+            from notifications import notify_user_gift_status
+            await notify_user_gift_status(
+                int(row["telegram_id"]),
+                row["name_ru"],
+                body.status,
+                row.get("language") or "ru",
+            )
+        except Exception:
+            pass
+
     return {"id": gr_id, "status": body.status}
 
 
