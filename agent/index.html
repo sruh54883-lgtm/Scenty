@@ -104,6 +104,10 @@ tbody tr:last-child td{border-bottom:none}
 
 /* TOOLBAR */
 .toolbar{display:flex;align-items:center;gap:12px;margin-bottom:18px;flex-wrap:wrap}
+.seg-tabs{display:flex;background:#eef3fb;border-radius:12px;padding:4px;gap:2px}
+.seg-tab{padding:8px 20px;border-radius:9px;font-size:14px;font-weight:600;color:var(--muted);background:transparent;border:none;cursor:pointer;transition:var(--t);white-space:nowrap}
+.seg-tab:hover{color:var(--text)}
+.seg-tab.active{background:#fff;color:var(--primary);box-shadow:0 1px 4px rgba(0,0,0,.10)}
 .search{position:relative;flex:1;max-width:360px;min-width:200px}
 .search svg{position:absolute;left:13px;top:50%;transform:translateY(-50%);width:17px;height:17px;color:var(--muted)}
 .search .input{padding-left:40px;height:42px;background:#fff}
@@ -564,11 +568,16 @@ window.openClientModal=function(jsonStr){
 };
 
 /* ===== PAGE: TRANSACTIONS ===== */
-let _txns=[];let _txPage=1;
+let _txns=[];let _txPage=1;let _txFilter='pending';
 async function pageTxns(){
   const c=$('#content');
   c.innerHTML=`
     <div class="toolbar">
+      <div class="seg-tabs" id="txTabs">
+        <button class="seg-tab active" data-f="pending" onclick="setTxFilter('pending')">Ожидают</button>
+        <button class="seg-tab" data-f="approved" onclick="setTxFilter('approved')">Подтверждённые</button>
+        <button class="seg-tab" data-f="rejected" onclick="setTxFilter('rejected')">Отклонённые</button>
+      </div>
       <div style="flex:1"></div>
       <button class="btn btn-primary" onclick="openNewTx()">+ Создать транзакцию</button>
     </div>
@@ -584,6 +593,12 @@ async function pageTxns(){
   }catch(e){if(e.message!=='401')toast(e.message,'err');}
 }
 
+function setTxFilter(f){
+  _txFilter=f;_txPage=1;
+  document.querySelectorAll('#txTabs .seg-tab').forEach(b=>b.classList.toggle('active',b.dataset.f===f));
+  renderTxns();
+}
+
 const TX_STATUS={
   pending:{cls:'pill-pending',label:'Ожидание'},
   approved:{cls:'pill-approved',label:'Подтверждено'},
@@ -593,7 +608,9 @@ const TX_STATUS={
 };
 
 function renderTxns(){
-  const p=paginate(_txns,_txPage,25);
+  const statusMap={pending:['pending'],approved:['approved','confirmed'],rejected:['rejected','refund']};
+  const filtered=_txns.filter(t=>(statusMap[_txFilter]||[_txFilter]).includes(t.status));
+  const p=paginate(filtered,_txPage,25);
   const body=$('#txBody');if(!body)return;
   if(!p.items.length){body.innerHTML=`<tr><td colspan="6"><div class="empty">Нет транзакций</div></td></tr>`;$('#txPager').innerHTML='';return;}
   body.innerHTML=p.items.map(t=>{
