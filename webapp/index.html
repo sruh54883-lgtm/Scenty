@@ -475,7 +475,7 @@ const L = {
     done_title:'Готово',spend_confirmed:'Списание подтверждено',
     show_to_agent:'Покажите эту сумму агенту при покупке — она будет вычтена из стоимости товара.',
     done_btn:'Готово',cost_lbl:'Стоимость',your_cashback:'Ваш кешбэк',
-    remainder_lbl:'Остаток после',order_gift:'Оставить заявку',no_funds_btn:'Недостаточно средств',
+    remainder_lbl:'Остаток после',order_gift:'Обменять',no_funds_btn:'Недостаточно средств',
     request_sent:'Заявка отправлена',request_sent_text:'принята. Агент свяжется с вами для оформления.',
     order_btn:'Заказать',
     privacy_title:'Конфиденциальность',
@@ -512,7 +512,7 @@ const L = {
     done_title:'Bajarildi',spend_confirmed:'Hisobdan chiqarish tasdiqlandi',
     show_to_agent:"Bu summani xarid paytida agentga ko'rsating — u tovar narxidan ayiriladi.",
     done_btn:'Tayyor',cost_lbl:'Narxi',your_cashback:'Sizning keshbegingiz',
-    remainder_lbl:"Qoldig'i",order_gift:"Ariza qoldirish",no_funds_btn:"Mablag' yetarli emas",
+    remainder_lbl:"Qoldig'i",order_gift:"Almashtirish",no_funds_btn:"Mablag' yetarli emas",
     request_sent:'Ariza yuborildi',request_sent_text:"qabul qilindi. Agent siz bilan bog'lanadi.",
     order_btn:'Buyurtma qilish',
     privacy_title:'Maxfiylik',
@@ -1189,29 +1189,23 @@ window.spendSuccess=async function(){
 /* =================== GIFT REQUEST via API =================== */
 let _giftReqInProgress=false;
 window.giftRequest=async function(name, giftId){
-  if(_giftReqInProgress) return;
+  if(_giftReqInProgress||!giftId) return;
   _giftReqInProgress=true;
-  // Блокируем кнопку
   const btn=document.querySelector('#sheet .btn.btn-primary');
   if(btn){btn.disabled=true;btn.textContent='...';}
   haptic('medium');
-  let ok=false;
-  if(giftId && (_tgInitData||_tgUserId)){
-    try{
-      await apiFetch('/api/gift-requests',{method:'POST',body:JSON.stringify({gift_id:giftId})});
-      ok=true;
-    }catch(e){
-      _giftReqInProgress=false;
-      if(btn){btn.disabled=false;btn.textContent=tx('order_gift');}
-      openSheet(`<div class="sheet-ic" style="background:#fee2e2">⚠️</div>
-        <h3>Ошибка</h3>
-        <p class="sheet-sub">${e.message||'Попробуйте ещё раз'}</p>
-        <button class="btn btn-ghost" onclick="closeSheet()">${tx('close_btn')}</button>`);
-      return;
-    }
+  try{
+    await apiFetch('/api/gift-requests',{method:'POST',body:JSON.stringify({gift_id:giftId})});
+  }catch(e){
+    _giftReqInProgress=false;
+    if(btn){btn.disabled=false;btn.textContent=tx('order_gift');}
+    openSheet(`<div class="sheet-ic" style="background:#fee2e2">⚠️</div>
+      <h3>Ошибка обмена</h3>
+      <p class="sheet-sub">${e.message||'Попробуйте ещё раз'}</p>
+      <button class="btn btn-ghost" onclick="closeSheet()">${tx('close_btn')}</button>`);
+    return;
   }
   _giftReqInProgress=false;
-  if(!ok) return;
   try{Telegram.WebApp.HapticFeedback.notificationOccurred('success');}catch(e){}
   await loadRequests(); await loadUserData();
   renderHome(); renderGifts(); renderProfile();
