@@ -145,9 +145,6 @@ async def create_gift_request(body: GiftRequestBody, user: dict = Depends(get_cu
             if gift is None or not gift["is_active"]:
                 raise HTTPException(status_code=404, detail="Подарок не найден")
 
-            # Advisory lock per user — блокирует конкурентные дублирующие нажатия
-            await conn.execute("SELECT pg_advisory_xact_lock($1)", user["id"])
-
             urow = await conn.fetchrow(
                 "SELECT cashback_balance FROM users WHERE id = $1 FOR UPDATE", user["id"]
             )
@@ -176,6 +173,11 @@ async def create_gift_request(body: GiftRequestBody, user: dict = Depends(get_cu
     tg_id = user.get("telegram_id")
     if tg_id:
         try:
+            import sys as _sys
+            from pathlib import Path as _P
+            _bp = str(_P(__file__).resolve().parent.parent.parent / "bot")
+            if _bp not in _sys.path:
+                _sys.path.insert(0, _bp)
             from notifications import notify_user_gift_requested
             lang = user.get("language") or "ru"
             await notify_user_gift_requested(

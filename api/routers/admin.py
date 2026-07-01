@@ -1182,9 +1182,9 @@ async def stats(
     total_cashback_issued = await db.fetchval(
         f"SELECT COALESCE(SUM(cashback_amount),0) FROM transactions WHERE status = 'approved'{_p()}"
     )
-    # Все списания кешбэка: оплаты + подарки
+    # Только прямые оплаты кешбэком (без обменов на подарки)
     total_cashback_spent = await db.fetchval(
-        f"SELECT COALESCE(SUM(amount),0) FROM cashback_spends WHERE TRUE{_p()}"
+        f"SELECT COALESCE(SUM(amount),0) FROM cashback_spends WHERE gift_request_id IS NULL{_p()}"
     )
     new_users_today = await db.fetchval(
         "SELECT COUNT(*) FROM users WHERE is_active = TRUE AND created_at >= CURRENT_DATE"

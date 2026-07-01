@@ -420,10 +420,10 @@ async def my_stats(agent: dict = Depends(get_current_agent)):
         dist_ids,
     )
 
-    # Потрачено кешбэка: все списания включая подарки
+    # Только прямые оплаты кешбэком (без подарков)
     spent_row = await db.fetchrow(
         """
-        SELECT COALESCE(SUM(cs.amount), 0) AS total_cashback_spent
+        SELECT COALESCE(SUM(cs.amount) FILTER (WHERE cs.gift_request_id IS NULL), 0) AS total_cashback_spent
         FROM cashback_spends cs
         JOIN users u ON u.id = cs.user_id
         WHERE u.district_id = ANY($1::int[])
@@ -494,6 +494,7 @@ async def stats_by_district(
         LEFT JOIN transactions t ON t.user_id = u.id
         WHERE d.id = ANY($1::int[])
         GROUP BY d.id, d.name_ru, r.name_ru
+        HAVING COUNT(DISTINCT u.id) > 0
         ORDER BY total_amount DESC NULLS LAST
         """,
         dist_ids,

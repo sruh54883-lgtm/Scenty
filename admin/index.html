@@ -713,19 +713,10 @@ async function api(path, opts={}){
   return ct.includes("application/json") ? res.json() : res.text();
 }
 // api with mock fallback
-async function apiOrMock(path, mockFn, opts){
-  try{
-    const r = await api(path, opts);
-    State.useMock=false;
-    // Auto-unwrap {data: [...], total: ...} paginated format → plain array
-    if(r && !Array.isArray(r) && Array.isArray(r.data)) return r.data;
-    return r;
-  }
-  catch(e){
-    if(e.message==="401") throw e;
-    State.useMock=true;
-    return mockFn();
-  }
+async function apiOrMock(path, _unused, opts){
+  const r = await api(path, opts);
+  if(r && !Array.isArray(r) && Array.isArray(r.data)) return r.data;
+  return r;
 }
 
 /* ============================================================
@@ -987,9 +978,9 @@ async function pageDash(){
     apiOrMock("/admin/transactions", ()=>MOCK.txns),
     apiOrMock("/admin/claims", ()=>MOCK.claims),
   ]);
-  const uArr = Array.isArray(users)?users:(users.items||MOCK.users);
-  const tArr = Array.isArray(txns)?txns:(txns.items||MOCK.txns);
-  const cArr = Array.isArray(claims)?claims:(claims.items||MOCK.claims);
+  const uArr = Array.isArray(users)?users:(users?.items||[]);
+  const tArr = Array.isArray(txns)?txns:(txns?.items||[]);
+  const cArr = Array.isArray(claims)?claims:(claims?.items||[]);
   const pending = tArr.filter(t=>t.status==="pending");
   const s = stats;
 
@@ -1126,7 +1117,6 @@ async function pageDash(){
       </div>`).join("")}</div>
       <button class="btn btn-ghost btn-sm" style="margin-top:10px;width:100%" onclick="go('txns')">Все транзакции →</button>`;
   }
-  if(State.useMock) toast("API недоступен — демо-данные","warn");
 }
 
 function initDashMap(regionStats){
@@ -1249,7 +1239,7 @@ async function pageUsers(){
     </div>`;
   $("#uSearch").addEventListener("input",e=>{Clients.q=e.target.value;Clients.page=1;renderUsers();});
   const data = await apiOrMock("/admin/users", ()=>MOCK.users);
-  Clients.list = Array.isArray(data)?data:(data.items||MOCK.users);
+  Clients.list = Array.isArray(data)?data:(data?.items||[]);
   renderUsers();
 }
 function filterUsers(){
@@ -1408,7 +1398,7 @@ async function pageTxns(){
       <div id="txnPager"></div>
     </div>`;
   const data=await apiOrMock("/admin/transactions",()=>MOCK.txns);
-  Txns.list=Array.isArray(data)?data:(data.items||MOCK.txns);
+  Txns.list=Array.isArray(data)?data:(data?.items||[]);
   Badges.pendingTxn=Txns.list.filter(t=>t.status==="pending").length; renderNav();
   renderTxns();
 }
@@ -1560,7 +1550,7 @@ window.openCreateTx=async function(){
       closeModal();
       toast("Транзакция создана","ok",`Кешбэк ${Math.round(r.cashback_amount??r.cashback??0).toLocaleString("ru-RU")} UZS — ожидает подтверждения`);
       const data=await apiOrMock("/admin/transactions",()=>MOCK.txns);
-      Txns.list=Array.isArray(data)?data:(data.items||MOCK.txns);
+      Txns.list=Array.isArray(data)?data:(data?.items||[]);
       Badges.pendingTxn=Txns.list.filter(t=>t.status==="pending").length;
       renderNav(); renderTxns();
     }catch(e){
@@ -1660,7 +1650,7 @@ async function pageGifts(){
     <div class="table-wrap"><table><thead><tr><th>Фото</th><th>Название</th><th>Цена (кешбэк)</th><th>Остаток</th><th>Активен</th><th></th></tr></thead>
     <tbody id="gBody">${loadingTable(6)}</tbody></table></div>`;
   const data=await apiOrMock("/admin/gifts",()=>MOCK.gifts);
-  Gifts.list=Array.isArray(data)?data:(data.items||MOCK.gifts);
+  Gifts.list=Array.isArray(data)?data:(data?.items||[]);
   renderGifts();
 }
 function _thumbColor(name){
@@ -1741,7 +1731,7 @@ async function pageClaims(){
     <div class="table-wrap"><table><thead><tr><th>Клиент</th><th>Подарок</th><th>Цена</th><th>Дата</th><th>Статус</th><th></th></tr></thead>
     <tbody id="clBody">${loadingTable(6)}</tbody></table><div id="clPager"></div></div>`;
   const data=await apiOrMock("/admin/claims",()=>MOCK.claims);
-  Claims.list=Array.isArray(data)?data:(data.items||MOCK.claims);
+  Claims.list=Array.isArray(data)?data:(data?.items||[]);
   Badges.pendingClaims=Claims.list.filter(x=>x.status==="pending").length;renderNav();
   renderClaims();
 }
@@ -1857,7 +1847,7 @@ async function pageCatalog(){
     <div class="table-wrap"><table><thead><tr><th>Тип</th><th>Название</th><th>Тег</th><th>Активен</th><th></th></tr></thead>
     <tbody id="catBody">${loadingTable(5)}</tbody></table></div>`;
   const data=await apiOrMock("/admin/catalog",()=>MOCK.catalog);
-  Catalog.list=Array.isArray(data)?data:(data.items||MOCK.catalog);
+  Catalog.list=Array.isArray(data)?data:(data?.items||[]);
   renderCatalog();
 }
 function catThumb(it){
@@ -2074,7 +2064,7 @@ async function pageAgents(){
     <div class="table-wrap"><table><thead><tr><th>Имя</th><th>Телефон</th><th>Районы</th><th>Транзакций/мес</th><th>Сумма продаж</th><th></th></tr></thead>
     <tbody id="agBody">${loadingTable(6)}</tbody></table></div>`;
   const data=await apiOrMock("/admin/agents",()=>MOCK.agents);
-  Agents.list=Array.isArray(data)?data:(data.items||MOCK.agents);
+  Agents.list=Array.isArray(data)?data:(data?.items||[]);
   renderAgents();
 }
 function renderAgents(){
@@ -2506,8 +2496,8 @@ window.castSend=(scheduleMode)=>{
    ============================================================ */
 async function pageReminder(){
   const c=$("#content");
-  const r=await apiOrMock("/admin/reminder",()=>MOCK.reminder);
-  const d=r&&r.text_ru!==undefined?r:MOCK.reminder;
+  const r=await apiOrMock("/admin/reminder");
+  const d=(r&&r.text_ru!==undefined)?r:{text_ru:'',text_uz:'',active:false};
   c.innerHTML=`<div class="card card-pad setting-card">
     <div class="section-head" style="margin-bottom:18px"><h2 style="font-size:18px">Ежемесячное напоминание</h2></div>
     <label class="sub-label" style="margin-top:0">Текст RU</label><textarea class="input" id="remRu" style="min-height:100px">${esc(d.text_ru)}</textarea>
@@ -2528,8 +2518,8 @@ window.remSave=async()=>{
    ============================================================ */
 async function pagePolicy(){
   const c=$("#content");
-  const p=await apiOrMock("/admin/policy",()=>MOCK.policy);
-  const d=p&&p.ru!==undefined?p:MOCK.policy;
+  const p=await apiOrMock("/admin/policy");
+  const d=(p&&p.ru!==undefined)?p:{ru:'',uz:'',pdf:''};
   c.innerHTML=`<div class="card card-pad setting-card">
     <div class="section-head" style="margin-bottom:18px"><h2 style="font-size:18px">Политика конфиденциальности</h2></div>
     <label class="sub-label" style="margin-top:0">Контент RU</label><textarea class="input" id="polRu" style="min-height:160px">${esc(d.ru)}</textarea>
@@ -2577,7 +2567,7 @@ async function pageAudit(){
     <tbody id="auBody">${loadingTable(4)}</tbody></table></div>`;
   $("#auDate").addEventListener("change",e=>{Audit.date=e.target.value;renderAudit();});
   const data=await apiOrMock("/admin/audit",()=>MOCK.audit);
-  Audit.list=Array.isArray(data)?data:(data.items||MOCK.audit);
+  Audit.list=Array.isArray(data)?data:(data?.items||[]);
   renderAudit();
 }
 function renderAudit(){
@@ -2601,7 +2591,7 @@ window.auClear=()=>{Audit.date="";const i=$("#auDate");if(i)i.value="";renderAud
 async function pageBackup(){
   const c=$("#content");
   const data=await apiOrMock("/admin/backups",()=>MOCK.backups);
-  const list=Array.isArray(data)?data:(data.items||MOCK.backups);
+  const list=Array.isArray(data)?data:(data?.items||[]);
   c.innerHTML=`<div class="card card-pad setting-card">
     <div class="section-head" style="margin-bottom:8px"><h2 style="font-size:18px">Бэкап базы данных</h2></div>
     <p class="muted" style="margin-bottom:18px">Создайте резервную копию всей базы данных и скачайте файл.</p>
