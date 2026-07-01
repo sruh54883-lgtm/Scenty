@@ -2415,25 +2415,46 @@ async function pageCast(){
   renderCastHistory();
 }
 
+function _castStatusBadge(b){
+  const st=b.status||"";
+  if(st==="sending") return `<span class="tag st-shipping" style="animation:pulse 1s infinite">⏳ Отправляется…</span>`;
+  if(st==="pending"&&!b.scheduled_at) return `<span class="tag st-shipping">⏳ В очереди</span>`;
+  if(b.scheduled_at&&!b.is_sent) return `<span class="tag st-shipping">⏰ ${fmtDateTime(b.scheduled_at)}</span>`;
+  if(st==="completed_with_errors") return `<span class="tag st-confirmed" style="background:#fef3c7;color:#92400e">⚠ Отправлено с ошибками</span>`;
+  if(st==="failed") return `<span class="tag" style="background:#fee2e2;color:#991b1b">✗ Ошибка</span>`;
+  return `<span class="tag st-confirmed">✓ Отправлено</span>`;
+}
+let _castRefreshTimer=null;
 function renderCastHistory(){
   const body=$("#castHistBody"); if(!body) return;
   if(!Cast.history.length){body.innerHTML=emptyRow(5,"Рассылок пока не было");return;}
+  const hasActive=Cast.history.some(b=>b.status==="sending"||b.status==="pending"&&!b.scheduled_at);
+  if(hasActive&&!_castRefreshTimer){
+    _castRefreshTimer=setTimeout(async()=>{
+      _castRefreshTimer=null;
+      try{Cast.history=await api("/admin/broadcasts");renderCastHistory();}catch(e){}
+    },4000);
+  } else if(!hasActive&&_castRefreshTimer){
+    clearTimeout(_castRefreshTimer);_castRefreshTimer=null;
+  }
   body.innerHTML=Cast.history.map(b=>{
     const audMap={all:"👥 Все",region:`📍 ${esc(b.region_name||"Регион")}`,language:`🌐 ${b.lang_filter==="ru"?"Русский":"O'zbek"}`};
     const aud=audMap[b.target]||"👥 Все";
     const langBadge=b.lang_filter?`<span class="tag" style="margin-left:4px">${b.lang_filter==="ru"?"🇷🇺":"🇺🇿"}</span>`:"";
     const preview=esc((b.message_ru||"").replace(/<[^>]+>/g,"").slice(0,60))+(((b.message_ru||"").length>60)?"…":"");
     const sent=b.sent_count||0;
-    const isPending=b.is_sent===false;
-    const statusBadge=isPending
-      ? `<span class="tag st-shipping">⏰ ${b.scheduled_at?fmtDateTime(b.scheduled_at):"Запланировано"}</span>`
-      : `<span class="tag st-confirmed">✓ Отправлено</span>`;
+    const total=b.total_users||0;
+    const failed=b.failed_count||0;
+    const isActive=b.status==="sending"||(b.status==="pending"&&!b.scheduled_at);
+    const countCell=isActive
+      ? `<span class="muted">${total?total+' получателей':'—'}</span>`
+      : `<b class="t-strong">${fmt(sent)}</b><span class="muted"> / ${total||sent} чел.</span>${failed?`<span style="color:var(--danger);font-size:11px"> (${failed} ошибок)</span>`:""}`;
     return `<tr>
       <td class="mono nowrap">${fmtDateTime(b.created_at)}</td>
       <td>${aud}${langBadge}</td>
-      <td style="max-width:260px;color:var(--text)">${preview}</td>
-      <td>${statusBadge}</td>
-      <td style="text-align:right">${isPending?'—':`<b class="t-strong">${fmt(sent)}</b> <span class="muted">чел.</span>`}</td>
+      <td style="max-width:240px;color:var(--text)">${preview}</td>
+      <td>${_castStatusBadge(b)}</td>
+      <td style="text-align:right">${countCell}</td>
     </tr>`;
   }).join("");
 }
@@ -2478,10 +2499,12 @@ window.castSend=(scheduleMode)=>{
       if(scheduledAt){
         toast(`Рассылка запланирована на ${fmtDateTime(scheduledAt)}`,"ok");
       } else {
-        toast(`Рассылка отправлена — ${fmt(r.sent_count||r.recipients||0)} получателей`,"ok");
+        toast(`Рассылка запущена — ${fmt(r.total_users||0)} получателей. История обновляется автоматически.`,"ok");
       }
       if(edRu) edRu.innerHTML="";
       if(edUz) edUz.innerHTML="";
+      if(document.getElementById('bcImgPreview')) document.getElementById('bcImgPreview').innerHTML="";
+      _bcImageUrl="";
       try{ Cast.history=await api("/admin/broadcasts"); renderCastHistory(); }catch(e){}
     }catch(e){
       if(e.message==="401")return;

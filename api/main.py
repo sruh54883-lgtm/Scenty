@@ -68,7 +68,8 @@ async def _scheduled_broadcast_worker():
                     except Exception:
                         pass
                 await db.execute(
-                    "UPDATE broadcasts SET is_sent = TRUE, sent_count = $1 WHERE id = $2",
+                    """UPDATE broadcasts SET is_sent=TRUE, sent_count=$1,
+                       status='completed', completed_at=NOW() WHERE id=$2""",
                     sent, bc["id"],
                 )
                 _log.info("Scheduled broadcast %s sent to %d users", bc["id"], sent)

@@ -7,7 +7,7 @@ import uuid
 from datetime import datetime
 from pathlib import Path
 
-from fastapi import APIRouter, Depends, HTTPException, UploadFile, File
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, UploadFile, File
 from fastapi.responses import FileResponse
 from pydantic import BaseModel, Field
 
@@ -904,8 +904,9 @@ async def list_broadcasts(admin: dict = Depends(get_current_admin)):
     rows = await db.fetch(
         """
         SELECT b.id, b.target, b.region_id, b.sent_count, b.created_at,
-               b.message_ru, b.message_uz,
-               b.scheduled_at, b.is_sent, b.lang_filter,
+               b.message_ru, b.message_uz, b.scheduled_at, b.is_sent,
+               b.lang_filter, b.status, b.total_users, b.failed_count,
+               b.started_at, b.completed_at,
                r.name_ru AS region_name
         FROM broadcasts b
         LEFT JOIN regions r ON r.id = b.region_id
@@ -938,47 +939,82 @@ def _parse_scheduled_at(raw: str | None):
     return dt
 
 
-@router.post("/broadcast")
-async def create_broadcast(body: BroadcastBody, admin: dict = Depends(get_current_admin)):
-    import asyncio, sys
+async def _do_broadcast_send(broadcast_id: int, users: list, message_ru: str,
+                             message_uz: str, image_url: str, parse_mode: str):
+    """Фоновая отправка рассылки — вызывается через BackgroundTasks."""
+    import asyncio, sys, logging as _log
     from pathlib import Path as _Path
-    _bot_path = str(_Path(__file__).resolve().parent.parent.parent / "bot")
-    if _bot_path not in sys.path:
-        sys.path.insert(0, _bot_path)
+    from datetime import datetime, timezone
+    _bp = str(_Path(__file__).resolve().parent.parent.parent / "bot")
+    if _bp not in sys.path:
+        sys.path.insert(0, _bp)
+    await db.execute(
+        "UPDATE broadcasts SET status='sending', started_at=NOW() WHERE id=$1", broadcast_id
+    )
+    sent = 0
+    failed = 0
+    try:
+        from notifications import get_bot
+        bot = get_bot()
+        for u in users:
+            tg_id = u["telegram_id"]
+            if not tg_id:
+                continue
+            lang = u["language"] or "ru"
+            text = (message_uz or message_ru) if lang == "uz" else message_ru
+            if not text:
+                continue
+            try:
+                if image_url:
+                    await bot.send_photo(int(tg_id), photo=image_url,
+                                         caption=text, parse_mode=parse_mode)
+                else:
+                    await bot.send_message(int(tg_id), text, parse_mode=parse_mode)
+                sent += 1
+                await asyncio.sleep(0.04)
+            except Exception as ex:
+                failed += 1
+                _log.getLogger("scenti.broadcast").warning("tg_id=%s err=%s", tg_id, ex)
+    except Exception as e:
+        _log.getLogger("scenti.api").error("Broadcast send error bid=%s: %s", broadcast_id, e)
+    await db.execute(
+        """UPDATE broadcasts SET status=$1, sent_count=$2, failed_count=$3,
+           completed_at=NOW(), is_sent=TRUE WHERE id=$4""",
+        "completed" if failed == 0 else "completed_with_errors",
+        sent, failed, broadcast_id,
+    )
 
+
+@router.post("/broadcast")
+async def create_broadcast(body: BroadcastBody, background_tasks: BackgroundTasks,
+                           admin: dict = Depends(get_current_admin)):
     if body.target == "region" and not body.region_id:
         raise HTTPException(status_code=400, detail="Для рассылки по региону укажите region_id")
     if body.target == "language" and not body.lang_filter:
         raise HTTPException(status_code=400, detail="Для рассылки по языку укажите lang_filter")
 
-    # Язык-фильтр: явный lang_filter либо подразумевается target='language'
     lang_filter = body.lang_filter
     scheduled_dt = _parse_scheduled_at(body.scheduled_at)
 
-    # --- Отложенная рассылка: только сохраняем, отправит фоновый воркер ---
+    # --- Отложенная рассылка: сохраняем, отправит фоновый воркер ---
     if scheduled_dt is not None:
         row = await db.fetchrow(
-            """
-            INSERT INTO broadcasts
+            """INSERT INTO broadcasts
                 (message_ru, message_uz, target, region_id, lang_filter,
-                 scheduled_at, parse_mode, is_sent, sent_count)
-            VALUES ($1,$2,$3,$4,$5,$6,$7,FALSE,0)
-            RETURNING id, target, region_id, lang_filter, scheduled_at, is_sent, created_at
-            """,
+                 scheduled_at, parse_mode, image_url, is_sent, status, sent_count)
+               VALUES ($1,$2,$3,$4,$5,$6,$7,$8,FALSE,'pending',0)
+               RETURNING id, target, region_id, lang_filter, scheduled_at, created_at""",
             body.message_ru, body.message_uz, body.target, body.region_id,
-            lang_filter, scheduled_dt, body.parse_mode,
+            lang_filter, scheduled_dt, body.parse_mode, body.image_url or "",
         )
         await _audit(admin["id"], "broadcast_schedule",
                      {"broadcast_id": row["id"], "scheduled_at": str(scheduled_dt)})
-        return {
-            "id": row["id"], "target": row["target"], "scheduled": True,
-            "is_sent": False, "scheduled_at": row["scheduled_at"],
-            "sent_count": 0, "recipients": 0, "created_at": row["created_at"],
-        }
+        return {"id": row["id"], "target": row["target"], "scheduled": True,
+                "is_sent": False, "scheduled_at": row["scheduled_at"],
+                "sent_count": 0, "status": "pending", "created_at": row["created_at"]}
 
-    # --- Немедленная рассылка ---
-    # Собираем динамический WHERE с параметризацией (никакого конкатенирования значений)
-    conditions = ["is_active = TRUE"]
+    # --- Немедленная рассылка: собираем получателей ---
+    conditions = ["is_active = TRUE", "telegram_id IS NOT NULL"]
     params: list = []
     if body.target == "region":
         params.append(body.region_id)
@@ -990,57 +1026,29 @@ async def create_broadcast(body: BroadcastBody, admin: dict = Depends(get_curren
         "SELECT telegram_id, language FROM users WHERE " + " AND ".join(conditions),
         *params,
     )
-
-    recipients = len(users)
+    total = len(users)
 
     row = await db.fetchrow(
-        """
-        INSERT INTO broadcasts
+        """INSERT INTO broadcasts
             (message_ru, message_uz, target, region_id, lang_filter,
-             parse_mode, image_url, is_sent, sent_count)
-        VALUES ($1,$2,$3,$4,$5,$6,$7,TRUE,$8)
-        RETURNING id, target, region_id, created_at
-        """,
+             parse_mode, image_url, is_sent, status, total_users, sent_count)
+           VALUES ($1,$2,$3,$4,$5,$6,$7,FALSE,'pending',$8,0)
+           RETURNING id, target, region_id, created_at""",
         body.message_ru, body.message_uz, body.target, body.region_id,
-        lang_filter, body.parse_mode, body.image_url or "", 0,
+        lang_filter, body.parse_mode, body.image_url or "", total,
     )
     broadcast_id = row["id"]
+    await _audit(admin["id"], "broadcast_create",
+                 {"broadcast_id": broadcast_id, "total_users": total})
 
-    # Реальная отправка через aiogram Bot
-    import logging as _log
-    sent = 0
-    try:
-        from notifications import get_bot
-        bot = get_bot()
-        for u in users:
-            tg_id = u["telegram_id"]
-            if not tg_id:
-                continue
-            lang = u["language"] if u["language"] else "ru"
-            text = (body.message_uz or body.message_ru) if lang == "uz" else body.message_ru
-            if not text:
-                continue
-            try:
-                if body.image_url:
-                    await bot.send_photo(int(tg_id), photo=body.image_url,
-                                         caption=text, parse_mode="HTML")
-                else:
-                    await bot.send_message(int(tg_id), text, parse_mode="HTML")
-                sent += 1
-                await asyncio.sleep(0.04)
-            except Exception as ex:
-                _log.getLogger("scenti.broadcast").warning("tg_id=%s err=%s", tg_id, ex)
-    except Exception as e:
-        _log.getLogger("scenti.api").error("Broadcast send error: %s", e)
-
-    # Обновляем sent_count
-    await db.execute(
-        "UPDATE broadcasts SET sent_count = $1 WHERE id = $2",
-        sent, broadcast_id,
+    # Запускаем отправку в фоне — HTTP отвечает сразу
+    background_tasks.add_task(
+        _do_broadcast_send, broadcast_id, list(users),
+        body.message_ru, body.message_uz, body.image_url or "", body.parse_mode,
     )
-    await _audit(admin["id"], "broadcast_create", {"broadcast_id": broadcast_id, "sent": sent, "recipients": recipients})
     return {"id": broadcast_id, "target": body.target, "scheduled": False,
-            "sent_count": sent, "recipients": recipients, "created_at": row["created_at"]}
+            "sent_count": 0, "total_users": total, "status": "pending",
+            "created_at": row["created_at"]}
 
 
 # ============================================================ ПОЛИТИКА

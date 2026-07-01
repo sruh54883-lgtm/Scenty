@@ -194,10 +194,15 @@ END $$;
 -- Идемпотентно (IF NOT EXISTS). Существующие строки трактуются как уже
 -- отправленные (is_sent=TRUE) — defaults берут это на себя.
 ALTER TABLE broadcasts ADD COLUMN IF NOT EXISTS scheduled_at TIMESTAMPTZ;
-ALTER TABLE broadcasts ADD COLUMN IF NOT EXISTS lang_filter VARCHAR(5);             -- 'ru' | 'uz' | NULL = все
+ALTER TABLE broadcasts ADD COLUMN IF NOT EXISTS lang_filter VARCHAR(5);
 ALTER TABLE broadcasts ADD COLUMN IF NOT EXISTS is_sent BOOLEAN NOT NULL DEFAULT TRUE;
 ALTER TABLE broadcasts ADD COLUMN IF NOT EXISTS parse_mode VARCHAR(10) NOT NULL DEFAULT 'HTML';
 ALTER TABLE broadcasts ADD COLUMN IF NOT EXISTS image_url VARCHAR(500) NOT NULL DEFAULT '';
+ALTER TABLE broadcasts ADD COLUMN IF NOT EXISTS status VARCHAR(20) NOT NULL DEFAULT 'completed';
+ALTER TABLE broadcasts ADD COLUMN IF NOT EXISTS total_users INT NOT NULL DEFAULT 0;
+ALTER TABLE broadcasts ADD COLUMN IF NOT EXISTS failed_count INT NOT NULL DEFAULT 0;
+ALTER TABLE broadcasts ADD COLUMN IF NOT EXISTS started_at TIMESTAMPTZ;
+ALTER TABLE broadcasts ADD COLUMN IF NOT EXISTS completed_at TIMESTAMPTZ;
 
 -- Индекс для воркера отложенных рассылок (выборка ожидающих по времени).
 CREATE INDEX IF NOT EXISTS idx_broadcasts_pending
