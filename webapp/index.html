@@ -1003,6 +1003,7 @@ function spendSuccess(){
 
 /* =================== GIFT DETAIL =================== */
 function openGiftDetail(id){
+  _giftReqInProgress=false;
   const g = GIFTS.find(x=>x.id===id);
   const enough = USER.balance>=g.price;
   const remain = USER.balance - g.price;
@@ -1193,19 +1194,21 @@ window.giftRequest=async function(name, giftId){
   _giftReqInProgress=true;
   const btn=document.querySelector('#sheet .btn.btn-primary');
   if(btn){btn.disabled=true;btn.textContent='...';}
-  haptic('medium');
+  let success=false;
   try{
+    try{Telegram.WebApp.HapticFeedback.impactOccurred('medium');}catch(e){}
     await apiFetch('/api/gift-requests',{method:'POST',body:JSON.stringify({gift_id:giftId})});
+    success=true;
   }catch(e){
-    _giftReqInProgress=false;
     if(btn){btn.disabled=false;btn.textContent=tx('order_gift');}
     openSheet(`<div class="sheet-ic" style="background:#fee2e2">⚠️</div>
       <h3>Ошибка обмена</h3>
       <p class="sheet-sub">${e.message||'Попробуйте ещё раз'}</p>
       <button class="btn btn-ghost" onclick="closeSheet()">${tx('close_btn')}</button>`);
-    return;
+  }finally{
+    _giftReqInProgress=false;
   }
-  _giftReqInProgress=false;
+  if(!success) return;
   try{Telegram.WebApp.HapticFeedback.notificationOccurred('success');}catch(e){}
   await loadRequests(); await loadUserData();
   renderHome(); renderGifts(); renderProfile();
