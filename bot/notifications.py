@@ -14,7 +14,6 @@ from __future__ import annotations
 
 import asyncio
 import logging
-from html import escape
 from typing import Iterable, Optional
 
 from aiogram import Bot
@@ -129,29 +128,6 @@ async def notify_user_cashback_spent(
     return await _safe_send(telegram_id, text, reply_markup=_webapp_btn())
 
 
-async def notify_user_gift_requested(
-    telegram_id: int, gift_name: str, spent: int, balance: int, lang: str = "ru"
-) -> bool:
-    """Заявка на подарок создана — кешбэк списан."""
-    if lang == "uz":
-        text = (
-            "🎁 <b>Sovg'a so'rovi yaratildi!</b>\n\n"
-            f"Sovg'a: <b>{escape(gift_name)}</b>\n"
-            f"Sarflangan: <b>−{_fmt(spent)} so'm</b>\n"
-            f"Qoldiq balans: <b>{_fmt(balance)} so'm</b>\n\n"
-            "So'rovingizni tez orada ko'rib chiqamiz. ✅"
-        )
-    else:
-        text = (
-            "🎁 <b>Заявка на подарок создана!</b>\n\n"
-            f"Подарок: <b>{escape(gift_name)}</b>\n"
-            f"Списано: <b>−{_fmt(spent)} сум</b>\n"
-            f"Остаток на балансе: <b>{_fmt(balance)} сум</b>\n\n"
-            "Мы обработаем вашу заявку в ближайшее время. ✅"
-        )
-    return await _safe_send(telegram_id, text, reply_markup=_webapp_btn())
-
-
 async def notify_user_account_deactivated(
     telegram_id: int, lang: str = "ru"
 ) -> bool:
@@ -178,13 +154,13 @@ async def notify_user_gift_status(
         if status == "shipping":
             text = (
                 "🚚 <b>Sovg'a yetkazib berish xizmatiga topshirildi!</b>\n\n"
-                f"Sovg'a: <b>{escape(gift_name)}</b>\n\n"
+                f"Sovg'a: <b>{gift_name}</b>\n\n"
                 "Etkazilganda xabar beramiz."
             )
         elif status == "confirmed":
             text = (
                 "📦 <b>Sovg'angiz yetkazildi!</b>\n\n"
-                f"Sovg'a: <b>{escape(gift_name)}</b>\n\n"
+                f"Sovg'a: <b>{gift_name}</b>\n\n"
                 "Scenti ilovasida qabul qilishni tasdiqlang."
             )
             reply_markup = _webapp_btn()
@@ -196,18 +172,18 @@ async def notify_user_gift_status(
                 "pending":  "⏳ Sovg'a so'rovi qabul qilindi",
             }
             title = titles.get(status, "ℹ️ Sovg'a so'rovi yangilandi")
-            text = f"{title}\n\nSovg'a: <b>{escape(gift_name)}</b>"
+            text = f"{title}\n\nSovg'a: <b>{gift_name}</b>"
     else:
         if status == "shipping":
             text = (
                 "🚚 <b>Подарок передан службе доставки!</b>\n\n"
-                f"Подарок: <b>{escape(gift_name)}</b>\n\n"
+                f"Подарок: <b>{gift_name}</b>\n\n"
                 "Мы сообщим, когда он будет доставлен."
             )
         elif status == "confirmed":
             text = (
                 "📦 <b>Ваш подарок доставлен!</b>\n\n"
-                f"Подарок: <b>{escape(gift_name)}</b>\n\n"
+                f"Подарок: <b>{gift_name}</b>\n\n"
                 "Подтвердите получение в приложении Scenti — нажмите кнопку ниже."
             )
             reply_markup = _webapp_btn()
@@ -219,7 +195,7 @@ async def notify_user_gift_status(
                 "pending":  "⏳ Заявка на подарок принята",
             }
             title = titles.get(status, "ℹ️ Обновление по заявке на подарок")
-            text = f"{title}\n\nПодарок: <b>{escape(gift_name)}</b>"
+            text = f"{title}\n\nПодарок: <b>{gift_name}</b>"
     return await _safe_send(telegram_id, text, reply_markup=reply_markup)
 
 
@@ -235,7 +211,7 @@ async def notify_admin_new_transaction(
         return False
     text = (
         "🔔 <b>Новая транзакция на подтверждение</b>\n\n"
-        f"Клиент: <b>{escape(user_name)}</b>\n"
+        f"Клиент: <b>{user_name}</b>\n"
         f"Сумма покупки: <b>{_fmt(amount)} сум</b>\n\n"
         "Подтвердите в админ-панели."
     )

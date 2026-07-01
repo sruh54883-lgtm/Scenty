@@ -602,7 +602,7 @@ const I = {
 
 /* ---------- STATE ---------- */
 const State = {
-  token: null,
+  token: localStorage.getItem("scenti_admin_token") || null,
   adminName: localStorage.getItem("scenti_admin_name") || "Администратор",
   page: "dash",
   useMock: false,
@@ -673,7 +673,7 @@ async function uploadImgFile(input, fieldId){
     const fd = new FormData();
     fd.append("file", file);
     const headers = {};
-    if(State.token) headers["Authorization"]="Bearer "+State.token;
+    if(State.token && State.token!=="demo-token") headers["Authorization"]="Bearer "+State.token;
     const res = await fetch(API_BASE+"/admin/upload", {method:"POST", headers, body:fd});
     if(!res.ok) throw new Error("HTTP "+res.status);
     const data = await res.json();
@@ -701,6 +701,7 @@ function toast(msg, type="ok", sub=""){
 
 /* ---------- API ---------- */
 async function api(path, opts={}){
+  if(State.token==="demo-token") throw new Error("demo");
   const isFormData = opts.body instanceof FormData;
   const headers = isFormData ? {} : Object.assign({"Content-Type":"application/json"}, opts.headers||{});
   if(State.token) headers["Authorization"] = "Bearer "+State.token;
@@ -2270,7 +2271,7 @@ async function bcUploadImage(input){
   if(wrap) wrap.innerHTML = `<span class="muted" style="font-size:13px">Загрузка...</span>`;
   try{
     const fd = new FormData(); fd.append('file', file);
-    const r = await fetch('/admin/upload', {method:'POST', headers:{Authorization:'Bearer '+State.token}, body:fd});
+    const r = await fetch('/admin/upload', {method:'POST', headers:{Authorization:'Bearer '+localStorage.getItem('scenti_admin_token')}, body:fd});
     if(!r.ok) throw new Error(await r.text());
     const data = await r.json();
     _bcImageUrl = data.url || data.path || '';
@@ -2726,13 +2727,20 @@ $("#loginForm").addEventListener("submit",async e=>{
     localStorage.setItem("scenti_admin_name",State.adminName);
     enterApp();
   }catch(err2){
-    err.textContent="Неверный логин или пароль";
+    // demo fallback: если API недоступна — входим с любым паролем для admin (токен НЕ сохраняем в localStorage)
+    if(u==="admin"){
+      State.token="demo-token";State.adminName="Администратор";
+      // намеренно НЕ сохраняем demo-token в localStorage — только на сессию
+      toast("Демо-режим — API работает в офлайн","warn");
+      enterApp();
+    }else{
+      err.textContent="Неверный логин или пароль";
+    }
   }finally{btn.disabled=false;btn.textContent="Войти";}
 });
 function logout(){
   State.token=null;
   localStorage.removeItem("scenti_admin_token");
-  localStorage.removeItem("scenti_admin_name");
   $("#app").classList.add("hidden");
   $("#login").classList.remove("hidden");
   $("#loginPass").value="";
@@ -2793,17 +2801,9 @@ function autoCollapse(){ if(window.innerWidth<1100)document.body.classList.add("
 window.addEventListener("resize",()=>{ if(window.innerWidth<1100)document.body.classList.add("collapsed"); });
 
 /* boot */
-(async function(){
-  const saved = localStorage.getItem("scenti_admin_token");
-  if(saved){
-    State.token = saved;
-    State.adminName = localStorage.getItem("scenti_admin_name") || "admin";
-    try{ await enterApp(); } catch(e){ localStorage.removeItem("scenti_admin_token"); hideBoot(); $("#loginUser").focus(); }
-  } else {
-    hideBoot(); $("#loginUser").focus();
-  }
-  autoCollapse();
-})();
+// Не входить автоматически с demo-token из localStorage — показать логин
+if(State.token && State.token!=="demo-token"){ enterApp(); } else { State.token=null; localStorage.removeItem("scenti_admin_token"); hideBoot(); $("#loginUser").focus(); }
+autoCollapse();
 
 /* ===================== DRAWER ===================== */
 (function(){
