@@ -34,34 +34,9 @@ async def get_me(agent: dict = Depends(get_current_agent)):
 @router.get("/users")
 async def search_users(
     search: str = "",
-    all: bool = False,  # all=true → поиск по всем клиентам (для создания транзакций)
     agent: dict = Depends(get_current_agent),
 ):
     like = f"%{search}%" if search else None
-
-    # all=true: показать всех активных клиентов (для создания транзакции агентом)
-    if all:
-        if like:
-            return await db.fetch(
-                """
-                SELECT u.id, u.first_name, u.last_name, u.business_name, u.phone,
-                       u.cashback_balance, u.district_id, u.region_id
-                FROM users u
-                WHERE u.is_active = TRUE
-                  AND (u.first_name ILIKE $1 OR u.last_name ILIKE $1
-                       OR u.business_name ILIKE $1 OR u.phone ILIKE $1)
-                ORDER BY u.first_name, u.last_name LIMIT 50
-                """,
-                like,
-            )
-        return await db.fetch(
-            """
-            SELECT u.id, u.first_name, u.last_name, u.business_name, u.phone,
-                   u.cashback_balance, u.district_id, u.region_id
-            FROM users u WHERE u.is_active = TRUE
-            ORDER BY u.created_at DESC LIMIT 100
-            """
-        )
 
     # Фильтр по районам агента (таб Клиенты)
     district_ids = await db.fetch(
@@ -69,22 +44,7 @@ async def search_users(
     )
     ids = [r["district_id"] for r in district_ids]
     if not ids:
-        # Нет районов — показать всех клиентов
-        if like:
-            return await db.fetch(
-                """
-                SELECT u.id, u.first_name, u.last_name, u.business_name, u.phone,
-                       u.cashback_balance, u.district_id, u.region_id
-                FROM users u WHERE u.is_active = TRUE
-                  AND (u.first_name ILIKE $1 OR u.last_name ILIKE $1
-                       OR u.business_name ILIKE $1 OR u.phone ILIKE $1)
-                ORDER BY u.first_name LIMIT 100
-                """,
-                like,
-            )
-        return await db.fetch(
-            "SELECT u.id, u.first_name, u.last_name, u.business_name, u.phone, u.cashback_balance, u.district_id, u.region_id FROM users u WHERE u.is_active=TRUE ORDER BY u.created_at DESC LIMIT 100"
-        )
+        return []
 
     if like:
         return await db.fetch(
@@ -117,34 +77,21 @@ async def get_user(user_id: int, agent: dict = Depends(get_current_agent)):
         "SELECT district_id FROM agent_districts WHERE agent_id = $1", agent["id"]
     )
     ids = [r["district_id"] for r in district_ids]
-    if ids:
-        user = await db.fetchrow(
-            """
-            SELECT u.id, u.first_name, u.last_name, u.business_name, u.phone,
-                   u.cashback_balance, u.telegram_id, u.language,
-                   u.region_id, u.district_id, u.created_at,
-                   d.name_ru AS district_name, r.name_ru AS region_name
-            FROM users u
-            LEFT JOIN districts d ON d.id = u.district_id
-            LEFT JOIN regions r ON r.id = u.region_id
-            WHERE u.id = $1 AND u.district_id = ANY($2::int[])
-            """,
-            user_id, ids,
-        )
-    else:
-        user = await db.fetchrow(
-            """
-            SELECT u.id, u.first_name, u.last_name, u.business_name, u.phone,
-                   u.cashback_balance, u.telegram_id, u.language,
-                   u.region_id, u.district_id, u.created_at,
-                   d.name_ru AS district_name, r.name_ru AS region_name
-            FROM users u
-            LEFT JOIN districts d ON d.id = u.district_id
-            LEFT JOIN regions r ON r.id = u.region_id
-            WHERE u.id = $1
-            """,
-            user_id,
-        )
+    if not ids:
+        raise HTTPException(status_code=404, detail="Клиент не найден")
+    user = await db.fetchrow(
+        """
+        SELECT u.id, u.first_name, u.last_name, u.business_name, u.phone,
+               u.cashback_balance, u.telegram_id, u.language,
+               u.region_id, u.district_id, u.created_at,
+               d.name_ru AS district_name, r.name_ru AS region_name
+        FROM users u
+        LEFT JOIN districts d ON d.id = u.district_id
+        LEFT JOIN regions r ON r.id = u.region_id
+        WHERE u.id = $1 AND u.district_id = ANY($2::int[])
+        """,
+        user_id, ids,
+    )
     if user is None:
         raise HTTPException(status_code=404, detail="Клиент не найден")
 
@@ -198,10 +145,8 @@ async def create_transaction(body: TxBody, agent: dict = Depends(get_current_age
     agent_districts = await db.fetch(
         "SELECT district_id FROM agent_districts WHERE agent_id = $1", agent["id"]
     )
-    if agent_districts:  # если у агента назначены районы — проверяем
-        allowed_ids = {r["district_id"] for r in agent_districts}
-        if user["district_id"] not in allowed_ids:
-            raise HTTPException(status_code=403, detail="Клиент не из вашего района")
+    if not agent_districts or user["district_id"] not in {r["district_id"] for r in agent_districts}:
+        raise HTTPException(status_code=403, detail="Клиент не из вашего района")
 
     cashback = round(body.amount * settings.CASHBACK_PERCENT / 100)
     tx = await db.fetchrow(
@@ -253,19 +198,8 @@ async def list_gift_requests(agent: dict = Depends(get_current_agent)):
         "SELECT district_id FROM agent_districts WHERE agent_id = $1", agent["id"]
     )
     ids = [r["district_id"] for r in district_ids]
-    # Если районы не назначены — показываем все заявки
     if not ids:
-        return await db.fetch(
-            """
-            SELECT gr.id, gr.status, gr.admin_notes, gr.created_at,
-                   u.first_name, u.last_name, u.phone,
-                   g.name_ru, g.image_url, g.price_cashback
-            FROM gift_requests gr
-            JOIN users u ON u.id = gr.user_id
-            JOIN gifts g ON g.id = gr.gift_id
-            ORDER BY gr.created_at DESC LIMIT 100
-            """
-        )
+        return []
     return await db.fetch(
         """
         SELECT gr.id, gr.status, gr.admin_notes, gr.created_at,
@@ -307,7 +241,9 @@ async def update_gift_request_status(
         "SELECT district_id FROM agent_districts WHERE agent_id = $1", agent["id"]
     )
     ids = [r["district_id"] for r in district_ids]
-    if ids:
+    if not ids:
+        gr = None
+    else:
         gr = await db.fetchrow(
             """
             SELECT gr.id, gr.status FROM gift_requests gr
@@ -315,10 +251,6 @@ async def update_gift_request_status(
             WHERE gr.id = $1 AND u.district_id = ANY($2::int[])
             """,
             gr_id, ids,
-        )
-    else:
-        gr = await db.fetchrow(
-            "SELECT id, status FROM gift_requests WHERE id = $1", gr_id
         )
     if gr is None:
         raise HTTPException(status_code=404, detail="Заявка не найдена")

@@ -256,7 +256,12 @@ async def process_region(callback: CallbackQuery, state: FSMContext) -> None:
 
     if not districts:
         await callback.message.edit_text(t(data, "no_districts"))
-        regions = await db.get_regions()
+        try:
+            regions = await db.get_regions()
+        except Exception:
+            logger.exception("Ошибка загрузки регионов (no_districts)")
+            await callback.message.answer(t(data, "db_down"))
+            return
         await callback.message.edit_reply_markup(
             reply_markup=ikb.regions_keyboard(regions, lang)
         )
@@ -276,7 +281,12 @@ async def district_back(callback: CallbackQuery, state: FSMContext) -> None:
     await callback.answer()
     data = await state.get_data()
     lang = data.get("lang", "ru")
-    regions = await db.get_regions()
+    try:
+        regions = await db.get_regions()
+    except Exception:
+        logger.exception("Ошибка загрузки регионов (back)")
+        await callback.message.answer(t(data, "db_down"))
+        return
     await state.set_state(Registration.waiting_region)
     await callback.message.edit_text(t(data, "phone_saved"))
     await callback.message.edit_reply_markup(reply_markup=ikb.regions_keyboard(regions, lang))

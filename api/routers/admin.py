@@ -35,6 +35,8 @@ _IMAGE_MAGIC: dict[bytes, str] = {
     b"GIF89a": ".gif",
 }
 _PDF_MAGIC = b"%PDF"
+_DOC_MAGIC = b"\xd0\xcf\x11\xe0"   # OLE2 container (.doc)
+_DOCX_MAGIC = b"PK\x03\x04"         # ZIP archive (.docx)
 
 _HEIC_BRANDS = {b"heic", b"heix", b"hevc", b"hevx", b"heim", b"heis", b"hevm", b"hevs", b"mif1", b"msf1"}
 
@@ -51,6 +53,20 @@ def _check_image_magic(data: bytes) -> bool:
     return False
 
 
+_MIN_FREE_BYTES = 100 * 1024 * 1024  # 100 MB minimum free space before accepting uploads
+
+
+def _check_disk_space() -> None:
+    """Raise HTTP 507 if free disk space is below the safety threshold."""
+    import shutil
+    usage = shutil.disk_usage(str(UPLOADS_DIR))
+    if usage.free < _MIN_FREE_BYTES:
+        raise HTTPException(
+            status_code=507,
+            detail=f"Недостаточно места на диске (свободно {usage.free // (1024*1024)} МБ). Обратитесь к администратору.",
+        )
+
+
 @router.post("/upload")
 async def upload_image(
     file: UploadFile = File(...),
@@ -64,6 +80,7 @@ async def upload_image(
         raise HTTPException(status_code=400, detail="Файл слишком большой (макс 5 МБ)")
     if not _check_image_magic(content):
         raise HTTPException(status_code=400, detail="Файл не является изображением")
+    _check_disk_space()
     filename = uuid.uuid4().hex + ext
     dest = UPLOADS_DIR / filename
     dest.write_bytes(content)
@@ -83,6 +100,11 @@ async def upload_doc(
         raise HTTPException(status_code=400, detail="Файл слишком большой (макс 20 МБ)")
     if ext == ".pdf" and not content.startswith(_PDF_MAGIC):
         raise HTTPException(status_code=400, detail="Файл не является PDF")
+    if ext == ".doc" and not content.startswith(_DOC_MAGIC):
+        raise HTTPException(status_code=400, detail="Файл не является DOC")
+    if ext == ".docx" and not content.startswith(_DOCX_MAGIC):
+        raise HTTPException(status_code=400, detail="Файл не является DOCX")
+    _check_disk_space()
     filename = uuid.uuid4().hex + ext
     dest = UPLOADS_DIR / filename
     dest.write_bytes(content)
@@ -1085,10 +1107,10 @@ async def backup(admin: dict = Depends(get_current_admin)):
     ts = datetime.now().strftime("%Y%m%d_%H%M%S")
     filename = f"scenti_backup_{ts}.json"
 
-    # admin_users исключён — содержит password_hash
+    # admin_users и agents исключены — содержат password_hash
     tables = [
         "users", "regions", "districts", "transactions", "cashback_spends",
-        "gifts", "gift_requests", "agents", "agent_districts",
+        "gifts", "gift_requests",
         "diffusers", "broadcasts", "monthly_reminder", "privacy_policy",
         "app_settings", "audit_log",
     ]
@@ -1136,10 +1158,13 @@ async def stats_regions(
     dt = date_to if date_to and _DATE.match(date_to) else None
 
     date_filter = ""
+    date_args: list = []
     if df:
-        date_filter += f" AND t.created_at >= '{df}'"
+        date_args.append(df)
+        date_filter += f" AND t.created_at >= ${len(date_args)}"
     if dt:
-        date_filter += f" AND t.created_at < '{dt}'::date + INTERVAL '1 day'"
+        date_args.append(dt)
+        date_filter += f" AND t.created_at < ${len(date_args)}::date + INTERVAL '1 day'"
 
     rows = await db.fetch(
         f"""
@@ -1152,7 +1177,8 @@ async def stats_regions(
         LEFT JOIN transactions t ON t.user_id = u.id
         GROUP BY r.id, r.name_ru
         ORDER BY clients DESC, r.name_ru
-        """
+        """,
+        *date_args,
     )
     return [{"name_ru": r["name_ru"], "clients": int(r["clients"]), "earned": int(r["earned"])} for r in rows]
 
@@ -1169,23 +1195,32 @@ async def stats(
     df = date_from if date_from and _DATE.match(date_from) else None
     dt = date_to if date_to and _DATE.match(date_to) else None
 
-    def _p(col: str = "created_at") -> str:
-        parts = []
-        if df: parts.append(f"{col} >= '{df}'")
-        if dt: parts.append(f"{col} < '{dt}'::date + INTERVAL '1 day'")
-        return (" AND " + " AND ".join(parts)) if parts else ""
+    def _p(col: str = "created_at") -> tuple[str, list]:
+        parts: list[str] = []
+        args: list = []
+        if df:
+            args.append(df)
+            parts.append(f"{col} >= ${len(args)}")
+        if dt:
+            args.append(dt)
+            parts.append(f"{col} < ${len(args)}::date + INTERVAL '1 day'")
+        return ((" AND " + " AND ".join(parts)) if parts else ""), args
 
     total_users = await db.fetchval("SELECT COUNT(*) FROM users WHERE is_active = TRUE")
     pending_transactions = await db.fetchval(
         "SELECT COUNT(*) FROM transactions WHERE status = 'pending'"
     )
+    _sql, _args = _p()
     total_cashback_issued = await db.fetchval(
-        f"SELECT COALESCE(SUM(cashback_amount),0) FROM transactions WHERE status = 'approved'{_p()}"
+        f"SELECT COALESCE(SUM(cashback_amount),0) FROM transactions WHERE status = 'approved'{_sql}",
+        *_args,
     )
     # Только прямые оплаты кешбэком (без обменов на подарки)
+    _sql, _args = _p()
     total_cashback_spent = await db.fetchval(
         f"""SELECT COALESCE(SUM(amount),0) FROM cashback_spends
-           WHERE gift_request_id IS NULL{_p()}"""
+           WHERE gift_request_id IS NULL{_sql}""",
+        *_args,
     )
     new_users_today = await db.fetchval(
         "SELECT COUNT(*) FROM users WHERE is_active = TRUE AND created_at >= CURRENT_DATE"
@@ -1196,14 +1231,20 @@ async def stats(
     new_users_30d = await db.fetchval(
         "SELECT COUNT(*) FROM users WHERE is_active = TRUE AND created_at >= NOW() - INTERVAL '30 days'"
     )
+    _sql, _args = _p()
     txns_today_count = await db.fetchval(
-        f"SELECT COUNT(*) FROM transactions WHERE TRUE{_p()}"
+        f"SELECT COUNT(*) FROM transactions WHERE TRUE{_sql}",
+        *_args,
     )
+    _sql, _args = _p()
     txns_today_sum = await db.fetchval(
-        f"SELECT COALESCE(SUM(amount),0) FROM transactions WHERE status='approved'{_p()}"
+        f"SELECT COALESCE(SUM(amount),0) FROM transactions WHERE status='approved'{_sql}",
+        *_args,
     )
+    _sql, _args = _p()
     txns_month_sum = await db.fetchval(
-        f"SELECT COALESCE(SUM(cashback_amount),0) FROM transactions WHERE status='approved'{_p()}"
+        f"SELECT COALESCE(SUM(cashback_amount),0) FROM transactions WHERE status='approved'{_sql}",
+        *_args,
     )
     active_gifts = await db.fetchval(
         "SELECT COUNT(*) FROM gifts WHERE is_active = TRUE"
@@ -1211,13 +1252,17 @@ async def stats(
     pending_claims = await db.fetchval(
         "SELECT COUNT(*) FROM gift_requests WHERE status = 'pending'"
     )
+    _sql, _args = _p()
     total_gift_requests = await db.fetchval(
-        f"SELECT COUNT(*) FROM gift_requests WHERE status != 'rejected'{_p()}"
+        f"SELECT COUNT(*) FROM gift_requests WHERE status != 'rejected'{_sql}",
+        *_args,
     )
+    _sql, _args = _p("gr.created_at")
     total_gifts_value = await db.fetchval(
         f"""SELECT COALESCE(SUM(gr.price_paid),0)
            FROM gift_requests gr
-           WHERE gr.status != 'rejected'{_p('gr.created_at')}"""
+           WHERE gr.status != 'rejected'{_sql}""",
+        *_args,
     )
     # Месячный график за последние 12 месяцев (всегда, не зависит от фильтра)
     monthly_chart = await db.fetch(
@@ -1331,10 +1376,13 @@ async def dashboard_detail(
         df2 = date_from if date_from and _D.match(date_from) else None
         dt2 = date_to if date_to and _D.match(date_to) else None
         cond = ""
+        args2: list = []
         if df2:
-            cond += f" AND t.created_at >= '{df2}'"
+            args2.append(df2)
+            cond += f" AND t.created_at >= ${len(args2)}"
         if dt2:
-            cond += f" AND t.created_at < '{dt2}'::date + INTERVAL '1 day'"
+            args2.append(dt2)
+            cond += f" AND t.created_at < ${len(args2)}::date + INTERVAL '1 day'"
         if not cond:
             cond = " AND t.created_at >= CURRENT_DATE"
         rows = await db.fetch(
@@ -1344,7 +1392,8 @@ async def dashboard_detail(
                FROM transactions t
                JOIN users u ON u.id=t.user_id
                LEFT JOIN agents a ON a.id=t.agent_id
-               WHERE TRUE{cond} ORDER BY t.created_at DESC LIMIT 300"""
+               WHERE TRUE{cond} ORDER BY t.created_at DESC LIMIT 300""",
+            *args2,
         )
         return {"title": "Транзакции за период", "type": "txns", "rows": [dict(r) for r in rows]}
 
@@ -1366,10 +1415,13 @@ async def dashboard_detail(
         df3 = date_from if date_from and _D.match(date_from) else None
         dt3 = date_to if date_to and _D.match(date_to) else None
         cond = ""
+        args3: list = []
         if df3:
-            cond += f" AND gr.created_at >= '{df3}'"
+            args3.append(df3)
+            cond += f" AND gr.created_at >= ${len(args3)}"
         if dt3:
-            cond += f" AND gr.created_at < '{dt3}'::date + INTERVAL '1 day'"
+            args3.append(dt3)
+            cond += f" AND gr.created_at < ${len(args3)}::date + INTERVAL '1 day'"
         rows = await db.fetch(
             f"""SELECT gr.id, gr.status, gr.created_at,
                TRIM(COALESCE(u.first_name,'')||' '||COALESCE(u.last_name,'')) AS user_name,
@@ -1377,7 +1429,8 @@ async def dashboard_detail(
                FROM gift_requests gr
                JOIN users u ON u.id=gr.user_id
                JOIN gifts g ON g.id=gr.gift_id
-               WHERE TRUE{cond} ORDER BY gr.created_at DESC LIMIT 200"""
+               WHERE TRUE{cond} ORDER BY gr.created_at DESC LIMIT 200""",
+            *args3,
         )
         return {"title": "Все заявки на подарки", "type": "claims", "rows": [dict(r) for r in rows]}
 
@@ -1393,16 +1446,20 @@ async def dashboard_detail(
         df4 = date_from if date_from and _D.match(date_from) else None
         dt4 = date_to if date_to and _D.match(date_to) else None
         cond = ""
+        args4: list = []
         if df4:
-            cond += f" AND cs.created_at >= '{df4}'"
+            args4.append(df4)
+            cond += f" AND cs.created_at >= ${len(args4)}"
         if dt4:
-            cond += f" AND cs.created_at < '{dt4}'::date + INTERVAL '1 day'"
+            args4.append(dt4)
+            cond += f" AND cs.created_at < ${len(args4)}::date + INTERVAL '1 day'"
         rows = await db.fetch(
             f"""SELECT cs.id, cs.amount, cs.created_at, cs.gift_request_id,
                TRIM(COALESCE(u.first_name,'')||' '||COALESCE(u.last_name,'')) AS user_name
                FROM cashback_spends cs
                JOIN users u ON u.id=cs.user_id
-               WHERE TRUE{cond} ORDER BY cs.created_at DESC LIMIT 300"""
+               WHERE TRUE{cond} ORDER BY cs.created_at DESC LIMIT 300""",
+            *args4,
         )
         return {"title": "Потраченный кешбэк", "type": "cashback_spends", "rows": [dict(r) for r in rows]}
 

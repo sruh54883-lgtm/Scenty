@@ -87,6 +87,7 @@ CREATE TABLE IF NOT EXISTS gift_requests (
     gift_id INT NOT NULL REFERENCES gifts(id),
     status VARCHAR(20) NOT NULL DEFAULT 'pending',
     admin_notes TEXT NOT NULL DEFAULT '',
+    price_paid BIGINT NOT NULL DEFAULT 0,
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
@@ -450,3 +451,15 @@ SELECT
   '👋 Привет! Напоминаем, что у вас есть кешбэк в приложении Scenti. Используйте его при следующей покупке ароматов!',
   '👋 Salom! Scenti ilovasida keshbegingiz borligini eslatamiz. Keyingi xaridda undan foydalaning!'
 WHERE NOT EXISTS (SELECT 1 FROM monthly_reminder);
+
+-- Настройки приложения (контакты поддержки и др.)
+CREATE TABLE IF NOT EXISTS app_settings (
+  key   TEXT PRIMARY KEY,
+  value TEXT NOT NULL DEFAULT ''
+);
+
+INSERT INTO app_settings (key, value) VALUES
+  ('contact_phone', '+998773831111'),
+  ('contact_tg', 'Scentioffice1'),
+  ('contact_phone_display', '+998 77 383 11 11')
+ON CONFLICT (key) DO NOTHING;

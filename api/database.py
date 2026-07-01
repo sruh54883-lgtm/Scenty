@@ -12,6 +12,10 @@ _pool: Optional[asyncpg.Pool] = None
 _log = logging.getLogger("scenti.db")
 
 
+class DatabaseUnavailableError(RuntimeError):
+    """Raised when the DB pool is not initialised or all connections are broken."""
+
+
 async def connect() -> bool:
     """Создать пул соединений при старте приложения. Возвращает True при успехе."""
     global _pool
@@ -25,6 +29,9 @@ async def connect() -> bool:
                     min_size=1,
                     max_size=10,
                     command_timeout=30,
+                    # Recycle idle connections after 60 s to prevent stale-connection
+                    # failures when the DB server IP changes on Railway redeploy.
+                    max_inactive_connection_lifetime=60,
                     ssl="require" if "sslmode=require" in settings.DATABASE_URL else None,
                 ),
                 timeout=15,
@@ -47,9 +54,20 @@ async def disconnect() -> None:
 
 
 def get_pool() -> asyncpg.Pool:
+    """Return the active pool or raise DatabaseUnavailableError (maps to HTTP 503)."""
     if _pool is None:
-        raise RuntimeError("Пул БД не инициализирован")
+        raise DatabaseUnavailableError("Пул БД не инициализирован")
     return _pool
+
+
+async def _acquire_with_retry(pool: asyncpg.Pool):
+    """Acquire a connection; on connection-level error expire stale connections and retry once."""
+    try:
+        return pool.acquire()
+    except (asyncpg.PostgresConnectionError, OSError):
+        _log.warning("DB acquire failed, expiring stale connections and retrying once")
+        pool.expire_connections()
+        return pool.acquire()
 
 
 async def fetch(query: str, *args):
