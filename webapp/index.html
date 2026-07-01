@@ -1076,9 +1076,9 @@ function openAgent(){
     <a class="link-row" href="tel:${CONTACT.phone}" style="margin-top:18px;cursor:pointer;text-decoration:none;color:inherit" onclick="(function(e){try{var tg=window.Telegram&&window.Telegram.WebApp;if(tg&&tg.openLink){e.preventDefault();tg.openLink('tel:${CONTACT.phone}');}else{e.preventDefault();window.location.href='tel:${CONTACT.phone}';}}catch(err){}})( event);">
       <div class="ic">${ICONS.phoneIcon}</div><div class="lt">${CONTACT.phone_display}</div><div class="chev">${ICONS.chev}</div>
     </a>
-    <a class="link-row" href="https://t.me/${CONTACT.tg}" target="_blank" style="cursor:pointer;text-decoration:none;color:inherit" onclick="(function(e){try{var tg=window.Telegram&&window.Telegram.WebApp;if(tg&&tg.openTelegramLink){e.preventDefault();tg.openTelegramLink('https://t.me/${CONTACT.tg}');}}catch(err){}})( event);">
+    <div class="link-row" style="cursor:pointer" onclick="try{Telegram.WebApp.openTelegramLink('https://t.me/${CONTACT.tg}');}catch(e){window.open('https://t.me/${CONTACT.tg}','_blank');}">
       <div class="ic">${ICONS.tg}</div><div class="lt">@${CONTACT.tg}</div><div class="chev">${ICONS.chev}</div>
-    </a>
+    </div>
     <button class="btn btn-ghost" style="margin-top:18px;" onclick="closeSheet()">${tx('close_btn')}</button>`);
 }
 

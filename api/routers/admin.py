@@ -1401,7 +1401,7 @@ async def dashboard_detail(
                TRIM(COALESCE(u.first_name,'')||' '||COALESCE(u.last_name,'')) AS user_name
                FROM cashback_spends cs
                JOIN users u ON u.id=cs.user_id
-               WHERE TRUE{cond} ORDER BY cs.created_at DESC LIMIT 300"""
+               WHERE cs.gift_request_id IS NULL{cond} ORDER BY cs.created_at DESC LIMIT 300"""
         )
         return {"title": "Потраченный кешбэк", "type": "cashback_spends", "rows": [dict(r) for r in rows]}
 
