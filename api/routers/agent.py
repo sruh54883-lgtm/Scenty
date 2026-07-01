@@ -291,7 +291,7 @@ _AGENT_TRANSITIONS: dict[str, list[str]] = {
     "pending":   ["approved", "rejected"],
     "approved":  ["shipping", "rejected"],
     "shipping":  ["confirmed", "rejected"],
-    "confirmed": ["delivered"],
+    "confirmed": [],  # клиент подтверждает сам через WebApp
     "delivered": [],
     "rejected":  [],
 }
@@ -420,10 +420,10 @@ async def my_stats(agent: dict = Depends(get_current_agent)):
         dist_ids,
     )
 
-    # Потрачено кешбэка: только прямые оплаты (без подарков) — совпадает с логикой admin/stats
+    # Потрачено кешбэка: все списания включая подарки
     spent_row = await db.fetchrow(
         """
-        SELECT COALESCE(SUM(cs.amount) FILTER (WHERE cs.gift_request_id IS NULL), 0) AS total_cashback_spent
+        SELECT COALESCE(SUM(cs.amount), 0) AS total_cashback_spent
         FROM cashback_spends cs
         JOIN users u ON u.id = cs.user_id
         WHERE u.district_id = ANY($1::int[])
@@ -470,15 +470,13 @@ async def stats_by_district(
     if not dist_ids:
         return []
 
-    # Строим условие по датам
+    import re as _re_d
+    _D = _re_d.compile(r'^\d{4}-\d{2}-\d{2}$')
+    df = date_from if date_from and _D.match(date_from) else None
+    dt = date_to if date_to and _D.match(date_to) else None
     date_cond = ""
-    params: list = [dist_ids]
-    if date_from:
-        params.append(date_from)
-        date_cond += f" AND t.created_at::date >= ${len(params)}::date"
-    if date_to:
-        params.append(date_to)
-        date_cond += f" AND t.created_at::date <= ${len(params)}::date"
+    if df: date_cond += f" AND t.created_at >= '{df}'"
+    if dt: date_cond += f" AND t.created_at < '{dt}'::date + INTERVAL '1 day'"
 
     rows = await db.fetch(
         f"""
@@ -498,6 +496,6 @@ async def stats_by_district(
         GROUP BY d.id, d.name_ru, r.name_ru
         ORDER BY total_amount DESC NULLS LAST
         """,
-        *params,
+        dist_ids,
     )
     return [dict(r) for r in rows]

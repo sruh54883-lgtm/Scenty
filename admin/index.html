@@ -1314,6 +1314,7 @@ window.openUser = async id=>{
       <b>${esc(u.name)}</b>
       <span class="muted">${esc(u.business||"")}</span>
       ${u.telegram_id?`<span style="display:inline-block;margin-top:4px;background:#eaf2ff;color:#2563eb;font-size:11px;font-weight:700;padding:3px 10px;border-radius:20px;letter-spacing:.3px">ID ${esc(String(u.telegram_id))}</span>`:""}
+      ${u.username?`<a href="https://t.me/${esc(u.username)}" target="_blank" style="display:inline-block;margin-top:4px;margin-left:4px;background:#e8f5e9;color:#16a34a;font-size:11px;font-weight:700;padding:3px 10px;border-radius:20px;text-decoration:none;letter-spacing:.3px">✈️ @${esc(u.username)}</a>`:""}
     </div></div>
     <div class="balance-box"><div><div class="lab">Текущий баланс кешбэка</div><div class="num">${fmtSum(u.balance)}</div></div>
       <div style="text-align:right"><div class="lab">Всего начислено</div><div class="num" style="font-size:18px">${fmtSum(u.total_cashback??u.balance??0)}</div></div></div>
