@@ -1158,13 +1158,8 @@ async def stats_regions(
     dt = date_to if date_to and _DATE.match(date_to) else None
 
     date_filter = ""
-    date_args: list = []
-    if df:
-        date_args.append(df)
-        date_filter += f" AND t.created_at >= ${len(date_args)}"
-    if dt:
-        date_args.append(dt)
-        date_filter += f" AND t.created_at < ${len(date_args)}::date + INTERVAL '1 day'"
+    if df: date_filter += f" AND t.created_at >= '{df}'"
+    if dt: date_filter += f" AND t.created_at < '{dt}'::date + INTERVAL '1 day'"
 
     rows = await db.fetch(
         f"""
@@ -1177,8 +1172,7 @@ async def stats_regions(
         LEFT JOIN transactions t ON t.user_id = u.id
         GROUP BY r.id, r.name_ru
         ORDER BY clients DESC, r.name_ru
-        """,
-        *date_args,
+        """
     )
     return [{"name_ru": r["name_ru"], "clients": int(r["clients"]), "earned": int(r["earned"])} for r in rows]
 
@@ -1195,32 +1189,21 @@ async def stats(
     df = date_from if date_from and _DATE.match(date_from) else None
     dt = date_to if date_to and _DATE.match(date_to) else None
 
-    def _p(col: str = "created_at") -> tuple[str, list]:
-        parts: list[str] = []
-        args: list = []
-        if df:
-            args.append(df)
-            parts.append(f"{col} >= ${len(args)}")
-        if dt:
-            args.append(dt)
-            parts.append(f"{col} < ${len(args)}::date + INTERVAL '1 day'")
-        return ((" AND " + " AND ".join(parts)) if parts else ""), args
+    def _p(col: str = "created_at") -> str:
+        parts = []
+        if df: parts.append(f"{col} >= '{df}'")
+        if dt: parts.append(f"{col} < '{dt}'::date + INTERVAL '1 day'")
+        return (" AND " + " AND ".join(parts)) if parts else ""
 
     total_users = await db.fetchval("SELECT COUNT(*) FROM users WHERE is_active = TRUE")
     pending_transactions = await db.fetchval(
         "SELECT COUNT(*) FROM transactions WHERE status = 'pending'"
     )
-    _sql, _args = _p()
     total_cashback_issued = await db.fetchval(
-        f"SELECT COALESCE(SUM(cashback_amount),0) FROM transactions WHERE status = 'approved'{_sql}",
-        *_args,
+        f"SELECT COALESCE(SUM(cashback_amount),0) FROM transactions WHERE status IN ('approved','confirmed'){_p()}"
     )
-    # Только прямые оплаты кешбэком (без обменов на подарки)
-    _sql, _args = _p()
     total_cashback_spent = await db.fetchval(
-        f"""SELECT COALESCE(SUM(amount),0) FROM cashback_spends
-           WHERE gift_request_id IS NULL{_sql}""",
-        *_args,
+        f"SELECT COALESCE(SUM(amount),0) FROM cashback_spends WHERE gift_request_id IS NULL{_p()}"
     )
     new_users_today = await db.fetchval(
         "SELECT COUNT(*) FROM users WHERE is_active = TRUE AND created_at >= CURRENT_DATE"
@@ -1231,20 +1214,14 @@ async def stats(
     new_users_30d = await db.fetchval(
         "SELECT COUNT(*) FROM users WHERE is_active = TRUE AND created_at >= NOW() - INTERVAL '30 days'"
     )
-    _sql, _args = _p()
     txns_today_count = await db.fetchval(
-        f"SELECT COUNT(*) FROM transactions WHERE TRUE{_sql}",
-        *_args,
+        f"SELECT COUNT(*) FROM transactions WHERE TRUE{_p()}"
     )
-    _sql, _args = _p()
     txns_today_sum = await db.fetchval(
-        f"SELECT COALESCE(SUM(amount),0) FROM transactions WHERE status='approved'{_sql}",
-        *_args,
+        f"SELECT COALESCE(SUM(amount),0) FROM transactions WHERE status IN ('approved','confirmed'){_p()}"
     )
-    _sql, _args = _p()
     txns_month_sum = await db.fetchval(
-        f"SELECT COALESCE(SUM(cashback_amount),0) FROM transactions WHERE status='approved'{_sql}",
-        *_args,
+        f"SELECT COALESCE(SUM(cashback_amount),0) FROM transactions WHERE status IN ('approved','confirmed'){_p()}"
     )
     active_gifts = await db.fetchval(
         "SELECT COUNT(*) FROM gifts WHERE is_active = TRUE"
@@ -1252,17 +1229,11 @@ async def stats(
     pending_claims = await db.fetchval(
         "SELECT COUNT(*) FROM gift_requests WHERE status = 'pending'"
     )
-    _sql, _args = _p()
     total_gift_requests = await db.fetchval(
-        f"SELECT COUNT(*) FROM gift_requests WHERE status != 'rejected'{_sql}",
-        *_args,
+        f"SELECT COUNT(*) FROM gift_requests WHERE status != 'rejected'{_p()}"
     )
-    _sql, _args = _p("gr.created_at")
     total_gifts_value = await db.fetchval(
-        f"""SELECT COALESCE(SUM(gr.price_paid),0)
-           FROM gift_requests gr
-           WHERE gr.status != 'rejected'{_sql}""",
-        *_args,
+        f"SELECT COALESCE(SUM(gr.price_paid),0) FROM gift_requests gr WHERE gr.status != 'rejected'{_p('gr.created_at')}"
     )
     # Месячный график за последние 12 месяцев (всегда, не зависит от фильтра)
     monthly_chart = await db.fetch(

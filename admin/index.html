@@ -2722,6 +2722,7 @@ $("#loginForm").addEventListener("submit",async e=>{
     State.token=data.token||data.access_token;
     if(!State.token)throw new Error("notoken");
     State.adminName=data.name||u;
+    localStorage.setItem("scenti_admin_token",State.token);
     localStorage.setItem("scenti_admin_name",State.adminName);
     enterApp();
   }catch(err2){
@@ -2730,6 +2731,8 @@ $("#loginForm").addEventListener("submit",async e=>{
 });
 function logout(){
   State.token=null;
+  localStorage.removeItem("scenti_admin_token");
+  localStorage.removeItem("scenti_admin_name");
   $("#app").classList.add("hidden");
   $("#login").classList.remove("hidden");
   $("#loginPass").value="";
@@ -2790,9 +2793,17 @@ function autoCollapse(){ if(window.innerWidth<1100)document.body.classList.add("
 window.addEventListener("resize",()=>{ if(window.innerWidth<1100)document.body.classList.add("collapsed"); });
 
 /* boot */
-// Token is never persisted — always require login on page load
-hideBoot(); $("#loginUser").focus();
-autoCollapse();
+(async function(){
+  const saved = localStorage.getItem("scenti_admin_token");
+  if(saved){
+    State.token = saved;
+    State.adminName = localStorage.getItem("scenti_admin_name") || "admin";
+    try{ await enterApp(); } catch(e){ localStorage.removeItem("scenti_admin_token"); hideBoot(); $("#loginUser").focus(); }
+  } else {
+    hideBoot(); $("#loginUser").focus();
+  }
+  autoCollapse();
+})();
 
 /* ===================== DRAWER ===================== */
 (function(){
