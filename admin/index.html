@@ -122,6 +122,8 @@ textarea.input{height:auto;padding:12px 14px;resize:vertical;min-height:90px;lin
 .btn-danger:hover{filter:brightness(.95)}
 .btn-sm{height:36px;padding:0 14px;font-size:13px;border-radius:9px}
 .btn-icon{width:36px;height:36px;padding:0;border-radius:9px}
+.btn-icon svg{width:18px;height:18px;flex-shrink:0}
+.btn svg{width:18px;height:18px;flex-shrink:0}
 .login-error{color:var(--danger);font-size:13px;margin-top:4px;min-height:18px;font-weight:600}
 
 /* ===================== APP SHELL ===================== */
@@ -211,6 +213,23 @@ body.collapsed .sidebar-collapse{justify-content:center}
 .stat .trend.up{color:#16a34a}.stat .trend.down{color:#dc2626}.stat .trend.neu{color:var(--muted)}
 .stat-sub{font-size:12px;color:var(--muted);margin-top:2px}
 
+/* ===================== DASH FILTER BAR ===================== */
+.dash-filter-bar{display:flex;align-items:center;gap:10px;margin-bottom:22px;flex-wrap:wrap}
+.period-chips{display:flex;gap:6px;flex-wrap:wrap}
+.period-chip{padding:7px 14px;border-radius:20px;border:1.5px solid #dde4f0;background:#fff;font-size:13px;font-weight:600;color:var(--muted);cursor:pointer;transition:all .18s;white-space:nowrap}
+.period-chip:hover{border-color:var(--primary);color:var(--primary)}
+.period-chip.active{background:var(--primary);color:#fff;border-color:var(--primary)}
+.dash-filter-sep{width:1px;height:28px;background:#e3eaf4;margin:0 4px}
+.dash-filter-range{display:flex;align-items:center;gap:8px}
+.dash-filter-range label{font-size:12px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.04em}
+.dash-filter-range input[type=date]{padding:6px 10px;border:1.5px solid #dde4f0;border-radius:10px;font-size:13px;font-family:inherit;color:var(--dark);background:#fff;outline:none;cursor:pointer}
+.dash-filter-range input[type=date]:focus{border-color:var(--primary)}
+.dash-filter-actions{display:flex;gap:6px}
+.btn-apply{padding:7px 20px;background:var(--primary);color:#fff;border:none;border-radius:10px;font-size:13px;font-weight:700;cursor:pointer;transition:opacity .15s;box-shadow:0 4px 12px rgba(14,55,163,.25)}
+.btn-apply:hover{opacity:.85}
+.btn-reset{padding:7px 14px;background:transparent;color:var(--muted);border:1.5px solid #dde4f0;border-radius:10px;font-size:13px;font-weight:600;cursor:pointer;transition:all .15s}
+.btn-reset:hover{border-color:var(--danger);color:var(--danger)}
+
 /* ===================== DRAWER ===================== */
 .drawer-overlay{position:fixed;inset:0;background:rgba(0,0,0,.35);z-index:1000;opacity:0;transition:opacity .25s;pointer-events:none}
 .drawer-overlay.open{opacity:1;pointer-events:all}
@@ -233,12 +252,13 @@ body.collapsed .sidebar-collapse{justify-content:center}
 /* ===================== DASH CHART ===================== */
 .dash-chart-wrap{background:var(--card);border-radius:var(--radius);padding:20px 22px;box-shadow:var(--shadow-sm);margin-bottom:18px}
 .dash-chart-title{font-size:15px;font-weight:800;margin-bottom:14px;letter-spacing:-.3px}
-.dash-chart-bars{display:flex;align-items:flex-end;gap:8px;height:80px}
-.dash-bar-col{flex:1;display:flex;flex-direction:column;align-items:center;gap:4px}
+.dash-chart-bars{display:flex;align-items:flex-end;gap:8px;height:90px}
+.dash-bar-col{flex:1;display:flex;flex-direction:column;align-items:center;gap:2px}
 .dash-bar{width:100%;border-radius:6px 6px 0 0;min-height:4px;transition:opacity .2s;cursor:default}
 .dash-bar:hover{opacity:.8}
-.dash-bar-label{font-size:10px;color:var(--muted);white-space:nowrap}
-.dash-bar-val{font-size:10px;font-weight:700;color:var(--text)}
+.dash-bar-label{font-size:10px;color:var(--muted);white-space:nowrap;margin-top:2px}
+.dash-bar-val{font-size:11px;font-weight:800;color:var(--text)}
+.dash-bar-sum{font-size:10px;font-weight:600;color:var(--success);white-space:nowrap}
 
 .card{background:var(--card);border-radius:var(--radius);box-shadow:var(--shadow-sm);overflow:hidden}
 .card-pad{padding:22px}
@@ -456,7 +476,8 @@ tbody tr.removing{animation:rowOut .45s forwards}
 
 /* ===================== DASHBOARD MAP ===================== */
 .dash-grid{display:grid;grid-template-columns:1fr 380px;gap:18px;align-items:start;margin-top:0}
-#dash-map{height:420px;border-radius:16px;overflow:hidden;background:#e8f0fc;box-shadow:0 2px 16px 0 rgba(30,60,120,.10)}
+#dash-map{height:520px;border-radius:12px;overflow:hidden;background:#e8f0fc}
+#dash-map .leaflet-control-attribution{display:none}
 .leaflet-container{font-family:var(--font)!important;font-size:13px!important}
 .leaflet-popup-content-wrapper{border-radius:12px!important;box-shadow:0 4px 24px rgba(30,60,120,.14)!important}
 .leaflet-tooltip{background:#fff!important;border:1px solid #dce8f9!important;border-radius:10px!important;box-shadow:0 4px 12px rgba(30,60,120,.12)!important;padding:6px 12px!important;font-size:13px!important;color:#0f1b35!important}
@@ -564,6 +585,7 @@ const I = {
   backup:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/><path d="M3 12c0 1.66 4 3 9 3s9-1.34 9-3"/></svg>',
   search:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4-4"/></svg>',
   coin:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M14.5 9a2.5 2.5 0 0 0-5 0c0 3 5 2 5 5a2.5 2.5 0 0 1-5 0"/><path d="M12 6.5v11"/></svg>',
+  bag:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 0 1-8 0"/></svg>',
   clock:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>',
   out:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h9"/><path d="M18 8l4 4-4 4M22 12H10"/></svg>',
   check:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg>',
@@ -575,6 +597,7 @@ const I = {
   inbox:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M22 12h-6l-2 3h-4l-2-3H2"/><path d="M5.45 5.11L2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"/></svg>',
   file:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><path d="M13 2v7h7"/></svg>',
   trash:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M8 6V4a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>',
+  gear:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>',
 };
 
 /* ---------- STATE ---------- */
@@ -773,6 +796,7 @@ const PAGES = [
   {id:"cast",     title:"Рассылка",                  icon:I.cast},
   {id:"reminder", title:"Ежемесячное напоминание",   icon:I.bell},
   {id:"policy",   title:"Политика конфиденциальности",icon:I.shield},
+  {id:"settings", title:"Настройки контактов",        icon:I.gear},
   {id:"audit",    title:"Аудит лог",                 icon:I.log},
   {id:"backup",   title:"Бэкап",                     icon:I.backup},
 ];
@@ -793,7 +817,7 @@ $("#nav").addEventListener("click",e=>{
 });
 const URL_MAP={dash:'/admin/',users:'/admin/clients',txns:'/admin/transactions',gifts:'/admin/gifts',
   claims:'/admin/orders',catalog:'/admin/catalog',agents:'/admin/agents',cast:'/admin/broadcast',
-  reminder:'/admin/reminders',policy:'/admin/policy',audit:'/admin/audit',backup:'/admin/backup'};
+  reminder:'/admin/reminders',policy:'/admin/policy',settings:'/admin/settings',audit:'/admin/audit',backup:'/admin/backup'};
 const URL_TO_PAGE=Object.fromEntries(Object.entries(URL_MAP).map(([k,v])=>[v,k]));
 
 function go(page, pushHistory=true){
@@ -864,33 +888,101 @@ function emptyRow(cols,msg){
    PAGE 0: DASHBOARD
    ============================================================ */
 let _dashMap = null;
+let _dashPeriod = '30d'; // 7d | 30d | prev_month | all
+let _dashFrom = '';
+let _dashTo = '';
+
+function _dashDates(){
+  const now = new Date();
+  const pad = n => String(n).padStart(2,'0');
+  const fmt = d => `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
+  if(_dashPeriod==='7d'){
+    const f=new Date(now); f.setDate(f.getDate()-6);
+    return {df:fmt(f), dt:fmt(now)};
+  }
+  if(_dashPeriod==='30d'){
+    const f=new Date(now); f.setDate(f.getDate()-29);
+    return {df:fmt(f), dt:fmt(now)};
+  }
+  if(_dashPeriod==='prev_month'){
+    const f=new Date(now.getFullYear(), now.getMonth()-1, 1);
+    const t=new Date(now.getFullYear(), now.getMonth(), 0);
+    return {df:fmt(f), dt:fmt(t)};
+  }
+  if(_dashPeriod==='custom') return {df:_dashFrom, dt:_dashTo};
+  return {df:'', dt:''}; // all
+}
+
+function _dashFilterBar(){
+  const {df,dt} = _dashDates();
+  const chips = [
+    {key:'7d',  label:'Последние 7 дней'},
+    {key:'30d', label:'Последние 30 дней'},
+    {key:'prev_month', label:'Прошлый месяц'},
+    {key:'all', label:'Всё время'},
+  ];
+  return `<div class="dash-filter-bar">
+    <div class="period-chips">
+      ${chips.map(c=>`<button class="period-chip${_dashPeriod===c.key?' active':''}" onclick="_setDashPeriod('${c.key}')">${c.label}</button>`).join('')}
+    </div>
+    <div class="dash-filter-sep"></div>
+    <div class="dash-filter-range">
+      <label>С</label>
+      <input type="date" id="dfFrom" value="${_dashPeriod==='custom'?_dashFrom:df}" onchange="_dashPeriod='custom';_dashFrom=this.value">
+      <label>ПО</label>
+      <input type="date" id="dfTo" value="${_dashPeriod==='custom'?_dashTo:dt}" onchange="_dashPeriod='custom';_dashTo=this.value">
+    </div>
+    <div class="dash-filter-actions">
+      <button class="btn-apply" onclick="_applyDashFilter()">Применить</button>
+      <button class="btn-reset" onclick="_resetDashFilter()">Сбросить</button>
+    </div>
+  </div>`;
+}
+
+function _setDashPeriod(p){
+  _dashPeriod=p; _dashFrom=''; _dashTo='';
+  pageDash();
+}
+function _applyDashFilter(){
+  const f=$("#dfFrom"),t=$("#dfTo");
+  if(f) _dashFrom=f.value;
+  if(t) _dashTo=t.value;
+  _dashPeriod='custom';
+  pageDash();
+}
+function _resetDashFilter(){
+  _dashPeriod='30d'; _dashFrom=''; _dashTo='';
+  pageDash();
+}
 
 async function pageDash(){
   if(_dashMap){_dashMap.remove();_dashMap=null;}
   const c = $("#content");
   const skCard = '<div class="stat"><div class="skeleton" style="height:88px"></div></div>';
   c.innerHTML = `
+    ${_dashFilterBar()}
     <div class="stat-grid" id="dashStats1">${Array(4).fill(skCard).join("")}</div>
     <div class="stat-grid" id="dashStats2" style="grid-template-columns:repeat(4,1fr)">${Array(4).fill(skCard).join("")}</div>
     <div class="dash-chart-wrap" id="dashChart" style="display:none"></div>
-    <div class="dash-grid" style="margin-top:18px">
-      <div class="card card-pad">
-        <div class="section-head" style="margin-bottom:12px"><h2 style="font-size:17px">Клиенты по регионам</h2></div>
-        <div id="dash-map"></div>
-      </div>
-      <div class="card card-pad">
-        <div class="section-head" style="margin-bottom:12px"><h2 style="font-size:17px">Ожидают подтверждения</h2></div>
-        <div id="dashTxn"><div class="skeleton" style="height:240px;border-radius:10px"></div></div>
-      </div>
+    <div class="card card-pad" style="margin-top:18px">
+      <div class="section-head" style="margin-bottom:12px"><h2 style="font-size:17px">Клиенты по регионам</h2></div>
+      <div id="dash-map"></div>
+    </div>
+    <div class="card card-pad" style="margin-top:18px">
+      <div class="section-head" style="margin-bottom:12px"><h2 style="font-size:17px">Ожидают подтверждения</h2></div>
+      <div id="dashTxn"><div class="skeleton" style="height:240px;border-radius:10px"></div></div>
     </div>`;
 
   const mockStats = {
     total_users:0,pending_transactions:0,total_cashback_issued:0,total_cashback_spent:0,
     new_users_today:0,new_users_7d:0,new_users_30d:0,txns_today_count:0,txns_today_sum:0,
     txns_month_sum:0,active_gifts:0,pending_claims:0,daily_chart:[],
+    total_gift_requests:0,total_gifts_value:0,
   };
+  const {df:statsFrom, dt:statsTo} = _dashDates();
+  const statsQs = [statsFrom?`date_from=${statsFrom}`:'', statsTo?`date_to=${statsTo}`:''].filter(Boolean).join('&');
   const [stats, users, txns, claims] = await Promise.all([
-    apiOrMock("/admin/stats", ()=>mockStats),
+    apiOrMock(`/admin/stats${statsQs?'?'+statsQs:''}`, ()=>mockStats),
     apiOrMock("/admin/users", ()=>MOCK.users),
     apiOrMock("/admin/transactions", ()=>MOCK.txns),
     apiOrMock("/admin/claims", ()=>MOCK.claims),
@@ -905,7 +997,7 @@ async function pageDash(){
   Badges.pendingClaims = s.pending_claims ?? cArr.filter(x=>x.status==="pending").length;
   renderNav();
 
-  // --- ROW 1: Ключевые показатели ---
+  // --- ROW 1 ---
   const row1 = [
     {
       label:"Всего клиентов", val:fmt(s.total_users??uArr.length),
@@ -913,43 +1005,43 @@ async function pageDash(){
       sub: s.new_users_30d!=null ? `+${s.new_users_30d} за месяц` : "",
     },
     {
-      label:"Ожидают подтверждения", val:fmt(s.pending_transactions??pending.length),
-      ic:I.clock, bg:"#fdf3e3", col:"var(--warning)", detail:"pending_txns",
-      pill:(s.pending_transactions??pending.length)>0?`<span class="pill" style="background:var(--danger);color:#fff;position:absolute;top:14px;right:14px;font-size:10px">срочно</span>`:"",
+      label:"Всего транзакций", val:fmt(s.txns_today_count??0),
+      ic:I.coin, bg:"#e3f8ef", col:"var(--success)", detail:"today_txns",
+      sub:"за выбранный период",
+    },
+    {
+      label:"Сумма транзакций", val:fmt(s.txns_today_sum??0), cur:"сум",
+      ic:I.bag, bg:"#fdf3e3", col:"var(--warning)", detail:"today_txns",
+      sub:"за выбранный период",
     },
     {
       label:"Выдано кешбэка", val:fmt(s.total_cashback_issued??0), cur:"сум",
       ic:I.coin, bg:"#e3f8ef", col:"var(--success)", detail:"approved_txns",
       sub: s.txns_month_sum!=null ? `${fmt(s.txns_month_sum)} сум за месяц` : "",
     },
-    {
-      label:"Потрачено кешбэка", val:fmt(s.total_cashback_spent??0), cur:"сум",
-      ic:I.gift, bg:"#f3eaff", col:"#7b46c9", detail:"all_activity",
-      sub: s.pending_claims!=null ? `Заявок ожидает: ${s.pending_claims}` : "",
-    },
   ];
 
-  // --- ROW 2: Операционные метрики ---
+  // --- ROW 2 ---
   const row2 = [
     {
-      label:"Новых сегодня", val:fmt(s.new_users_today??0),
-      ic:I.users, bg:"#eaf2ff", col:"var(--primary)", detail:"new_users_today",
-      sub:"клиентов за сегодня",
+      label:"Потрачено кешбэка", val:fmt(s.total_cashback_spent??0), cur:"сум",
+      ic:I.gift, bg:"#f3eaff", col:"#7b46c9", detail:"cashback_spends",
+      sub:"списано клиентами",
     },
     {
-      label:"Новых за 7 дней", val:fmt(s.new_users_7d??0),
-      ic:I.users, bg:"#e3f8ef", col:"var(--success)", detail:"new_users_7d",
-      sub:"клиентов за неделю",
+      label:"Потрачено на подарки", val:fmt(s.total_gifts_value??0), cur:"сум",
+      ic:I.gift, bg:"#fff3e0", col:"#f59e0b", detail:"all_claims",
+      sub:`заявок ожидают: ${fmt(s.pending_claims??0)}`,
     },
     {
-      label:"Транзакций сегодня", val:fmt(s.txns_today_count??0),
-      ic:I.coin, bg:"#fff3e0", col:"#f59e0b", detail:"today_txns",
-      sub: s.txns_today_sum!=null ? `${fmt(s.txns_today_sum)} сум` : "",
+      label:"Заявки на подарки", val:fmt(s.total_gift_requests??0),
+      ic:I.gift, bg:"#f3eaff", col:"#7b46c9", detail:"all_claims",
+      sub:`всего · ожидают: ${fmt(s.pending_claims??0)}`,
     },
     {
-      label:"Активных подарков", val:fmt(s.active_gifts??0),
-      ic:I.gift, bg:"#f3eaff", col:"#7b46c9", detail:"active_gifts",
-      sub:"в каталоге",
+      label:"Ожидают подтверждения", val:fmt(s.pending_transactions??pending.length),
+      ic:I.clock, bg:"#fbe9e7", col:"var(--danger)", detail:"pending_txns",
+      pill:(s.pending_transactions??pending.length)>0?`<span class="pill" style="background:var(--danger);color:#fff;position:absolute;top:14px;right:14px;font-size:10px">срочно</span>`:"",
     },
   ];
 
@@ -969,35 +1061,57 @@ async function pageDash(){
   $("#dashStats1").innerHTML = row1.map(renderStatCard).join("");
   $("#dashStats2").innerHTML = row2.map(renderStatCard).join("");
 
-  // --- CHART: последние 7 дней ---
-  const chart = s.daily_chart||[];
-  if(chart.length>0){
-    const chartEl = $("#dashChart");
-    chartEl.style.display="";
-    const maxVal = Math.max(1,...chart.map(d=>d.txn_count));
-    const days = ["Вс","Пн","Вт","Ср","Чт","Пт","Сб"];
-    chartEl.innerHTML=`
-      <div class="dash-chart-title">Транзакции за 7 дней</div>
-      <div class="dash-chart-bars">
-        ${chart.map(d=>{
-          const pct = Math.round((d.txn_count/maxVal)*100);
-          const date = new Date(d.day);
-          const dayName = days[date.getDay()];
-          const dd = String(date.getDate()).padStart(2,"0");
-          const mm = String(date.getMonth()+1).padStart(2,"0");
-          return `<div class="dash-bar-col">
-            <div class="dash-bar-val">${d.txn_count}</div>
-            <div class="dash-bar" style="height:${Math.max(4,pct*0.7)}px;background:var(--primary);opacity:${0.45+pct/200}" title="${d.txn_count} транзакций · ${fmt(d.cashback_sum)} сум кешбэка"></div>
-            <div class="dash-bar-label">${dayName} ${dd}.${mm}</div>
-          </div>`;
-        }).join("")}
+  // --- CHART: по месяцам ---
+  const chart = s.monthly_chart||[];
+  const chartEl = $("#dashChart");
+  chartEl.style.display="";
+  const MONTHS_RU=['Янв','Фев','Мар','Апр','Май','Июн','Июл','Авг','Сен','Окт','Ноя','Дек'];
+  if(!chart.length){
+    chartEl.innerHTML=`<div class="dash-chart-title">Продажи по месяцам</div><div style="color:var(--muted);text-align:center;padding:30px">Нет данных</div>`;
+  }else{
+    const maxAmt=Math.max(1,...chart.map(d=>d.total_amount));
+    const fmtM=v=>v>=1000000?(v/1000000).toFixed(1).replace(/\.0$/,'')+'М':v>=1000?Math.round(v/1000)+'К':String(Math.round(v));
+    // Рост/спад: сравниваем с предыдущим месяцем
+    const bars=chart.map((d,i)=>{
+      const prev=i>0?chart[i-1].total_amount:null;
+      const pct=Math.round((d.total_amount/maxAmt)*100);
+      const [yr,mn]=d.month.split('-');
+      const label=MONTHS_RU[parseInt(mn,10)-1]+' '+yr.slice(2);
+      let trend='';
+      if(prev!==null&&prev>0){
+        const diff=Math.round((d.total_amount-prev)/prev*100);
+        const col=diff>=0?'#16a34a':'#dc2626';
+        const arrow=diff>=0?'▲':'▼';
+        trend=`<div style="font-size:10px;font-weight:700;color:${col};margin-bottom:2px">${arrow}${Math.abs(diff)}%</div>`;
+      }
+      const barColor=i>0&&d.total_amount<chart[i-1].total_amount?'#dc2626':'var(--primary)';
+      return `<div class="dash-bar-col" style="min-width:0;flex:1">
+        ${trend}
+        <div class="dash-bar-val" style="font-size:11px">${d.txn_count}<span style="font-size:9px;color:var(--muted)"> шт</span></div>
+        <div class="dash-bar" style="height:${Math.max(6,pct*0.75)}px;background:${barColor};border-radius:4px 4px 0 0;opacity:.85" title="${d.month}: ${fmt(d.total_amount)} сум · ${d.txn_count} транзакций"></div>
+        <div class="dash-bar-sum" style="font-size:10px">${fmtM(d.total_amount)}</div>
+        <div class="dash-bar-label" style="font-size:10px">${label}</div>
       </div>`;
+    }).join('');
+    chartEl.innerHTML=`
+      <div class="dash-chart-title" style="margin-bottom:16px">Продажи по месяцам <span style="font-size:12px;font-weight:600;color:var(--muted)">(последние 12 мес.)</span></div>
+      <div class="dash-chart-bars" style="align-items:flex-end;gap:6px;height:130px">${bars}</div>`;
   }
 
-  // Map: count clients by region name
-  const byRegion = {};
-  uArr.forEach(u=>{ const rn=u.region||u.region_name||""; if(rn) byRegion[rn]=(byRegion[rn]||0)+1; });
-  initDashMap(byRegion);
+  // Map: load per-region stats from dedicated endpoint
+  let regionStats = [];
+  try{
+    const {df:rdf,dt:rdt}=_dashDates();
+    const rqs=[rdf?`date_from=${rdf}`:'',rdt?`date_to=${rdt}`:''].filter(Boolean).join('&');
+    regionStats = await api(`/admin/stats/regions${rqs?'?'+rqs:''}`);
+  }catch(e){ /* fallback to empty */ }
+  // Fallback: build from users if endpoint failed
+  if(!regionStats.length && uArr.length){
+    const byR={};
+    uArr.forEach(u=>{ const rn=u.region||u.region_name||""; if(rn) byR[rn]=(byR[rn]||0)+1; });
+    regionStats=Object.entries(byR).map(([name_ru,clients])=>({name_ru,clients,earned:0}));
+  }
+  initDashMap(regionStats);
 
   // Pending transactions list
   const dt = $("#dashTxn");
@@ -1015,15 +1129,14 @@ async function pageDash(){
   if(State.useMock) toast("API недоступен — демо-данные","warn");
 }
 
-function initDashMap(byRegion){
+function initDashMap(regionStats){
   const el = $("#dash-map");
   if(!el || typeof L === "undefined") return;
   if(_dashMap){_dashMap.remove();_dashMap=null;}
 
-  // Ключи совпадают с name_ru из таблицы regions в БД
   const UZ_COORDS = {
     "Город Ташкент":             {lat:41.2995,lng:69.2401},
-    "Ташкентская область":       {lat:41.1,   lng:69.8},
+    "Ташкентская область":       {lat:41.1,   lng:69.9},
     "Самаркандская область":     {lat:39.6547,lng:66.9597},
     "Бухарская область":         {lat:39.7681,lng:64.4556},
     "Ферганская область":        {lat:40.3842,lng:71.7843},
@@ -1038,73 +1151,84 @@ function initDashMap(byRegion){
     "Республика Каракалпакстан": {lat:43.730, lng:59.0143},
   };
 
+  // Узбекистан: строго ограничиваем карту
+  const UZ_BOUNDS = L.latLngBounds([[36.6, 55.5], [46.2, 74.0]]);
+
   _dashMap = L.map(el, {
     zoomControl: true,
     scrollWheelZoom: false,
-    attributionControl: true,
-  }).setView([41.38, 63.8], 5);
+    attributionControl: false,
+    minZoom: 6,
+    maxZoom: 9,
+    maxBounds: UZ_BOUNDS,
+    maxBoundsViscosity: 1.0,
+  });
 
   L.tileLayer("https://{s}.basemaps.cartocdn.com/light_nolabels/{z}/{x}/{y}{r}.png", {
-    attribution:'© <a href="https://carto.com/">CARTO</a> © <a href="https://www.openstreetmap.org/">OSM</a>',
-    maxZoom: 18,
+    maxZoom: 9,
   }).addTo(_dashMap);
 
-  // Подписи городов поверх (отдельный слой)
   L.tileLayer("https://{s}.basemaps.cartocdn.com/light_only_labels/{z}/{x}/{y}{r}.png", {
-    maxZoom: 18, pane: "shadowPane",
+    maxZoom: 9, pane: "shadowPane",
   }).addTo(_dashMap);
 
-  const counts = Object.values(byRegion);
-  const maxCount = counts.length ? Math.max(1,...counts) : 1;
-  const regions = REGIONS_DATA.length ? REGIONS_DATA : Object.keys(UZ_COORDS).map(n=>({name_ru:n}));
+  // Индексируем по name_ru
+  const byName = {};
+  (regionStats||[]).forEach(r=>{ byName[r.name_ru]=r; });
 
-  regions.forEach(r=>{
-    const coord = UZ_COORDS[r.name_ru];
-    if(!coord) return;
-    const count = byRegion[r.name_ru] || 0;
+  const maxClients = Math.max(1, ...(regionStats||[]).map(r=>r.clients||0));
+
+  // Все известные регионы (из UZ_COORDS)
+  Object.entries(UZ_COORDS).forEach(([name, coord])=>{
+    const data = byName[name] || {clients:0, earned:0};
+    const count = data.clients || 0;
+    const earned = data.earned || 0;
     const hasData = count > 0;
 
+    // Клиентов: склонение
+    const cl = count===1?'клиент':count>1&&count<5?'клиента':'клиентов';
+    // Заработано: форматируем
+    const earnedFmt = earned>=1000000
+      ? (earned/1000000).toFixed(1).replace(/\.0$/,'')+'M сум'
+      : earned>=1000
+        ? Math.round(earned/1000)+'K сум'
+        : earned+' сум';
+
+    const tip = `<div style="min-width:160px">
+      <div style="font-weight:800;font-size:13px;color:#0f1b35;margin-bottom:5px">${name}</div>
+      <div style="display:flex;align-items:center;gap:6px;margin-bottom:3px">
+        <span style="width:8px;height:8px;border-radius:50%;background:#3B82F6;display:inline-block;flex-shrink:0"></span>
+        <span style="font-size:12px;color:#374b6e">Клиентов: <b style="color:#1D4ED8">${count} ${cl}</b></span>
+      </div>
+      <div style="display:flex;align-items:center;gap:6px">
+        <span style="width:8px;height:8px;border-radius:50%;background:#22c55e;display:inline-block;flex-shrink:0"></span>
+        <span style="font-size:12px;color:#374b6e">Заработано: <b style="color:#16a34a">${earned>0?earnedFmt:'—'}</b></span>
+      </div>
+    </div>`;
+
     if(hasData){
-      const radius = 5 + Math.round((count / maxCount) * 14);
+      const radius = 6 + Math.round((count / maxClients) * 16);
       // Glow ring
       L.circleMarker([coord.lat, coord.lng], {
-        radius: radius + 4,
-        color: "transparent",
-        fillColor: "#3B82F6",
-        fillOpacity: 0.13,
-        weight: 0,
-        interactive: false,
+        radius: radius + 5,
+        color:"transparent", fillColor:"#3B82F6", fillOpacity:0.13, weight:0, interactive:false,
       }).addTo(_dashMap);
       // Main bubble
       L.circleMarker([coord.lat, coord.lng], {
-        radius,
-        color: "#1D4ED8",
-        fillColor: "#3B82F6",
-        weight: 2,
-        opacity: 0.9,
-        fillOpacity: 0.72,
+        radius, color:"#1D4ED8", fillColor:"#3B82F6", weight:2, opacity:0.95, fillOpacity:0.78,
       })
-      .bindTooltip(
-        `<b style="color:#0f1b35">${r.name_ru}</b><br><span style="color:#3B82F6;font-weight:700">${count}</span> клиент${count===1?'':count>1&&count<5?'а':'ов'}`,
-        {sticky: true, direction: "top", offset: [0, -4]}
-      )
+      .bindTooltip(tip, {sticky:true, direction:"top", offset:[0,-4]})
       .addTo(_dashMap);
     } else {
       L.circleMarker([coord.lat, coord.lng], {
-        radius: 5,
-        color: "#94a3b8",
-        fillColor: "#cbd5e1",
-        weight: 1,
-        opacity: 0.5,
-        fillOpacity: 0.3,
+        radius:5, color:"#94a3b8", fillColor:"#cbd5e1", weight:1, opacity:0.5, fillOpacity:0.35,
       })
-      .bindTooltip(`<b style="color:#64748b">${r.name_ru}</b><br><span style="color:#94a3b8">0 клиентов</span>`, {sticky:true, direction:"top", offset:[0,-4]})
+      .bindTooltip(tip, {sticky:true, direction:"top", offset:[0,-4]})
       .addTo(_dashMap);
     }
   });
 
-  // Всегда показываем Узбекистан целиком
-  _dashMap.fitBounds([[37.1, 56.0], [45.6, 73.1]], {padding: [30, 30], maxZoom: 6});
+  _dashMap.fitBounds([[37.0, 56.0], [45.8, 73.2]], {padding:[16,16], animate:false});
 }
 
 /* ============================================================
@@ -1200,6 +1324,10 @@ window.openUser = async id=>{
       <div><label class="sub-label" style="margin-top:0">Регион</label><select class="input" id="euRegion">${buildRegionOpts(curRegionId)}</select></div>
       <div><label class="sub-label" style="margin-top:0">Район</label><select class="input" id="euDist">${buildDistOpts(curRegionId, curDistrictId)}</select></div>
       <div class="full"><label class="sub-label" style="margin-top:0">Баланс (сум)</label><input class="input mono" id="euBal" type="number" value="${u.balance}"></div>
+    </div>
+    <div class="balance-box" style="margin-top:12px">
+      <div><div class="lab">Общая сумма покупок</div><div class="num">${fmtSum(tArr.filter(t=>t.status==='confirmed'||t.status==='approved').reduce((s,t)=>s+(t.amount||0),0))}</div></div>
+      <div style="text-align:right"><div class="lab">Транзакций всего</div><div class="num" style="font-size:18px">${tArr.length}</div></div>
     </div>
     <div class="sub-label">История транзакций (${tArr.length})</div>
     <div class="txn-list">${tArr.length?tArr.map(t=>`
@@ -1534,8 +1662,15 @@ async function pageGifts(){
   Gifts.list=Array.isArray(data)?data:(data.items||MOCK.gifts);
   renderGifts();
 }
+function _thumbColor(name){
+  const h=[...((name||'')+'X')].reduce((a,c)=>a+c.charCodeAt(0),0)%360;
+  return {bg:`hsl(${h},55%,88%)`,col:`hsl(${h},50%,32%)`};
+}
 function thumb(url,name){
-  return url?`<img class="thumb" src="${esc(url)}" onerror="this.style.display='none'">`:`<div class="thumb-fallback">${I.gift}</div>`;
+  if(url) return `<img class="thumb" src="${esc(url)}" onerror="this.outerHTML=thumb('','${esc(name||'')}')">`;
+  const {bg,col}=_thumbColor(name);
+  const letter=(name||'?')[0].toUpperCase();
+  return `<div class="thumb-fallback" style="background:${bg};color:${col};font-weight:800;font-size:19px">${letter}</div>`;
 }
 function renderGifts(){
   const body=$("#gBody"); if(!body)return;
@@ -1725,11 +1860,13 @@ async function pageCatalog(){
   renderCatalog();
 }
 function catThumb(it){
+  const name=it.name_ru||'';
   if(it.image_url){
     return `<img src="${esc(it.image_url)}" class="thumb" style="margin-right:10px;vertical-align:middle;display:inline-block" onerror="this.style.display='none'">`;
   }
-  const icon=it.type==='device'?I.catalog:I.gift;
-  return `<span class="thumb-fallback" style="margin-right:10px;vertical-align:middle;display:inline-flex">${icon}</span>`;
+  const {bg,col}=_thumbColor(name);
+  const letter=name[0]?name[0].toUpperCase():'?';
+  return `<span class="thumb-fallback" style="margin-right:10px;vertical-align:middle;display:inline-flex;background:${bg};color:${col};font-weight:800;font-size:19px">${letter}</span>`;
 }
 function renderCatalog(){
   const body=$("#catBody");if(!body)return;
@@ -2083,45 +2220,86 @@ window.agUpdateRegionCnt=function(regionId){
 const Cast={history:[]};
 
 // Хелперы rich-text редактора
-function bcFmt(cmd,val){
-  const ed=document.getElementById('bcEdRu');
-  if(ed){ed.focus();}
-  if(cmd==='createLink'){
-    const url=prompt('Введите URL:','https://');
-    if(!url)return;
-    document.execCommand('createLink',false,url);
-    // Добавить target=_blank
-    const ed2=document.getElementById('bcEdRu')||document.getElementById('bcEdUz');
-    if(ed2) ed2.querySelectorAll('a').forEach(a=>{a.target='_blank';});
+// Сохраняем выделение перед кликом по кнопке тулбара
+let _bcActiveEditor = null;
+function _bcApply(edId, cmd){
+  const ed = document.getElementById(edId);
+  if(!ed) return;
+  if(cmd === 'createLink'){
+    const url = prompt('Введите URL (ссылка):','https://');
+    if(!url) return;
+    ed.focus();
+    document.execCommand('createLink', false, url);
+    ed.querySelectorAll('a').forEach(a=>{ a.target='_blank'; a.rel='noopener'; });
   } else {
-    document.execCommand(cmd,false,val||null);
+    ed.focus();
+    document.execCommand(cmd, false, null);
   }
 }
-function bcFmtUz(cmd){
-  const ed=document.getElementById('bcEdUz');
-  if(ed){ed.focus();}
-  if(cmd==='createLink'){
-    const url=prompt('Введите URL:','https://');
-    if(!url)return;
-    document.execCommand('createLink',false,url);
-    if(ed) ed.querySelectorAll('a').forEach(a=>{a.target='_blank';});
-  } else {
-    document.execCommand(cmd,false,null);
-  }
-}
-// Конвертация contenteditable HTML → Telegram HTML
+function bcFmt(cmd){ _bcApply('bcEdRu', cmd); }
+function bcFmtUz(cmd){ _bcApply('bcEdUz', cmd); }
+
+// Конвертация contenteditable HTML → Telegram HTML (tree-walk, без потери тегов)
 function htmlToTgHtml(el){
   if(!el) return '';
-  let html = el.innerHTML
-    .replace(/<br\s*\/?>/gi,'\n')
-    .replace(/<\/p>/gi,'\n').replace(/<p[^>]*>/gi,'')
-    .replace(/<\/div>/gi,'\n').replace(/<div[^>]*>/gi,'')
-    .replace(/<strong[^>]*>(.*?)<\/strong>/gis,'<b>$1</b>')
-    .replace(/<em[^>]*>(.*?)<\/em>/gis,'<i>$1</i>')
-    .replace(/<a\s+href="([^"]+)"[^>]*>(.*?)<\/a>/gis,'<a href="$1">$2</a>')
-    .replace(/<[^>]+>/g,'')  // убираем остальные теги
-    .replace(/&amp;/g,'&').replace(/&lt;/g,'<').replace(/&gt;/g,'>').replace(/&nbsp;/g,' ');
-  return html.trim();
+  function walk(node){
+    if(node.nodeType === 3) return node.textContent; // text node
+    if(node.nodeType !== 1) return '';
+    const tag = node.tagName.toLowerCase();
+    const inner = Array.from(node.childNodes).map(walk).join('');
+    if(tag === 'br') return '\n';
+    if(tag === 'p' || tag === 'div') return inner + '\n';
+    if(tag === 'b' || tag === 'strong') return '<b>' + inner + '</b>';
+    if(tag === 'i' || tag === 'em') return '<i>' + inner + '</i>';
+    if(tag === 'u') return '<u>' + inner + '</u>';
+    if(tag === 'a'){
+      const href = (node.getAttribute('href')||'').replace(/"/g,'&quot;');
+      return '<a href="' + href + '">' + inner + '</a>';
+    }
+    return inner;
+  }
+  const result = Array.from(el.childNodes).map(walk).join('');
+  return result.trim().replace(/\n{3,}/g,'\n\n');
+}
+
+// Загрузка картинки для рассылки
+let _bcImageUrl = '';
+async function bcUploadImage(input){
+  const file = input.files[0];
+  if(!file) return;
+  const wrap = document.getElementById('bcImgPreview');
+  if(wrap) wrap.innerHTML = `<span class="muted" style="font-size:13px">Загрузка...</span>`;
+  try{
+    const fd = new FormData(); fd.append('file', file);
+    const r = await fetch('/admin/upload', {method:'POST', headers:{Authorization:'Bearer '+localStorage.getItem('scenti_admin_token')}, body:fd});
+    if(!r.ok) throw new Error(await r.text());
+    const data = await r.json();
+    _bcImageUrl = data.url || data.path || '';
+    _renderBcImagePreview(file.name);
+  }catch(e){
+    toast('Ошибка загрузки: '+e.message,'err');
+    if(wrap) wrap.innerHTML='';
+  }
+}
+function _renderBcImagePreview(name){
+  const wrap = document.getElementById('bcImgPreview');
+  if(!wrap) return;
+  wrap.innerHTML = `
+    <div style="display:flex;align-items:flex-start;gap:12px;padding:12px 14px;background:#f8faff;border:1.5px solid #c7d8f8;border-radius:10px;margin-top:8px">
+      <img src="${esc(_bcImageUrl)}" style="width:64px;height:64px;object-fit:cover;border-radius:8px;flex-shrink:0">
+      <div style="flex:1;min-width:0">
+        <div style="font-size:13px;font-weight:700;color:var(--dark);word-break:break-all">${esc(name)}</div>
+        <div style="font-size:12px;color:var(--muted);margin-top:2px">Будет отправлено с подписью</div>
+        <button type="button" onclick="_bcClearImage()" style="margin-top:8px;padding:4px 12px;border-radius:8px;border:1.5px solid #dc2626;color:#dc2626;background:transparent;font-size:12px;font-weight:700;cursor:pointer">✕ Удалить</button>
+      </div>
+    </div>`;
+}
+function _bcClearImage(){
+  _bcImageUrl='';
+  const wrap = document.getElementById('bcImgPreview');
+  if(wrap) wrap.innerHTML='';
+  const inp = document.getElementById('bcImgInput');
+  if(inp) inp.value='';
 }
 
 async function pageCast(){
@@ -2169,11 +2347,11 @@ async function pageCast(){
         <div class="full">
           <label class="sub-label" style="margin-top:0">✏️ Текст RU</label>
           <div class="bc-toolbar">
-            <button type="button" class="bc-tb-btn" onclick="bcFmt('bold')" title="Жирный"><b>B</b></button>
-            <button type="button" class="bc-tb-btn" onclick="bcFmt('italic')" title="Курсив"><i>I</i></button>
-            <button type="button" class="bc-tb-btn" onclick="bcFmt('underline')" title="Подчёркнутый"><u>U</u></button>
-            <button type="button" class="bc-tb-btn" onclick="bcFmt('createLink')" title="Ссылка">🔗</button>
-            <button type="button" class="bc-tb-btn bc-tb-clear" onclick="bcFmt('removeFormat')" title="Сбросить">Tx</button>
+            <button type="button" class="bc-tb-btn" onmousedown="event.preventDefault()" onclick="bcFmt('bold')" title="Жирный"><b>B</b></button>
+            <button type="button" class="bc-tb-btn" onmousedown="event.preventDefault()" onclick="bcFmt('italic')" title="Курсив"><i>I</i></button>
+            <button type="button" class="bc-tb-btn" onmousedown="event.preventDefault()" onclick="bcFmt('underline')" title="Подчёркнутый"><u>U</u></button>
+            <button type="button" class="bc-tb-btn" onmousedown="event.preventDefault()" onclick="bcFmt('createLink')" title="Ссылка">🔗</button>
+            <button type="button" class="bc-tb-btn bc-tb-clear" onmousedown="event.preventDefault()" onclick="bcFmt('removeFormat')" title="Сбросить">Tx</button>
           </div>
           <div class="bc-editor" id="bcEdRu" contenteditable="true" placeholder="Текст сообщения на русском…"></div>
         </div>
@@ -2182,14 +2360,26 @@ async function pageCast(){
         <div class="full">
           <label class="sub-label">✏️ Текст UZ</label>
           <div class="bc-toolbar">
-            <button type="button" class="bc-tb-btn" onclick="bcFmtUz('bold')"><b>B</b></button>
-            <button type="button" class="bc-tb-btn" onclick="bcFmtUz('italic')"><i>I</i></button>
-            <button type="button" class="bc-tb-btn" onclick="bcFmtUz('underline')"><u>U</u></button>
-            <button type="button" class="bc-tb-btn" onclick="bcFmtUz('createLink')">🔗</button>
-            <button type="button" class="bc-tb-btn bc-tb-clear" onclick="bcFmtUz('removeFormat')">Tx</button>
+            <button type="button" class="bc-tb-btn" onmousedown="event.preventDefault()" onclick="bcFmtUz('bold')"><b>B</b></button>
+            <button type="button" class="bc-tb-btn" onmousedown="event.preventDefault()" onclick="bcFmtUz('italic')"><i>I</i></button>
+            <button type="button" class="bc-tb-btn" onmousedown="event.preventDefault()" onclick="bcFmtUz('underline')"><u>U</u></button>
+            <button type="button" class="bc-tb-btn" onmousedown="event.preventDefault()" onclick="bcFmtUz('createLink')">🔗</button>
+            <button type="button" class="bc-tb-btn bc-tb-clear" onmousedown="event.preventDefault()" onclick="bcFmtUz('removeFormat')">Tx</button>
           </div>
           <div class="bc-editor" id="bcEdUz" contenteditable="true" placeholder="O'zbekcha matn…"></div>
           <span class="muted" style="font-size:12px">Если оставить пустым — отправится RU текст всем</span>
+        </div>
+
+        <!-- КАРТИНКА -->
+        <div class="full">
+          <label class="sub-label">🖼 Картинка (необязательно)</label>
+          <label style="display:flex;align-items:center;gap:10px;padding:12px 16px;border:2px dashed #c7d8f8;border-radius:10px;cursor:pointer;background:#f8faff;transition:border-color .15s" onmouseenter="this.style.borderColor='var(--primary)'" onmouseleave="this.style.borderColor='#c7d8f8'">
+            <svg viewBox="0 0 24 24" fill="none" stroke="var(--primary)" stroke-width="2" stroke-linecap="round" width="22" height="22"><rect x="3" y="3" width="18" height="18" rx="3"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21,15 16,10 5,21"/></svg>
+            <span style="font-size:13px;font-weight:600;color:var(--primary)">Нажмите чтобы выбрать изображение</span>
+            <input type="file" id="bcImgInput" accept="image/*" style="display:none" onchange="bcUploadImage(this)">
+          </label>
+          <div id="bcImgPreview"></div>
+          <span class="muted" style="font-size:12px;margin-top:4px;display:block">JPG, PNG, WebP — картинка отправится с текстом как подпись</span>
         </div>
 
         <!-- ОТЛОЖЕННАЯ ОТПРАВКА -->
@@ -2287,7 +2477,7 @@ window.castSend=(scheduleMode)=>{
   $("#castDo").onclick=async()=>{
     const btn=$("#castDo");
     btn.disabled=true; btn.textContent=scheduledAt?"Планируем…":"Отправляем…";
-    const bcPayload={target:aud,message_ru:ru,message_uz:uz||ru,parse_mode:"HTML"};
+    const bcPayload={target:aud,message_ru:ru,message_uz:uz||ru,parse_mode:"HTML",image_url:_bcImageUrl||""};
     if(regionId) bcPayload.region_id=regionId;
     if(langFilter) bcPayload.lang_filter=langFilter;
     if(scheduledAt) bcPayload.scheduled_at=scheduledAt;
@@ -2455,10 +2645,66 @@ window.doBackup=async()=>{
 };
 
 /* ============================================================
+   SETTINGS PAGE
+   ============================================================ */
+async function pageSettings(){
+  main(`<div class="page-header"><h1>${I.gear} Настройки контактов</h1></div>
+  <div class="card" style="max-width:560px">
+    <div id="settingsMsg"></div>
+    <form id="settingsForm" style="display:flex;flex-direction:column;gap:18px">
+      <div>
+        <label class="form-label">Телефон (для звонка)</label>
+        <input id="sf_phone" class="form-input" placeholder="+998771234567" value="">
+        <div style="font-size:12px;color:#888;margin-top:4px">Без пробелов и тире: +998771234567</div>
+      </div>
+      <div>
+        <label class="form-label">Телефон (как отображается)</label>
+        <input id="sf_phone_display" class="form-input" placeholder="+998 77 123 45 67" value="">
+        <div style="font-size:12px;color:#888;margin-top:4px">Для показа пользователям: +998 77 123 45 67</div>
+      </div>
+      <div>
+        <label class="form-label">Telegram username</label>
+        <div style="position:relative">
+          <span style="position:absolute;left:14px;top:50%;transform:translateY(-50%);color:#888;font-size:15px">@</span>
+          <input id="sf_tg" class="form-input" style="padding-left:28px" placeholder="Scentioffice1" value="">
+        </div>
+      </div>
+      <button type="submit" class="btn btn-primary" id="sfBtn">${I.check} Сохранить</button>
+    </form>
+  </div>`);
+
+  // Загружаем текущие значения
+  try{
+    const s = await api("/admin/settings");
+    if(s.contact_phone) $("#sf_phone").value = s.contact_phone;
+    if(s.contact_phone_display) $("#sf_phone_display").value = s.contact_phone_display;
+    if(s.contact_tg) $("#sf_tg").value = s.contact_tg;
+  }catch(e){ toast("Не удалось загрузить настройки","err"); }
+
+  $("#settingsForm").addEventListener("submit", async e => {
+    e.preventDefault();
+    const btn = $("#sfBtn");
+    btn.disabled = true; btn.innerHTML = "Сохранение...";
+    try{
+      await api("/admin/settings","PUT",{
+        contact_phone: $("#sf_phone").value.trim(),
+        contact_phone_display: $("#sf_phone_display").value.trim(),
+        contact_tg: $("#sf_tg").value.trim(),
+      });
+      toast("Настройки сохранены","ok");
+    }catch(ex){
+      toast("Ошибка: "+ex.message,"err");
+    }finally{
+      btn.disabled = false; btn.innerHTML = `${I.check} Сохранить`;
+    }
+  });
+}
+
+/* ============================================================
    ROUTES MAP
    ============================================================ */
 const ROUTES={dash:pageDash,users:pageUsers,txns:pageTxns,gifts:pageGifts,claims:pageClaims,
-  catalog:pageCatalog,agents:pageAgents,cast:pageCast,reminder:pageReminder,policy:pagePolicy,audit:pageAudit,backup:pageBackup};
+  catalog:pageCatalog,agents:pageAgents,cast:pageCast,reminder:pageReminder,policy:pagePolicy,settings:pageSettings,audit:pageAudit,backup:pageBackup};
 
 /* ============================================================
    AUTH
@@ -2590,21 +2836,25 @@ window.openDrawer = async function(type){
   body.innerHTML=`<div class="drawer-empty">Загрузка...</div>`;
   title.textContent="Загрузка...";
   try{
-    const data = await api(`/admin/dashboard/detail?type=${type}`);
+    const {df,dt}=_dashDates();
+    const periodQs=df&&dt?`&date_from=${df}&date_to=${dt}`:'';
+    const data = await api(`/admin/dashboard/detail?type=${type}${periodQs}`);
     title.textContent = data.title || "Детали";
-    if(!data.rows || !data.rows.length){
+    if(data.type !== "all_activity" && (!data.rows || !data.rows.length)){
       body.innerHTML=`<div class="drawer-empty">Нет данных</div>`;
       return;
     }
     if(data.type==="users"){
+      const eyeSvg=`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="15" height="15"><path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7z"/><circle cx="12" cy="12" r="3"/></svg>`;
       body.innerHTML=`<table>
-        <thead><tr><th>#</th><th>Имя</th><th>Телефон</th><th>Баланс</th><th>Дата</th></tr></thead>
+        <thead><tr><th>#</th><th>Имя</th><th>Телефон</th><th>Баланс</th><th>Дата</th><th></th></tr></thead>
         <tbody>${data.rows.map((u,i)=>`<tr>
           <td class="muted">${i+1}</td>
           <td><b>${esc(u.name||"—")}</b></td>
           <td class="muted" style="font-size:12px">${esc(u.phone||u.telegram_id||"—")}</td>
           <td style="font-weight:700;color:var(--primary)">${fmt(u.cashback_balance||0)} <span class="muted" style="font-size:11px">сум</span></td>
           <td class="muted" style="font-size:12px">${fmtDate(u.created_at)}</td>
+          <td><button style="padding:5px 8px;border-radius:8px;border:none;background:#eaf2ff;color:var(--primary);cursor:pointer;display:flex;align-items:center" onclick="closeDrawer&&closeDrawer();openUser(${u.id})" title="Открыть клиента">${eyeSvg}</button></td>
         </tr>`).join("")}</tbody>
       </table>`;
     } else if(data.type==="txns"){
@@ -2650,6 +2900,20 @@ window.openDrawer = async function(type){
           <td style="font-weight:700">${g.stock!=null?g.stock:"∞"}</td>
           <td class="muted" style="font-size:12px">${fmtDate(g.created_at)}</td>
         </tr>`).join("")}</tbody>
+      </table>`;
+    } else if(data.type==="cashback_spends"){
+      body.innerHTML=`<table>
+        <thead><tr><th>#</th><th>Клиент</th><th>Списано</th><th>Тип</th><th>Дата</th></tr></thead>
+        <tbody>${data.rows.map((s,i)=>{
+          const isGift=s.gift_request_id!=null;
+          return `<tr>
+            <td class="muted">${i+1}</td>
+            <td><b>${esc(s.user_name||"—")}</b></td>
+            <td style="font-weight:700;color:#dc2626">-${fmt(s.amount||0)} сум</td>
+            <td><span class="drawer-badge" style="background:${isGift?'#f3eaff':'#eaf2ff'};color:${isGift?'#7b46c9':'#2563eb'}">${isGift?'Подарок':'Оплата'}</span></td>
+            <td class="muted" style="font-size:12px">${fmtDate(s.created_at)}</td>
+          </tr>`;
+        }).join("")}</tbody>
       </table>`;
     } else if(data.type==="all_activity"){
       const txnPillMap={pending:["#fdf3e3","#c47a00","Ожидание"],approved:["#e3f8ef","#16a34a","Одобрено"],rejected:["#fde8e8","#dc2626","Отклонено"],refund:["#FFF0D4","#C47A00","Возврат"]};

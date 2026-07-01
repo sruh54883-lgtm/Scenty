@@ -79,6 +79,15 @@ async def cashback_spend(body: SpendBody, user: dict = Depends(get_current_user)
             )
             if row["cashback_balance"] < body.amount:
                 raise HTTPException(status_code=400, detail="Недостаточно средств")
+            # Защита от двойного списания: нельзя списать ту же сумму дважды за 10 секунд
+            duplicate = await conn.fetchrow(
+                """SELECT id FROM cashback_spends
+                   WHERE user_id=$1 AND amount=$2 AND gift_request_id IS NULL
+                     AND created_at > NOW() - INTERVAL '10 seconds'""",
+                user["id"], body.amount,
+            )
+            if duplicate:
+                raise HTTPException(status_code=429, detail="Повторный запрос. Подождите несколько секунд.")
             new_balance = await conn.fetchval(
                 "UPDATE users SET cashback_balance = cashback_balance - $1 WHERE id = $2 RETURNING cashback_balance",
                 body.amount,
@@ -130,21 +139,14 @@ async def create_gift_request(body: GiftRequestBody, user: dict = Depends(get_cu
     async with db.get_pool().acquire() as conn:
         async with conn.transaction():
             gift = await conn.fetchrow(
-                "SELECT id, price_cashback, stock_quantity, is_active FROM gifts WHERE id = $1 FOR UPDATE",
+                "SELECT id, name_ru, price_cashback, stock_quantity, is_active FROM gifts WHERE id = $1 FOR UPDATE",
                 body.gift_id,
             )
             if gift is None or not gift["is_active"]:
                 raise HTTPException(status_code=404, detail="Подарок не найден")
-            if gift["stock_quantity"] is not None and gift["stock_quantity"] <= 0:
-                raise HTTPException(status_code=400, detail="Подарок закончился")
 
-            existing = await conn.fetchrow(
-                """SELECT id FROM gift_requests
-                   WHERE user_id=$1 AND gift_id=$2 AND status IN ('pending','approved')""",
-                user["id"], body.gift_id,
-            )
-            if existing:
-                raise HTTPException(status_code=400, detail="Активная заявка на этот подарок уже существует")
+            # Advisory lock per user — блокирует конкурентные дублирующие нажатия
+            await conn.execute("SELECT pg_advisory_xact_lock($1)", user["id"])
 
             urow = await conn.fetchrow(
                 "SELECT cashback_balance FROM users WHERE id = $1 FOR UPDATE", user["id"]
@@ -157,15 +159,12 @@ async def create_gift_request(body: GiftRequestBody, user: dict = Depends(get_cu
                 gift["price_cashback"],
                 user["id"],
             )
-            if gift["stock_quantity"] is not None:
-                await conn.execute(
-                    "UPDATE gifts SET stock_quantity = stock_quantity - 1 WHERE id = $1",
-                    gift["id"],
-                )
+            # stock уменьшается только при фактической доставке, не при заявке
             req = await conn.fetchrow(
-                "INSERT INTO gift_requests (user_id, gift_id, status) VALUES ($1, $2, 'pending') RETURNING id, status, created_at",
+                "INSERT INTO gift_requests (user_id, gift_id, status, price_paid) VALUES ($1, $2, 'pending', $3) RETURNING id, status, created_at",
                 user["id"],
                 gift["id"],
+                gift["price_cashback"],
             )
             await conn.execute(
                 "INSERT INTO cashback_spends (user_id, amount, gift_request_id) VALUES ($1, $2, $3)",
@@ -173,6 +172,18 @@ async def create_gift_request(body: GiftRequestBody, user: dict = Depends(get_cu
                 gift["price_cashback"],
                 req["id"],
             )
+    # Уведомление в Telegram
+    tg_id = user.get("telegram_id")
+    if tg_id:
+        try:
+            from notifications import notify_user_gift_requested
+            lang = user.get("language") or "ru"
+            await notify_user_gift_requested(
+                int(tg_id), gift["name_ru"], gift["price_cashback"], new_balance, lang
+            )
+        except Exception:
+            pass
+
     return {
         "id": req["id"],
         "status": req["status"],
@@ -235,7 +246,7 @@ async def list_diffusers(user: dict = Depends(get_current_user)):
 @router.get("/spends")
 async def my_spends(user: dict = Depends(get_current_user)):
     rows = await db.fetch(
-        "SELECT id, amount, created_at FROM cashback_spends WHERE user_id = $1 ORDER BY created_at DESC",
+        "SELECT id, amount, created_at, gift_request_id FROM cashback_spends WHERE user_id = $1 ORDER BY created_at DESC",
         user["id"],
     )
     return rows
@@ -262,3 +273,9 @@ async def list_districts(region_id: int, user: dict = Depends(get_current_user))
         "SELECT id, name_ru, name_uz, code FROM districts WHERE region_id = $1 ORDER BY name_ru",
         region_id,
     )
+
+
+@router.get("/settings")
+async def public_settings():
+    rows = await db.fetch("SELECT key, value FROM app_settings ORDER BY key")
+    return {r["key"]: r["value"] for r in rows}

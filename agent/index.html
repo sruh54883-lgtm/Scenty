@@ -89,6 +89,21 @@ a{color:inherit;text-decoration:none}
 .stat .value{font-size:28px;font-weight:800;letter-spacing:-.6px}
 .stat .value .cur{font-size:15px;font-weight:700;color:var(--muted);margin-left:4px}
 .stat-sub{font-size:12px;color:var(--muted);margin-top:4px}
+.dash-filter-bar{display:flex;align-items:center;gap:10px;margin-bottom:22px;flex-wrap:wrap}
+.period-chips{display:flex;gap:6px;flex-wrap:wrap}
+.period-chip{padding:7px 14px;border-radius:20px;border:1.5px solid #dde4f0;background:#fff;font-size:13px;font-weight:600;color:var(--muted);cursor:pointer;transition:all .18s;white-space:nowrap}
+.period-chip:hover{border-color:var(--primary);color:var(--primary)}
+.period-chip.active{background:var(--primary);color:#fff;border-color:var(--primary)}
+.dash-filter-sep{width:1px;height:28px;background:#e3eaf4;margin:0 4px}
+.dash-filter-range{display:flex;align-items:center;gap:8px}
+.dash-filter-range label{font-size:12px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.04em}
+.dash-filter-range input[type=date]{padding:6px 10px;border:1.5px solid #dde4f0;border-radius:10px;font-size:13px;font-family:inherit;color:var(--dark);background:#fff;outline:none;cursor:pointer}
+.dash-filter-range input[type=date]:focus{border-color:var(--primary)}
+.dash-filter-actions{display:flex;gap:6px}
+.btn-apply{padding:7px 18px;background:var(--dark);color:#fff;border:none;border-radius:10px;font-size:13px;font-weight:700;cursor:pointer;transition:opacity .15s}
+.btn-apply:hover{opacity:.85}
+.btn-reset{padding:7px 14px;background:transparent;color:var(--muted);border:1.5px solid #dde4f0;border-radius:10px;font-size:13px;font-weight:600;cursor:pointer;transition:all .15s}
+.btn-reset:hover{border-color:var(--danger);color:var(--danger)}
 
 /* TABLE */
 .table-wrap{background:var(--card);border-radius:var(--radius);box-shadow:var(--shadow-sm);overflow:hidden}
@@ -415,56 +430,157 @@ function closeModal(){
 }
 
 /* ===== PAGE: DASHBOARD ===== */
+let _agPeriod='30d', _agFrom='', _agTo='';
+
+function _agDates(){
+  const now=new Date();
+  const pad=n=>String(n).padStart(2,'0');
+  const fmt0=d=>`${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
+  if(_agPeriod==='7d'){const f=new Date(now);f.setDate(f.getDate()-6);return{df:fmt0(f),dt:fmt0(now)};}
+  if(_agPeriod==='30d'){const f=new Date(now);f.setDate(f.getDate()-29);return{df:fmt0(f),dt:fmt0(now)};}
+  if(_agPeriod==='prev_month'){
+    const f=new Date(now.getFullYear(),now.getMonth()-1,1);
+    const t=new Date(now.getFullYear(),now.getMonth(),0);
+    return{df:fmt0(f),dt:fmt0(t)};
+  }
+  if(_agPeriod==='custom') return{df:_agFrom,dt:_agTo};
+  return{df:'',dt:''}; // all
+}
+
+function _agFilterBar(){
+  const{df,dt}=_agDates();
+  const chips=[
+    {key:'7d',label:'Последние 7 дней'},
+    {key:'30d',label:'Последние 30 дней'},
+    {key:'prev_month',label:'Прошлый месяц'},
+    {key:'all',label:'Всё время'},
+  ];
+  return `<div class="dash-filter-bar">
+    <div class="period-chips">
+      ${chips.map(c=>`<button class="period-chip${_agPeriod===c.key?' active':''}" onclick="_setAgPeriod('${c.key}')">${c.label}</button>`).join('')}
+    </div>
+    <div class="dash-filter-sep"></div>
+    <div class="dash-filter-range">
+      <label>С</label>
+      <input type="date" id="agFrom" value="${_agPeriod==='custom'?_agFrom:df}" onchange="_agPeriod='custom';_agFrom=this.value">
+      <label>ПО</label>
+      <input type="date" id="agTo" value="${_agPeriod==='custom'?_agTo:dt}" onchange="_agPeriod='custom';_agTo=this.value">
+    </div>
+    <div class="dash-filter-actions">
+      <button class="btn-apply" onclick="_applyAgFilter()">Применить</button>
+      <button class="btn-reset" onclick="_resetAgFilter()">Сбросить</button>
+    </div>
+  </div>`;
+}
+
+function _setAgPeriod(p){_agPeriod=p;_agFrom='';_agTo='';pageDash();}
+function _applyAgFilter(){
+  const f=$('#agFrom'),t=$('#agTo');
+  if(f)_agFrom=f.value; if(t)_agTo=t.value;
+  _agPeriod='custom'; pageDash();
+}
+function _resetAgFilter(){_agPeriod='30d';_agFrom='';_agTo='';pageDash();}
+
+function _inPeriod(dateStr){
+  const{df,dt}=_agDates();
+  const d=new Date(dateStr);
+  if(df && d<new Date(df)) return false;
+  if(dt && d>new Date(dt+'T23:59:59')) return false;
+  return true;
+}
+
 async function pageDash(){
   const c=$('#content');
+  const sk='<div class="stat"><div class="skeleton" style="height:88px"></div></div>';
   c.innerHTML=`
-    <div class="stat-grid" id="dashStats">
-      ${Array(4).fill('<div class="stat"><div class="skeleton" style="height:88px"></div></div>').join('')}
+    ${_agFilterBar()}
+    <div class="stat-grid" id="dashStats" style="grid-template-columns:repeat(4,1fr)">
+      ${Array(4).fill(sk).join('')}
     </div>
-    <div class="dash-grid">
+    <div class="stat-grid" id="dashStats2" style="grid-template-columns:repeat(3,1fr);margin-top:14px">
+      ${Array(3).fill(sk).join('')}
+    </div>
+    <div class="dash-grid" style="grid-template-columns:1fr 1fr 340px">
       <div class="card card-pad">
         <div class="section-head"><h2>Последние транзакции</h2><button class="btn btn-ghost btn-sm" onclick="go('txns')">Все →</button></div>
         <div id="dashTxns"><div class="skeleton" style="height:200px;border-radius:10px"></div></div>
       </div>
       <div class="card card-pad">
+        <div class="section-head"><h2>Заявки на подарки</h2><button class="btn btn-ghost btn-sm" onclick="go('grequests')">Все →</button></div>
+        <div id="dashGifts"><div class="skeleton" style="height:200px;border-radius:10px"></div></div>
+      </div>
+      <div class="card card-pad">
         <div class="section-head"><h2>Ожидают подтверждения</h2></div>
         <div id="dashPending"><div class="skeleton" style="height:200px;border-radius:10px"></div></div>
       </div>
+    </div>
+    <div class="card card-pad" style="margin-top:18px">
+      <div class="section-head"><h2>Продажи по районам</h2><span id="dashDistrictPeriod" style="font-size:12px;color:var(--muted);font-weight:600"></span></div>
+      <div id="dashDistricts"><div class="skeleton" style="height:120px;border-radius:10px"></div></div>
     </div>`;
 
   try{
-    const [txns,users]=await Promise.all([
+    const {df,dt}=_agDates();
+    const [txns,users,gifts,stats,distStats]=await Promise.all([
       api('/agent/transactions').catch(()=>[]),
       api('/agent/users?search=').catch(()=>[]),
+      api('/agent/gift-requests').catch(()=>[]),
+      api('/agent/stats').catch(()=>({})),
+      api(`/agent/stats/by-district?date_from=${df}&date_to=${dt}`).catch(()=>[]),
     ]);
-    const tArr=Array.isArray(txns)?txns:[];
+    const tAll=Array.isArray(txns)?txns:[];
     const uArr=Array.isArray(users)?users:[];
-    const now=new Date();
-    const monthTx=tArr.filter(t=>{const d=new Date(t.created_at);return d.getMonth()===now.getMonth()&&d.getFullYear()===now.getFullYear()&&t.status!=='rejected';});
-    const pending=tArr.filter(t=>t.status==='pending');
-    const monthSum=monthTx.filter(t=>t.status==='approved'||t.status==='confirmed').reduce((s,t)=>s+(Number(t.amount)||0),0);
 
-    const cards=[
-      {label:'Моих клиентов',val:fmt(uArr.length),bg:'#eaf2ff',col:'var(--primary)',sub:'в моих районах'},
-      {label:'Транзакций в месяце',val:fmt(monthTx.length),bg:'#e3f8ef',col:'var(--success)',sub:'в этом месяце'},
-      {label:'Сумма продаж',val:fmt(monthSum),cur:'сум',bg:'#fdf3e3',col:'var(--warning)',sub:'в этом месяце'},
-      {label:'Ожидают подтверждения',val:fmt(pending.length),bg:'#fbe9e7',col:'var(--danger)',sub:pending.length>0?'требует внимания':'всё подтверждено'},
-    ];
-    $('#dashStats').innerHTML=cards.map(s=>`<div class="stat">
-      <div class="ico" style="background:${s.bg};color:${s.col}">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="10"/></svg>
-      </div>
-      <div class="label">${s.label}</div>
-      <div class="value">${s.val}${s.cur?`<span class="cur">${s.cur}</span>`:''}</div>
-      <div class="stat-sub">${s.sub}</div>
-    </div>`).join('');
+    // Фильтруем по выбранному периоду
+    const tArr=tAll.filter(t=>_inPeriod(t.created_at));
+    const pending=tAll.filter(t=>t.status==='pending'); // pending — всегда без фильтра
 
-    const STATUS_MAP={pending:'pill-pending',approved:'pill-approved',confirmed:'pill-approved',rejected:'pill-rejected'};
-    const STATUS_LABEL={pending:'Ожидание',approved:'Подтверждено',confirmed:'Подтверждено',rejected:'Отклонено'};
+    const approved=tArr.filter(t=>t.status==='approved'||t.status==='confirmed');
+    const periodSum=approved.reduce((s,t)=>s+(Number(t.amount)||0),0);
+    const periodCashback=approved.reduce((s,t)=>s+(Number(t.cashback_amount)||0),0);
+    const periodCount=tArr.filter(t=>t.status!=='rejected').length;
+
+    const gArr=Array.isArray(gifts)?gifts:[];
+    const gPending=gArr.filter(g=>g.status==='pending');
+
+    // Иконки
+    const IC={
+      users:`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>`,
+      coin:`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>`,
+      plus:`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>`,
+      minus:`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><line x1="8" y1="12" x2="16" y2="12"/></svg>`,
+      gift:`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="3" y="8" width="18" height="4" rx="1"/><path d="M12 8v13"/><path d="M19 12v7a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2v-7"/><path d="M7.5 8a2.5 2.5 0 0 1 0-5C11 3 12 8 12 8s1-5 4.5-5a2.5 2.5 0 0 1 0 5"/></svg>`,
+      clock:`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><polyline points="12 8 12 12 14 14"/></svg>`,
+      wallet:`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="1" y="4" width="22" height="16" rx="2"/><path d="M1 10h22"/></svg>`,
+      bag:`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 0 1-8 0"/></svg>`,
+    };
+    const _renderStats=(cards,el)=>{
+      el.innerHTML=cards.map(s=>`<div class="stat">
+        <div class="ico" style="background:${s.bg};color:${s.col}">${s.ic}</div>
+        <div class="label">${s.label}</div>
+        <div class="value">${s.val}${s.cur?`<span class="cur">${s.cur}</span>`:''}</div>
+        <div class="stat-sub">${s.sub}</div>
+      </div>`).join('');
+    };
+
+    // Строка 1: продажи (по периоду)
+    _renderStats([
+      {label:'Моих клиентов',    val:fmt(uArr.length),                                bg:'#eaf2ff',col:'var(--primary)',  ic:IC.users, sub:'в моих районах'},
+      {label:'Сумма продаж',     val:fmt(periodSum),    cur:'сум',                    bg:'#fdf3e3',col:'var(--warning)',  ic:IC.bag,   sub:`${periodCount} транзакций за период`},
+      {label:'Выдано кешбэка',   val:fmt(periodCashback),cur:'сум',                   bg:'#e3f8ef',col:'var(--success)', ic:IC.plus,  sub:`${approved.length} подтверждённых`},
+      {label:'Ожидают подтв.',   val:fmt(pending.length),                             bg:'#fbe9e7',col:'var(--danger)',   ic:IC.clock, sub:pending.length>0?'требует внимания':'всё подтверждено'},
+    ],$('#dashStats'));
+
+    // Строка 2: кешбэк-статистика (всё время, по районам агента)
+    _renderStats([
+      {label:'Баланс клиентов',    val:fmt(stats.clients_balance??0),          cur:'сум', bg:'#eaf2ff',col:'var(--primary)', ic:IC.wallet, sub:`у ${stats.client_count??uArr.length} клиентов в районах`},
+      {label:'Потрачено кешбэка',  val:fmt(stats.total_cashback_spent??0),    cur:'сум', bg:'#fdf3e3',col:'var(--warning)', ic:IC.minus,  sub:'прямые кешбэк-оплаты клиентов'},
+      {label:'Заявки на подарки',  val:fmt(stats.total_gift_requests??gArr.length), bg:'#f3eaff',col:'#7b46c9', ic:IC.gift, sub:`ожидают: ${stats.pending_gift_requests??gPending.length}`},
+    ],$('#dashStats2'));
 
     const dtEl=$('#dashTxns');
     if(!tArr.length){
-      dtEl.innerHTML='<div class="empty">Нет транзакций</div>';
+      dtEl.innerHTML='<div class="empty">Нет транзакций за период</div>';
     }else{
       dtEl.innerHTML=`<div class="txn-list">${tArr.slice(0,6).map(t=>{
         const name=[t.first_name,t.last_name].filter(Boolean).join(' ')||t.user_name||'—';
@@ -472,6 +588,29 @@ async function pageDash(){
           <div class="avatar" style="width:34px;height:34px;font-size:12px">${initials(name)}</div>
           <div style="flex:1;min-width:0"><b style="display:block;font-size:13px">${esc(name)}</b><small style="color:var(--muted);font-size:12px">${fmtDate(t.created_at)}</small></div>
           <div class="amt"><b>${fmt(t.amount)} сум</b><small>+${fmt(t.cashback_amount||0)} кешбэк</small></div>
+        </div>`;
+      }).join('')}</div>`;
+    }
+
+    // Блок заявок на подарки
+    const dgEl=$('#dashGifts');
+    const STATUS_LABEL={pending:'⏳ Ожидает',approved:'✅ Одобрена',shipping:'🚚 Доставка',confirmed:'📦 Доставлен',delivered:'🎁 Выдан',rejected:'❌ Отклонена'};
+    if(!gArr.length){
+      dgEl.innerHTML='<div class="empty" style="padding:40px 20px;text-align:center;color:var(--muted)">Нет заявок</div>';
+    }else{
+      dgEl.innerHTML=`<div class="txn-list">${gArr.slice(0,6).map(g=>{
+        const uname=(g.first_name||'')+(g.last_name?' '+g.last_name:'') || g.user_name||'—';
+        const badge=STATUS_LABEL[g.status]||g.status;
+        const badgeCol={pending:'#f59e0b',approved:'#22c55e',shipping:'#3b82f6',confirmed:'#8b5cf6',delivered:'#10b981',rejected:'#ef4444'}[g.status]||'#888';
+        return `<div class="txn-item" style="cursor:pointer" onclick="go('grequests')">
+          <div style="width:34px;height:34px;border-radius:10px;background:#f3eaff;display:flex;align-items:center;justify-content:center;flex-shrink:0">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#7b46c9" stroke-width="2"><rect x="3" y="8" width="18" height="4" rx="1"/><path d="M12 8v13"/><path d="M19 12v7a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2v-7"/><path d="M7.5 8a2.5 2.5 0 0 1 0-5C11 3 12 8 12 8s1-5 4.5-5a2.5 2.5 0 0 1 0 5"/></svg>
+          </div>
+          <div style="flex:1;min-width:0">
+            <b style="display:block;font-size:13px">${esc(uname)}</b>
+            <small style="color:var(--muted);font-size:12px">${esc(g.name_ru||'—')} · ${fmtDate(g.created_at)}</small>
+          </div>
+          <span style="font-size:11px;font-weight:700;color:${badgeCol};white-space:nowrap">${badge}</span>
         </div>`;
       }).join('')}</div>`;
     }
@@ -489,6 +628,40 @@ async function pageDash(){
         </div>`;
       }).join('')}</div>`;
     }
+
+    // Таблица по районам
+    const ddEl=$('#dashDistricts');
+    const ddLabel=$('#dashDistrictPeriod');
+    const dArr=Array.isArray(distStats)?distStats:[];
+    if(ddLabel) ddLabel.textContent=`${df} — ${dt}`;
+    if(!dArr.length){
+      ddEl.innerHTML='<div class="empty">Нет данных по районам</div>';
+    }else{
+      ddEl.innerHTML=`<div class="table-wrap" style="margin:0"><table>
+        <thead><tr>
+          <th>Район</th><th>Регион</th>
+          <th style="text-align:right">Клиентов</th>
+          <th style="text-align:right">Транзакций</th>
+          <th style="text-align:right">Сумма продаж</th>
+          <th style="text-align:right">Выдано кешбэка</th>
+        </tr></thead>
+        <tbody>${dArr.map(d=>`<tr>
+          <td><b>${esc(d.district_name||'—')}</b></td>
+          <td style="color:var(--muted)">${esc(d.region_name||'—')}</td>
+          <td style="text-align:right">${d.client_count||0}</td>
+          <td style="text-align:right">${d.tx_count||0}</td>
+          <td style="text-align:right"><b>${fmt(d.total_amount||0)} сум</b></td>
+          <td style="text-align:right;color:var(--success)">+${fmt(d.total_cashback||0)} сум</td>
+        </tr>`).join('')}</tbody>
+        <tfoot><tr style="font-weight:700;border-top:2px solid #e3eaf4">
+          <td colspan="2" style="color:var(--muted)">Итого</td>
+          <td style="text-align:right">${dArr.reduce((s,d)=>s+(d.client_count||0),0)}</td>
+          <td style="text-align:right">${dArr.reduce((s,d)=>s+(d.tx_count||0),0)}</td>
+          <td style="text-align:right">${fmt(dArr.reduce((s,d)=>s+(d.total_amount||0),0))} сум</td>
+          <td style="text-align:right;color:var(--success)">+${fmt(dArr.reduce((s,d)=>s+(d.total_cashback||0),0))} сум</td>
+        </tr></tfoot>
+      </table></div>`;
+    }
   }catch(e){if(e.message!=='401')toast(e.message,'err');}
 }
 
@@ -504,8 +677,8 @@ async function pageClients(){
       </div>
     </div>
     <div class="table-wrap">
-      <table><thead><tr><th>Клиент</th><th>Телефон</th><th>Бизнес</th><th>Район</th><th>Баланс кешбэка</th><th>Дата рег.</th></tr></thead>
-      <tbody id="clientBody">${loadingRows(6)}</tbody></table>
+      <table><thead><tr><th>Клиент</th><th>Телефон</th><th>Бизнес</th><th>Район</th><th>Баланс кешбэка</th><th>Дата рег.</th><th></th></tr></thead>
+      <tbody id="clientBody">${loadingRows(7)}</tbody></table>
       <div id="clientPager"></div>
     </div>`;
   $('#clientSearch').addEventListener('input',e=>{_clientQ=e.target.value;_clientPage=1;renderClients();});
@@ -522,15 +695,18 @@ function renderClients(){
   const p=paginate(arr,_clientPage,20);
   const body=$('#clientBody');if(!body)return;
   if(!p.items.length){body.innerHTML=`<tr><td colspan="6"><div class="empty">Нет клиентов</div></td></tr>`;$('#clientPager').innerHTML='';return;}
+  const eyeIc=`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="16" height="16"><path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7z"/><circle cx="12" cy="12" r="3"/></svg>`;
   body.innerHTML=p.items.map(u=>{
     const name=[u.first_name,u.last_name].filter(Boolean).join(' ')||u.business_name||'—';
-    return `<tr class="clickable" onclick="openClientModal(${JSON.stringify(JSON.stringify(u))})">
+    const jj=JSON.stringify(JSON.stringify(u));
+    return `<tr>
       <td><div class="cell-user"><div class="avatar">${initials(name)}</div><div><b style="font-size:13.5px">${esc(name)}</b></div></div></td>
       <td>${esc(u.phone||'—')}</td>
       <td>${esc(u.business_name||'—')}</td>
       <td>${esc(u.district_name||u.district||'—')}</td>
       <td><b style="color:var(--primary)">${fmt(u.cashback_balance||0)} сум</b></td>
       <td style="color:var(--muted)">${fmtDate(u.created_at)}</td>
+      <td><button class="btn btn-icon" style="width:34px;height:34px;padding:0;border-radius:9px;background:#eaf2ff;color:var(--primary);border:none;cursor:pointer;display:flex;align-items:center;justify-content:center" onclick="openClientModal(${jj})" title="Просмотр">${eyeIc}</button></td>
     </tr>`;
   }).join('');
   // pager
@@ -542,30 +718,132 @@ function renderClients(){
   }else pg.innerHTML='';
 }
 
-window.openClientModal=function(jsonStr){
+window.openClientModal=async function(jsonStr){
   const u=JSON.parse(jsonStr);
   const name=[u.first_name,u.last_name].filter(Boolean).join(' ')||u.business_name||'—';
-  openModal(`<div class="modal wide">
-    <div class="modal-head"><h3>Клиент</h3><button class="x">✕</button></div>
-    <div class="modal-body">
-      <div style="display:flex;align-items:center;gap:14px;margin-bottom:16px">
-        <div class="avatar" style="width:52px;height:52px;font-size:18px">${initials(name)}</div>
-        <div><b style="font-size:17px">${esc(name)}</b><div style="color:var(--muted);font-size:13px">${esc(u.business_name||'')}</div>
-        ${u.telegram_id?`<span style="display:inline-block;margin-top:4px;background:#eaf2ff;color:#2563eb;font-size:11px;font-weight:700;padding:3px 10px;border-radius:20px">ID ${esc(String(u.telegram_id))}</span>`:''}
-        </div>
-      </div>
-      <div class="balance-box">
-        <div><div class="lab">Баланс кешбэка</div><div class="num">${fmt(u.cashback_balance||0)} сум</div></div>
-      </div>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px">
-        <div><div class="sub-label">Телефон</div><div>${esc(u.phone||'—')}</div></div>
-        <div><div class="sub-label">Бизнес</div><div>${esc(u.business_name||'—')}</div></div>
-        <div><div class="sub-label">Район</div><div>${esc(u.district_name||u.district||'—')}</div></div>
-        <div><div class="sub-label">Дата регистрации</div><div style="color:var(--muted)">${fmtDate(u.created_at)}</div></div>
-      </div>
+  // Открываем сразу с заглушкой, потом подгружаем детали
+  openModal(`<div class="modal wide" style="max-width:700px">
+    <div class="modal-head"><h3>${esc(name)}</h3><button class="x">✕</button></div>
+    <div class="modal-body" id="clientModalBody">
+      <div class="skeleton" style="height:80px;border-radius:10px;margin-bottom:14px"></div>
+      <div class="skeleton" style="height:200px;border-radius:10px"></div>
     </div>
     <div class="modal-foot"><button class="btn btn-ghost x">Закрыть</button></div>
   </div>`);
+
+  try{
+    const d=await api(`/agent/users/${u.id}`);
+    const TX_ST={pending:'Ожидание',approved:'Подтверждено',confirmed:'Подтверждено',rejected:'Отклонено',refund:'Возврат'};
+    const TX_COL={pending:'#f59e0b',approved:'#22c55e',confirmed:'#22c55e',rejected:'#ef4444',refund:'#888'};
+    const GR_ST={pending:'⏳ Ожидает',approved:'✅ Одобрена',shipping:'🚚 Доставка',confirmed:'📦 У клиента',delivered:'🎁 Выдан',rejected:'❌ Отклонена'};
+
+    const txRows=(d.transactions||[]).map(t=>`
+      <tr>
+        <td><b>${fmt(t.amount)} сум</b></td>
+        <td style="color:#22c55e;font-weight:700">+${fmt(t.cashback_amount||0)}</td>
+        <td><span style="font-size:11px;font-weight:700;color:${TX_COL[t.status]||'#888'}">${TX_ST[t.status]||t.status}</span></td>
+        <td style="color:var(--muted);font-size:12px">${fmtDate(t.created_at)}</td>
+        <td style="color:var(--muted);font-size:12px">${esc(t.note||'')}</td>
+      </tr>`).join('')||'<tr><td colspan="5" style="text-align:center;color:var(--muted);padding:16px">Нет транзакций</td></tr>';
+
+    const grRows=(d.gift_requests||[]).map(g=>`
+      <tr>
+        <td><b>${esc(g.gift_name||'—')}</b></td>
+        <td style="color:var(--primary);font-weight:700">${fmt(g.price_paid||0)} сум</td>
+        <td><span style="font-size:11px;font-weight:700">${GR_ST[g.status]||g.status}</span></td>
+        <td style="color:var(--muted);font-size:12px">${fmtDate(g.created_at)}</td>
+      </tr>`).join('')||'<tr><td colspan="4" style="text-align:center;color:var(--muted);padding:16px">Нет заявок</td></tr>';
+
+    const spendRows=(d.cashback_spends||[]).map(s=>`
+      <tr>
+        <td style="color:var(--danger);font-weight:700">−${fmt(s.amount)} сум</td>
+        <td>${esc(s.gift_name||'Кешбэк')}</td>
+        <td style="color:var(--muted);font-size:12px">${fmtDate(s.created_at)}</td>
+      </tr>`).join('')||'<tr><td colspan="3" style="text-align:center;color:var(--muted);padding:16px">Нет списаний</td></tr>';
+
+    const totalEarned=(d.transactions||[]).filter(t=>t.status==='approved'||t.status==='confirmed').reduce((s,t)=>s+(t.cashback_amount||0),0);
+    const totalSpent=(d.cashback_spends||[]).reduce((s,t)=>s+(t.amount||0),0);
+
+    document.getElementById('clientModalBody').innerHTML=`
+      <div style="display:flex;align-items:center;gap:14px;margin-bottom:16px">
+        <div class="avatar" style="width:52px;height:52px;font-size:18px">${initials(name)}</div>
+        <div>
+          <b style="font-size:17px">${esc(name)}</b>
+          <div style="color:var(--muted);font-size:13px">${esc(d.business_name||'')}</div>
+          ${d.telegram_id?`<span style="display:inline-block;margin-top:4px;background:#eaf2ff;color:#2563eb;font-size:11px;font-weight:700;padding:3px 10px;border-radius:20px">ID ${esc(String(d.telegram_id))}</span>`:''}
+        </div>
+      </div>
+
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:16px">
+        <div style="background:#e3f8ef;border-radius:12px;padding:12px">
+          <div style="font-size:11px;color:var(--muted);font-weight:700">БАЛАНС</div>
+          <div style="font-size:18px;font-weight:800;color:var(--success)">${fmt(d.cashback_balance||0)} сум</div>
+        </div>
+        <div style="background:#eaf2ff;border-radius:12px;padding:12px">
+          <div style="font-size:11px;color:var(--muted);font-weight:700">НАЧИСЛЕНО</div>
+          <div style="font-size:18px;font-weight:800;color:var(--primary)">${fmt(totalEarned)} сум</div>
+        </div>
+        <div style="background:#fbe9e7;border-radius:12px;padding:12px">
+          <div style="font-size:11px;color:var(--muted);font-weight:700">ПОТРАЧЕНО</div>
+          <div style="font-size:18px;font-weight:800;color:var(--danger)">${fmt(totalSpent)} сум</div>
+        </div>
+      </div>
+
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px;font-size:13px">
+        <div><span style="color:var(--muted)">Телефон:</span> <b>${esc(d.phone||'—')}</b></div>
+        <div><span style="color:var(--muted)">Бизнес:</span> <b>${esc(d.business_name||'—')}</b></div>
+        <div><span style="color:var(--muted)">Район:</span> <b>${esc(d.district_name||'—')}</b></div>
+        <div><span style="color:var(--muted)">Зарегистрирован:</span> <b>${fmtDate(d.created_at)}</b></div>
+      </div>
+
+      <div style="margin-bottom:14px">
+        <div style="font-size:12px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px">История транзакций</div>
+        <div style="overflow-x:auto;border-radius:10px;border:1px solid #e8edf5">
+          <table style="width:100%;border-collapse:collapse;font-size:13px">
+            <thead><tr style="background:#f8fafc;font-size:11px;color:var(--muted)">
+              <th style="padding:8px 10px;text-align:left;font-weight:700">СУММА</th>
+              <th style="padding:8px 10px;text-align:left;font-weight:700">КЕШБЭК</th>
+              <th style="padding:8px 10px;text-align:left;font-weight:700">СТАТУС</th>
+              <th style="padding:8px 10px;text-align:left;font-weight:700">ДАТА</th>
+              <th style="padding:8px 10px;text-align:left;font-weight:700">ЗАМЕТКА</th>
+            </tr></thead>
+            <tbody>${txRows}</tbody>
+          </table>
+        </div>
+      </div>
+
+      <div style="margin-bottom:14px">
+        <div style="font-size:12px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px">Заявки на подарки</div>
+        <div style="overflow-x:auto;border-radius:10px;border:1px solid #e8edf5">
+          <table style="width:100%;border-collapse:collapse;font-size:13px">
+            <thead><tr style="background:#f8fafc;font-size:11px;color:var(--muted)">
+              <th style="padding:8px 10px;text-align:left;font-weight:700">ПОДАРОК</th>
+              <th style="padding:8px 10px;text-align:left;font-weight:700">ЦЕНА</th>
+              <th style="padding:8px 10px;text-align:left;font-weight:700">СТАТУС</th>
+              <th style="padding:8px 10px;text-align:left;font-weight:700">ДАТА</th>
+            </tr></thead>
+            <tbody>${grRows}</tbody>
+          </table>
+        </div>
+      </div>
+
+      <div>
+        <div style="font-size:12px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px">Списания кешбэка</div>
+        <div style="overflow-x:auto;border-radius:10px;border:1px solid #e8edf5">
+          <table style="width:100%;border-collapse:collapse;font-size:13px">
+            <thead><tr style="background:#f8fafc;font-size:11px;color:var(--muted)">
+              <th style="padding:8px 10px;text-align:left;font-weight:700">СУММА</th>
+              <th style="padding:8px 10px;text-align:left;font-weight:700">НА ЧТО</th>
+              <th style="padding:8px 10px;text-align:left;font-weight:700">ДАТА</th>
+            </tr></thead>
+            <tbody>${spendRows}</tbody>
+          </table>
+        </div>
+      </div>`;
+  }catch(e){
+    const b=document.getElementById('clientModalBody');
+    if(b) b.innerHTML=`<div style="color:var(--danger);padding:20px">Ошибка загрузки: ${esc(e.message)}</div>`;
+  }
 };
 
 /* ===== PAGE: TRANSACTIONS ===== */
@@ -847,7 +1125,7 @@ function renderGRequests(){
 const GR_TRANSITIONS={
   pending:['approved','rejected'],
   approved:['shipping','rejected'],
-  shipping:['rejected'],
+  shipping:['confirmed','rejected'],
   confirmed:['delivered'],
   delivered:[],
   rejected:[],
@@ -905,7 +1183,6 @@ window.openGRModal=function(idx){
       ${r.admin_notes?`<div style="background:#fdf3e3;border-radius:var(--radius-sm);padding:12px 14px;margin-top:12px;font-size:13px"><b>Комментарий:</b> ${esc(r.admin_notes)}</div>`:''}
     </div>
     <div class="modal-foot" style="gap:8px;flex-wrap:wrap">
-      <button class="btn btn-ghost x" style="margin-right:auto">Закрыть</button>
       ${rejectBtn}
       ${actionBtns}
     </div>

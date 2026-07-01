@@ -20,9 +20,9 @@ router = APIRouter(prefix="/admin", tags=["admin"])
 UPLOADS_DIR = Path(os.environ.get("UPLOADS_DIR", "/app/uploads"))
 UPLOADS_DIR.mkdir(parents=True, exist_ok=True)
 
-ALLOWED_EXTENSIONS = {".jpg", ".jpeg", ".png", ".webp", ".gif"}
+ALLOWED_EXTENSIONS = {".jpg", ".jpeg", ".png", ".webp", ".gif", ".heic", ".heif"}
 ALLOWED_DOC_EXTENSIONS = {".pdf", ".doc", ".docx"}
-MAX_FILE_SIZE = 5 * 1024 * 1024  # 5 MB
+MAX_FILE_SIZE = 20 * 1024 * 1024  # 20 MB
 MAX_DOC_SIZE = 20 * 1024 * 1024  # 20 MB
 
 
@@ -36,8 +36,13 @@ _IMAGE_MAGIC: dict[bytes, str] = {
 }
 _PDF_MAGIC = b"%PDF"
 
+_HEIC_BRANDS = {b"heic", b"heix", b"hevc", b"hevx", b"heim", b"heis", b"hevm", b"hevs", b"mif1", b"msf1"}
+
 
 def _check_image_magic(data: bytes) -> bool:
+    # HEIC/HEIF: bytes[4:8] == b'ftyp', bytes[8:12] == brand
+    if len(data) >= 12 and data[4:8] == b"ftyp" and data[8:12] in _HEIC_BRANDS:
+        return True
     for magic in _IMAGE_MAGIC:
         if data[:len(magic)] == magic:
             if magic == b"RIFF":
@@ -547,11 +552,6 @@ async def reject_gift_request(req_id: int, body: GiftReqReject, admin: dict = De
                 "DELETE FROM cashback_spends WHERE gift_request_id = $1",
                 req_id,
             )
-            if req["stock_quantity"] is not None:
-                await conn.execute(
-                    "UPDATE gifts SET stock_quantity = stock_quantity + 1 WHERE id = $1",
-                    req["gift_id"],
-                )
             _gift_name_row = await conn.fetchrow("SELECT name_ru FROM gifts WHERE id=$1", req["gift_id"])
             _new_bal = await conn.fetchval("SELECT cashback_balance FROM users WHERE id=$1", req["user_id"])
             _tg_user = await conn.fetchrow("SELECT telegram_id, language FROM users WHERE id=$1", req["user_id"])
@@ -894,8 +894,9 @@ class BroadcastBody(BaseModel):
     target: str = Field(default="all", pattern="^(all|region|language)$")
     region_id: int | None = None
     lang_filter: str | None = Field(default=None, pattern="^(ru|uz)$")
-    scheduled_at: str | None = None  # ISO datetime string
+    scheduled_at: str | None = None
     parse_mode: str = "HTML"
+    image_url: str = ""
 
 
 @router.get("/broadcasts")
@@ -996,12 +997,12 @@ async def create_broadcast(body: BroadcastBody, admin: dict = Depends(get_curren
         """
         INSERT INTO broadcasts
             (message_ru, message_uz, target, region_id, lang_filter,
-             parse_mode, is_sent, sent_count)
-        VALUES ($1,$2,$3,$4,$5,$6,TRUE,$7)
+             parse_mode, image_url, is_sent, sent_count)
+        VALUES ($1,$2,$3,$4,$5,$6,$7,TRUE,$8)
         RETURNING id, target, region_id, created_at
         """,
         body.message_ru, body.message_uz, body.target, body.region_id,
-        lang_filter, body.parse_mode, 0,
+        lang_filter, body.parse_mode, body.image_url or "", 0,
     )
     broadcast_id = row["id"]
 
@@ -1020,7 +1021,11 @@ async def create_broadcast(body: BroadcastBody, admin: dict = Depends(get_curren
             if not text:
                 continue
             try:
-                await bot.send_message(int(tg_id), text, parse_mode="HTML")
+                if body.image_url:
+                    await bot.send_photo(int(tg_id), photo=body.image_url,
+                                         caption=text, parse_mode="HTML")
+                else:
+                    await bot.send_message(int(tg_id), text, parse_mode="HTML")
                 sent += 1
                 await asyncio.sleep(0.04)
             except Exception as ex:
@@ -1082,9 +1087,10 @@ async def backup(admin: dict = Depends(get_current_admin)):
 
     # admin_users исключён — содержит password_hash
     tables = [
-        "users", "regions", "transactions", "cashback_spends",
+        "users", "regions", "districts", "transactions", "cashback_spends",
         "gifts", "gift_requests", "agents", "agent_districts",
-        "broadcasts", "settings", "audit_log",
+        "diffusers", "broadcasts", "monthly_reminder", "privacy_policy",
+        "app_settings", "audit_log",
     ]
 
     dump: dict = {"meta": {"ts": ts, "version": "1"}, "tables": {}}
@@ -1117,19 +1123,69 @@ async def backup(admin: dict = Depends(get_current_admin)):
 
 
 # ============================================================ СТАТИСТИКА
+@router.get("/stats/regions")
+async def stats_regions(
+    date_from: str | None = None,
+    date_to: str | None = None,
+    admin: dict = Depends(get_current_admin),
+):
+    """Статистика по регионам: клиенты + заработано кешбэка за период."""
+    import re as _re
+    _DATE = _re.compile(r'^\d{4}-\d{2}-\d{2}$')
+    df = date_from if date_from and _DATE.match(date_from) else None
+    dt = date_to if date_to and _DATE.match(date_to) else None
+
+    date_filter = ""
+    if df:
+        date_filter += f" AND t.created_at >= '{df}'"
+    if dt:
+        date_filter += f" AND t.created_at < '{dt}'::date + INTERVAL '1 day'"
+
+    rows = await db.fetch(
+        f"""
+        SELECT r.name_ru,
+               COUNT(DISTINCT u.id) AS clients,
+               COALESCE(SUM(t.cashback_amount)
+                   FILTER (WHERE t.status IN ('approved','confirmed'){date_filter}), 0) AS earned
+        FROM regions r
+        LEFT JOIN users u ON u.region_id = r.id AND u.is_active = TRUE
+        LEFT JOIN transactions t ON t.user_id = u.id
+        GROUP BY r.id, r.name_ru
+        ORDER BY clients DESC, r.name_ru
+        """
+    )
+    return [{"name_ru": r["name_ru"], "clients": int(r["clients"]), "earned": int(r["earned"])} for r in rows]
+
+
 @router.get("/stats")
-async def stats(admin: dict = Depends(get_current_admin)):
+async def stats(
+    admin: dict = Depends(get_current_admin),
+    date_from: str | None = None,
+    date_to: str | None = None,
+):
+    import re as _re
+    _DATE = _re.compile(r'^\d{4}-\d{2}-\d{2}$')
+    # Validate: only YYYY-MM-DD passes — no injection possible
+    df = date_from if date_from and _DATE.match(date_from) else None
+    dt = date_to if date_to and _DATE.match(date_to) else None
+
+    def _p(col: str = "created_at") -> str:
+        parts = []
+        if df: parts.append(f"{col} >= '{df}'")
+        if dt: parts.append(f"{col} < '{dt}'::date + INTERVAL '1 day'")
+        return (" AND " + " AND ".join(parts)) if parts else ""
+
     total_users = await db.fetchval("SELECT COUNT(*) FROM users WHERE is_active = TRUE")
     pending_transactions = await db.fetchval(
         "SELECT COUNT(*) FROM transactions WHERE status = 'pending'"
     )
     total_cashback_issued = await db.fetchval(
-        "SELECT COALESCE(SUM(cashback_amount),0) FROM transactions WHERE status = 'approved'"
+        f"SELECT COALESCE(SUM(cashback_amount),0) FROM transactions WHERE status = 'approved'{_p()}"
     )
+    # Только прямые оплаты кешбэком (без обменов на подарки)
     total_cashback_spent = await db.fetchval(
-        """SELECT COALESCE(SUM(cs.amount),0) FROM cashback_spends cs
-           LEFT JOIN gift_requests gr ON gr.id = cs.gift_request_id
-           WHERE cs.gift_request_id IS NULL OR gr.status != 'rejected'"""
+        f"""SELECT COALESCE(SUM(amount),0) FROM cashback_spends
+           WHERE gift_request_id IS NULL{_p()}"""
     )
     new_users_today = await db.fetchval(
         "SELECT COUNT(*) FROM users WHERE is_active = TRUE AND created_at >= CURRENT_DATE"
@@ -1141,13 +1197,13 @@ async def stats(admin: dict = Depends(get_current_admin)):
         "SELECT COUNT(*) FROM users WHERE is_active = TRUE AND created_at >= NOW() - INTERVAL '30 days'"
     )
     txns_today_count = await db.fetchval(
-        "SELECT COUNT(*) FROM transactions WHERE created_at >= CURRENT_DATE"
+        f"SELECT COUNT(*) FROM transactions WHERE TRUE{_p()}"
     )
     txns_today_sum = await db.fetchval(
-        "SELECT COALESCE(SUM(amount),0) FROM transactions WHERE status='approved' AND created_at >= CURRENT_DATE"
+        f"SELECT COALESCE(SUM(amount),0) FROM transactions WHERE status='approved'{_p()}"
     )
     txns_month_sum = await db.fetchval(
-        "SELECT COALESCE(SUM(cashback_amount),0) FROM transactions WHERE status='approved' AND created_at >= DATE_TRUNC('month', NOW())"
+        f"SELECT COALESCE(SUM(cashback_amount),0) FROM transactions WHERE status='approved'{_p()}"
     )
     active_gifts = await db.fetchval(
         "SELECT COUNT(*) FROM gifts WHERE is_active = TRUE"
@@ -1155,16 +1211,25 @@ async def stats(admin: dict = Depends(get_current_admin)):
     pending_claims = await db.fetchval(
         "SELECT COUNT(*) FROM gift_requests WHERE status = 'pending'"
     )
-    # Последние 7 дней: транзакции
-    daily_chart = await db.fetch(
+    total_gift_requests = await db.fetchval(
+        f"SELECT COUNT(*) FROM gift_requests WHERE status != 'rejected'{_p()}"
+    )
+    total_gifts_value = await db.fetchval(
+        f"""SELECT COALESCE(SUM(gr.price_paid),0)
+           FROM gift_requests gr
+           WHERE gr.status != 'rejected'{_p('gr.created_at')}"""
+    )
+    # Месячный график за последние 12 месяцев (всегда, не зависит от фильтра)
+    monthly_chart = await db.fetch(
         """
-        SELECT DATE(created_at) AS day,
+        SELECT TO_CHAR(DATE_TRUNC('month', created_at), 'YYYY-MM') AS month,
                COUNT(*) AS txn_count,
-               COALESCE(SUM(CASE WHEN status='approved' THEN cashback_amount ELSE 0 END),0) AS cashback_sum
+               COALESCE(SUM(amount), 0) AS total_amount,
+               COALESCE(SUM(CASE WHEN status='approved' THEN cashback_amount ELSE 0 END), 0) AS cashback_sum
         FROM transactions
-        WHERE created_at >= NOW() - INTERVAL '7 days'
-        GROUP BY DATE(created_at)
-        ORDER BY day
+        WHERE created_at >= DATE_TRUNC('month', NOW()) - INTERVAL '11 months'
+        GROUP BY DATE_TRUNC('month', created_at)
+        ORDER BY DATE_TRUNC('month', created_at)
         """
     )
     return {
@@ -1180,9 +1245,12 @@ async def stats(admin: dict = Depends(get_current_admin)):
         "txns_month_sum": float(txns_month_sum),
         "active_gifts": active_gifts,
         "pending_claims": pending_claims,
-        "daily_chart": [
-            {"day": str(r["day"]), "txn_count": r["txn_count"], "cashback_sum": float(r["cashback_sum"])}
-            for r in daily_chart
+        "total_gift_requests": total_gift_requests,
+        "total_gifts_value": float(total_gifts_value),
+        "monthly_chart": [
+            {"month": r["month"], "txn_count": r["txn_count"],
+             "total_amount": float(r["total_amount"]), "cashback_sum": float(r["cashback_sum"])}
+            for r in monthly_chart
         ],
     }
 
@@ -1190,11 +1258,14 @@ async def stats(admin: dict = Depends(get_current_admin)):
 @router.get("/dashboard/detail")
 async def dashboard_detail(
     type: str,
+    date_from: str | None = None,
+    date_to: str | None = None,
     admin: dict = Depends(get_current_admin),
 ):
     """Детализация для drawer'а на дашборде."""
     allowed = {"new_users_today","new_users_7d","new_users_30d","pending_txns",
-               "approved_txns","today_txns","pending_claims","all_users","active_gifts","all_activity"}
+               "approved_txns","today_txns","pending_claims","all_claims","all_users","active_gifts","all_activity",
+               "cashback_spends"}
     if type not in allowed:
         raise HTTPException(status_code=400, detail="Неверный тип детализации")
 
@@ -1255,16 +1326,27 @@ async def dashboard_detail(
         return {"title": "Выдано кешбэка", "type": "txns", "rows": [dict(r) for r in rows]}
 
     if type == "today_txns":
+        import re as _re2
+        _D = _re2.compile(r'^\d{4}-\d{2}-\d{2}$')
+        df2 = date_from if date_from and _D.match(date_from) else None
+        dt2 = date_to if date_to and _D.match(date_to) else None
+        cond = ""
+        if df2:
+            cond += f" AND t.created_at >= '{df2}'"
+        if dt2:
+            cond += f" AND t.created_at < '{dt2}'::date + INTERVAL '1 day'"
+        if not cond:
+            cond = " AND t.created_at >= CURRENT_DATE"
         rows = await db.fetch(
-            """SELECT t.id, t.amount, t.cashback_amount, t.status, t.created_at,
+            f"""SELECT t.id, t.amount, t.cashback_amount, t.status, t.created_at,
                TRIM(COALESCE(u.first_name,'')||' '||COALESCE(u.last_name,'')) AS user_name,
                a.name AS agent_name
                FROM transactions t
                JOIN users u ON u.id=t.user_id
                LEFT JOIN agents a ON a.id=t.agent_id
-               WHERE t.created_at>=CURRENT_DATE ORDER BY t.created_at DESC"""
+               WHERE TRUE{cond} ORDER BY t.created_at DESC LIMIT 300"""
         )
-        return {"title": "Транзакции сегодня", "type": "txns", "rows": [dict(r) for r in rows]}
+        return {"title": "Транзакции за период", "type": "txns", "rows": [dict(r) for r in rows]}
 
     if type == "pending_claims":
         rows = await db.fetch(
@@ -1278,11 +1360,51 @@ async def dashboard_detail(
         )
         return {"title": "Заявки на подарки (ожидают)", "type": "claims", "rows": [dict(r) for r in rows]}
 
+    if type == "all_claims":
+        import re as _re3
+        _D = _re3.compile(r'^\d{4}-\d{2}-\d{2}$')
+        df3 = date_from if date_from and _D.match(date_from) else None
+        dt3 = date_to if date_to and _D.match(date_to) else None
+        cond = ""
+        if df3:
+            cond += f" AND gr.created_at >= '{df3}'"
+        if dt3:
+            cond += f" AND gr.created_at < '{dt3}'::date + INTERVAL '1 day'"
+        rows = await db.fetch(
+            f"""SELECT gr.id, gr.status, gr.created_at,
+               TRIM(COALESCE(u.first_name,'')||' '||COALESCE(u.last_name,'')) AS user_name,
+               g.name_ru AS gift_name, gr.price_paid AS price
+               FROM gift_requests gr
+               JOIN users u ON u.id=gr.user_id
+               JOIN gifts g ON g.id=gr.gift_id
+               WHERE TRUE{cond} ORDER BY gr.created_at DESC LIMIT 200"""
+        )
+        return {"title": "Все заявки на подарки", "type": "claims", "rows": [dict(r) for r in rows]}
+
     if type == "active_gifts":
         rows = await db.fetch(
-            "SELECT id, name_ru, name_uz, price_cashback, stock, created_at FROM gifts WHERE is_active=TRUE ORDER BY created_at DESC"
+            "SELECT id, name_ru, name_uz, price_cashback, stock_quantity AS stock, created_at FROM gifts WHERE is_active=TRUE ORDER BY created_at DESC"
         )
         return {"title": "Активные подарки", "type": "gifts", "rows": [dict(r) for r in rows]}
+
+    if type == "cashback_spends":
+        import re as _re4
+        _D = _re4.compile(r'^\d{4}-\d{2}-\d{2}$')
+        df4 = date_from if date_from and _D.match(date_from) else None
+        dt4 = date_to if date_to and _D.match(date_to) else None
+        cond = ""
+        if df4:
+            cond += f" AND cs.created_at >= '{df4}'"
+        if dt4:
+            cond += f" AND cs.created_at < '{dt4}'::date + INTERVAL '1 day'"
+        rows = await db.fetch(
+            f"""SELECT cs.id, cs.amount, cs.created_at, cs.gift_request_id,
+               TRIM(COALESCE(u.first_name,'')||' '||COALESCE(u.last_name,'')) AS user_name
+               FROM cashback_spends cs
+               JOIN users u ON u.id=cs.user_id
+               WHERE TRUE{cond} ORDER BY cs.created_at DESC LIMIT 300"""
+        )
+        return {"title": "Потраченный кешбэк", "type": "cashback_spends", "rows": [dict(r) for r in rows]}
 
     if type == "all_activity":
         # Покупки (транзакции)
@@ -1573,6 +1695,8 @@ async def delete_catalog_item(item_id: int, admin: dict = Depends(get_current_ad
 async def update_catalog_item(item_id: int, body: dict, admin: dict = Depends(get_current_admin)):
     allowed = {"name_ru","name_uz","description_ru","description_uz","type","tag_ru","tag_uz","image_url","sort_order","is_active"}
     fields = {k: v for k, v in body.items() if k in allowed}
+    if "type" in fields and fields["type"] not in ("device", "aroma", "scent"):
+        raise HTTPException(status_code=400, detail="Недопустимый тип: только device, aroma, scent")
     if not fields:
         raise HTTPException(status_code=400, detail="Нет полей для обновления")
     sets = [f"{k} = ${i+1}" for i, k in enumerate(fields)]
@@ -1694,3 +1818,32 @@ async def list_backups(admin: dict = Depends(get_current_admin)):
         except Exception:
             pass
     return result
+
+
+# ============================================================ НАСТРОЙКИ
+@router.get("/settings")
+async def get_settings(admin: dict = Depends(get_current_admin)):
+    rows = await db.fetch("SELECT key, value FROM app_settings ORDER BY key")
+    return {r["key"]: r["value"] for r in rows}
+
+
+class SettingsBody(BaseModel):
+    contact_phone: str = ""
+    contact_phone_display: str = ""
+    contact_tg: str = ""
+
+
+@router.put("/settings")
+async def update_settings(body: SettingsBody, admin: dict = Depends(get_current_admin)):
+    data = {
+        "contact_phone": body.contact_phone.strip(),
+        "contact_phone_display": body.contact_phone_display.strip(),
+        "contact_tg": body.contact_tg.strip().lstrip("@"),
+    }
+    for key, value in data.items():
+        await db.execute(
+            "INSERT INTO app_settings(key,value) VALUES($1,$2) ON CONFLICT(key) DO UPDATE SET value=$2",
+            key, value,
+        )
+    await _audit(admin["id"], "settings_update", data)
+    return {"ok": True}

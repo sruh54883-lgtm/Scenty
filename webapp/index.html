@@ -447,6 +447,7 @@ let REQUESTS = [];
 let GIFTS_RAW = [];
 let CATALOG_RAW = [];
 let REQUESTS_RAW = [];
+let CONTACT = {phone:'+998773831111', phone_display:'+998 77 383 11 11', tg:'Scentioffice1'};
 
 /* =================== I18N =================== */
 const L = {
@@ -541,16 +542,18 @@ function reprocessData(){
     name:l==='uz'?(d.name_uz||d.name_ru):d.name_ru,
     tag:l==='uz'?(d.tag_uz||d.tag_ru||''):d.tag_ru||'',
     icon:'diffuser',
+    image_url:d.image_url||'',
     desc:l==='uz'?(d.description_uz||d.description_ru||''):d.description_ru||'',
-    specs:Array.isArray(d.specs)?d.specs:[],
+    specs:Array.isArray(d.specs)?d.specs:(d.specs&&typeof d.specs==='object'?Object.entries(d.specs):[]),
     feats:d.features||[],
   }));
   AROMAS=CATALOG_RAW.filter(d=>d.type==='scent'||d.type==='aroma').map(d=>({
     name:l==='uz'?(d.name_uz||d.name_ru):d.name_ru,
     tag:l==='uz'?(d.tag_uz||d.tag_ru||''):d.tag_ru||'',
     icon:'spray',
+    image_url:d.image_url||'',
     desc:l==='uz'?(d.description_uz||d.description_ru||''):d.description_ru||'',
-    specs:Array.isArray(d.specs)?d.specs:[],
+    specs:Array.isArray(d.specs)?d.specs:(d.specs&&typeof d.specs==='object'?Object.entries(d.specs):[]),
     feats:d.features||[],
   }));
   const statusCls={pending:'wait',approved:'done',shipping:'done',confirmed:'done',client_confirmed:'done',delivered:'done',rejected:'rej'};
@@ -578,7 +581,11 @@ async function apiFetch(path, opts={}){
   if(_tgInitData) headers['X-Telegram-Data']=_tgInitData;
   else if(_tgUserId) headers['X-Telegram-Id']=_tgUserId;
   const r=await fetch(path,{...opts,headers:{...headers,...(opts.headers||{})}});
-  if(!r.ok) throw new Error('HTTP '+r.status);
+  if(!r.ok){
+    let msg='HTTP '+r.status;
+    try{const j=await r.json();if(j.detail)msg=j.detail;}catch(e){}
+    throw new Error(msg);
+  }
   return r.json();
 }
 
@@ -650,6 +657,15 @@ async function loadCatalog(){
   }catch(e){}
 }
 
+async function loadSettings(){
+  try{
+    const s=await fetch('/api/settings').then(r=>r.json());
+    if(s.contact_phone) CONTACT.phone=s.contact_phone;
+    if(s.contact_phone_display) CONTACT.phone_display=s.contact_phone_display;
+    if(s.contact_tg) CONTACT.tg=s.contact_tg;
+  }catch(e){}
+}
+
 function buildTxnsGroups(){
   const all=[];
   TXNS_RAW.forEach(t=>{
@@ -657,16 +673,18 @@ function buildTxnsGroups(){
     const isRefund=t.status==='refund';
     all.push({
       _ts:new Date(t.created_at).getTime(),
-      type: isRefund ? 'out' : 'in',
+      type: 'in',
       title: isRefund ? tx('txn_refund') : tx('purchase'),
       sum:fmt(t.amount)+' сум',
-      amt: isRefund ? '-'+fmt(t.cashback_amount||0) : '+'+fmt(t.cashback_amount||0),
+      amt: '+'+fmt(t.cashback_amount||0),
       status:si.cls,statusText:si.text,
       icon: isRefund ? 'wallet' : 'cart',
     });
   });
   SPENDS_RAW.forEach(s=>{
-    all.push({_ts:new Date(s.created_at).getTime(),type:'out',title:USER.lang==='uz'?"Keshbek bilan to'lov":'Оплата кешбэком',sum:'',amt:'-'+fmt(s.amount),status:'spent',statusText:USER.lang==='uz'?"Sarflandi":'Списано',icon:'wallet'});
+    const isGift=!!s.gift_request_id;
+    const spendTitle=isGift?(USER.lang==='uz'?"Sovg'a xaridi":'Покупка подарка'):(USER.lang==='uz'?"Keshbek bilan to'lov":'Оплата кешбэком');
+    all.push({_ts:new Date(s.created_at).getTime(),type:'out',title:spendTitle,sum:'',amt:'-'+fmt(s.amount),status:'spent',statusText:USER.lang==='uz'?"Sarflandi":'Списано',icon:isGift?'gift':'wallet'});
   });
   all.sort((a,b)=>b._ts-a._ts);
   const groups={};
@@ -687,13 +705,17 @@ function haptic(t='light'){try{Telegram.WebApp.HapticFeedback.impactOccurred(t);
 function renderHome(){
   const giftCards = GIFTS.slice(0,4).map(g=>`
     <div class="gift-card" onclick="openGiftDetail(${g.id})">
-      <div class="pic">${g.image_url?`<img src="${g.image_url}" style="width:100%;height:100%;object-fit:cover;border-radius:inherit" onerror="this.style.display='none'">`:ICONS[g.icon]}</div>
+      <div class="pic" style="${g.image_url?'background:linear-gradient(145deg,#f0f5ff,#e8eef9);padding:8px;box-sizing:border-box;':''}">
+        ${g.image_url?`<img src="${g.image_url}" style="width:100%;height:100%;object-fit:contain;display:block;filter:drop-shadow(0 4px 12px rgba(0,0,0,.12));" onerror="this.style.display='none'">`:ICONS[g.icon]}
+      </div>
       <div class="body"><div class="gname">${g.name}</div><div class="gprice">${fmt(g.price)} сум</div></div>
     </div>`).join('');
 
   const catCards = [...DEVICES,...AROMAS].slice(0,4).map((c,i)=>`
     <div class="cat-card" onclick="openCatDetail('${i<DEVICES.length?'device':'aroma'}',${i<DEVICES.length?i:i-DEVICES.length})">
-      <div class="pic">${ICONS[c.icon]}</div>
+      <div class="pic" style="${c.image_url?'background:linear-gradient(145deg,#f0f5ff,#e8eef9);padding:10px;box-sizing:border-box;align-items:center;justify-content:center;':''}">
+        ${c.image_url?`<img src="${c.image_url}" style="width:100%;height:100%;object-fit:contain;display:block;filter:drop-shadow(0 4px 12px rgba(14,55,163,.13));" onerror="this.style.display='none'">`:(ICONS[c.icon]||'')}
+      </div>
       <div class="body"><div class="cname">${c.name}</div><span class="tag">${c.tag}</span></div>
     </div>`).join('');
 
@@ -736,7 +758,9 @@ function renderGifts(){
     const short = g.price>USER.balance;
     return `<div class="gift-grid-card" onclick="openGiftDetail(${g.id})">
       ${short?`<div class="badge-short">${tx('not_enough')}</div>`:''}
-      <div class="pic">${g.image_url?`<img src="${g.image_url}" style="width:100%;height:100%;object-fit:cover;border-radius:inherit" onerror="this.style.display='none'">`:ICONS[g.icon]}</div>
+      <div class="pic" style="${g.image_url?'background:linear-gradient(145deg,#f0f5ff,#e8eef9);padding:8px;box-sizing:border-box;':''}">
+        ${g.image_url?`<img src="${g.image_url}" style="width:100%;height:100%;object-fit:contain;display:block;filter:drop-shadow(0 4px 14px rgba(0,0,0,.13));" onerror="this.style.display='none'">`:ICONS[g.icon]}
+      </div>
       <div class="body"><div class="gname">${g.name}</div><div class="gprice">${fmt(g.price)} сум</div></div>
     </div>`;
   }).join('');
@@ -780,16 +804,24 @@ function renderHistory(){
 }
 
 /* =================== RENDER: CATALOG =================== */
+function _catIc(item){
+  if(item.image_url) return `<div style="width:46px;height:46px;border-radius:14px;background:linear-gradient(145deg,#f0f5ff,#e8eef9);display:flex;align-items:center;justify-content:center;padding:5px;box-sizing:border-box;flex-shrink:0;"><img src="${item.image_url}" style="width:100%;height:100%;object-fit:contain;display:block;filter:drop-shadow(0 2px 6px rgba(14,55,163,.12));" onerror="this.style.display='none'"></div>`;
+  return ICONS[item.icon]||'';
+}
 function renderCatalog(){
   const devRows = DEVICES.map((d,i)=>`
     <div class="cat-row" onclick="openCatDetail('device',${i})">
-      <div class="ic">${ICONS[d.icon]}</div>
+      <div class="ic" style="${d.image_url?'padding:0;background:transparent;overflow:visible':''}">
+        ${d.image_url?`<div style="width:46px;height:46px;border-radius:14px;background:linear-gradient(145deg,#f0f5ff,#e8eef9);display:flex;align-items:center;justify-content:center;padding:5px;box-sizing:border-box;"><img src="${d.image_url}" style="width:100%;height:100%;object-fit:contain;display:block;filter:drop-shadow(0 2px 6px rgba(14,55,163,.12));" onerror="this.style.display='none'"></div>`:(ICONS[d.icon]||'')}
+      </div>
       <div class="info"><div class="t">${d.name}</div><span class="tag">${d.tag}</span></div>
       <div class="chev">${ICONS.chev}</div>
     </div>`).join('');
   const aromaRows = AROMAS.map((a,i)=>`
     <div class="cat-row" onclick="openCatDetail('aroma',${i})">
-      <div class="ic">${ICONS[a.icon]}</div>
+      <div class="ic" style="${a.image_url?'padding:0;background:transparent;overflow:visible':''}">
+        ${a.image_url?`<div style="width:46px;height:46px;border-radius:14px;background:linear-gradient(145deg,#f0f5ff,#e8eef9);display:flex;align-items:center;justify-content:center;padding:5px;box-sizing:border-box;"><img src="${a.image_url}" style="width:100%;height:100%;object-fit:contain;display:block;filter:drop-shadow(0 2px 6px rgba(14,55,163,.12));" onerror="this.style.display='none'"></div>`:(ICONS[a.icon]||'')}
+      </div>
       <div class="info"><div class="t">${a.name}</div><span class="tag">${a.tag}</span></div>
       <div class="chev">${ICONS.chev}</div>
     </div>`).join('');
@@ -975,9 +1007,9 @@ function openGiftDetail(id){
   const enough = USER.balance>=g.price;
   const remain = USER.balance - g.price;
   openSheet(`
-    <div class="sheet-ic big" style="${g.image_url?'padding:0;overflow:hidden':''}">
-      ${g.image_url?`<img src="${g.image_url}" style="width:100%;height:100%;object-fit:cover">`:ICONS[g.icon]}
-    </div>
+    ${g.image_url
+      ? `<div style="width:100%;height:200px;border-radius:20px;overflow:hidden;margin-bottom:14px;background:linear-gradient(145deg,#f0f5ff,#e8eef9);display:flex;align-items:center;justify-content:center;padding:16px;box-sizing:border-box;"><img src="${g.image_url}" style="max-width:100%;max-height:168px;object-fit:contain;display:block;filter:drop-shadow(0 8px 24px rgba(0,0,0,.15));" onerror="this.style.display='none'"></div>`
+      : `<div class="sheet-ic big">${ICONS[g.icon]}</div>`}
     <h3>${g.name}</h3>
     <p class="sheet-text" style="text-align:center;">${g.desc}</p>
     <div class="kv-table">
@@ -985,27 +1017,17 @@ function openGiftDetail(id){
       <div class="kv"><span class="k">${tx('your_cashback')}</span><span class="v blue">${fmt(USER.balance)} сум</span></div>
       <div class="kv"><span class="k">${tx('remainder_lbl')}</span><span class="v ${enough?'green':'red'}">${enough?fmt(remain)+' сум':tx('not_enough')}</span></div>
     </div>
-    <button class="btn btn-primary" ${enough?`onclick="giftRequest('${g.name}',${g.id})"`:' disabled'}>${enough?tx('order_gift'):tx('no_funds_btn')}</button>`);
-}
-function giftRequest(name){
-  haptic('medium');
-  try{Telegram.WebApp.HapticFeedback.notificationOccurred('success');}catch(e){}
-  closeSheet();
-  setTimeout(()=>openSheet(`
-    <div class="success-wrap">
-      <div class="sc-ring"></div>
-      <div class="sc-circle"><svg viewBox="0 0 24 24"><path d="m5 13 4 4L19 7"/></svg></div>
-    </div>
-    <h3>${tx('request_sent')}</h3>
-    <p class="sheet-text" style="text-align:center;">«${name}» ${tx('request_sent_text')}</p>
-    <button class="btn btn-primary" onclick="closeSheet()">${tx('done_btn')}</button>`),250);
+    <button class="btn btn-primary" ${enough?`onclick="giftRequest(${JSON.stringify(g.name)},${g.id})"`:' disabled'}>${enough?tx('order_gift'):tx('no_funds_btn')}</button>`);
 }
 
 /* =================== CATALOG DETAIL =================== */
 function openCatDetail(type,i){
   const c = type==='device'?DEVICES[i]:AROMAS[i];
+  const heroHtml = c.image_url
+    ? `<div style="width:100%;height:220px;border-radius:20px;overflow:hidden;margin-bottom:14px;background:linear-gradient(145deg,#f0f5ff,#e8eef9);display:flex;align-items:center;justify-content:center;padding:16px;box-sizing:border-box;"><img src="${c.image_url}" style="max-width:100%;max-height:188px;object-fit:contain;display:block;filter:drop-shadow(0 8px 24px rgba(14,55,163,.15));" onerror="this.style.display='none'"></div>`
+    : `<div class="sheet-ic big">${ICONS[c.icon]}</div>`;
   openSheet(`
-    <div class="sheet-ic big">${ICONS[c.icon]}</div>
+    ${heroHtml}
     <h3>${c.name}</h3>
     <p class="sheet-sub">${c.tag}</p>
     <p class="sheet-text">${c.desc}</p>
@@ -1017,14 +1039,32 @@ function openCatDetail(type,i){
 }
 
 /* =================== PRIVACY =================== */
-function openPrivacy(){
+async function openPrivacy(){
   openSheet(`
     <div class="sheet-ic">${ICONS.shield}</div>
     <h3>${tx('privacy_title')}</h3>
-    <p class="sheet-text">${tx('privacy_t1')}</p>
-    <p class="sheet-text">${tx('privacy_t2')}</p>
-    <button class="btn btn-primary" style="margin-bottom:0;" onclick="alert('Файл политики будет загружен')">${ICONS.download} ${tx('download_btn')}</button>
+    <p class="sheet-text" id="privacyText">${tx('privacy_t1')}</p>
+    <button class="btn btn-primary" style="margin-bottom:0;display:none" id="privacyDlBtn">${ICONS.download} ${tx('download_btn')}</button>
     <button class="btn btn-ghost" onclick="closeSheet()">${tx('ok_btn')}</button>`);
+  try{
+    const p=await apiFetch('/api/privacy');
+    const txt=USER.lang==='uz'?(p.content_uz||p.content_ru):p.content_ru;
+    const el=document.getElementById('privacyText');
+    if(el&&txt) el.textContent=txt;
+    if(p.file_url){
+      const btn=document.getElementById('privacyDlBtn');
+      if(btn){
+        btn.style.display='';
+        btn.onclick=()=>{
+          try{
+            const tg=window.Telegram&&window.Telegram.WebApp;
+            if(tg&&tg.openLink) tg.openLink(p.file_url);
+            else window.open(p.file_url,'_blank');
+          }catch(e){}
+        };
+      }
+    }
+  }catch(e){}
 }
 
 /* =================== AGENT =================== */
@@ -1033,12 +1073,12 @@ function openAgent(){
     <div class="sheet-ic">${ICONS.send}</div>
     <h3>${tx('agent_title')}</h3>
     <p class="sheet-sub">${tx('agent_sub')}</p>
-    <div class="link-row" style="margin-top:18px;cursor:pointer" onclick="(Telegram&&Telegram.WebApp&&Telegram.WebApp.openLink?Telegram.WebApp.openLink('tel:+998773831111'):window.open('tel:+998773831111'))">
-      <div class="ic">${ICONS.phoneIcon}</div><div class="lt">+998 77 383 11 11</div><div class="chev">${ICONS.chev}</div>
-    </div>
-    <div class="link-row" style="cursor:pointer" onclick="(Telegram&&Telegram.WebApp&&Telegram.WebApp.openTelegramLink?Telegram.WebApp.openTelegramLink('https://t.me/Scentioffice1'):window.open('https://t.me/Scentioffice1','_blank'))">
-      <div class="ic">${ICONS.tg}</div><div class="lt">@Scentioffice1</div><div class="chev">${ICONS.chev}</div>
-    </div>
+    <a class="link-row" href="tel:${CONTACT.phone}" style="margin-top:18px;cursor:pointer;text-decoration:none;color:inherit" onclick="(function(e){try{var tg=window.Telegram&&window.Telegram.WebApp;if(tg&&tg.openLink){e.preventDefault();tg.openLink('tel:${CONTACT.phone}');}else{e.preventDefault();window.location.href='tel:${CONTACT.phone}';}}catch(err){}})( event);">
+      <div class="ic">${ICONS.phoneIcon}</div><div class="lt">${CONTACT.phone_display}</div><div class="chev">${ICONS.chev}</div>
+    </a>
+    <a class="link-row" href="https://t.me/${CONTACT.tg}" target="_blank" style="cursor:pointer;text-decoration:none;color:inherit" onclick="(function(e){try{var tg=window.Telegram&&window.Telegram.WebApp;if(tg&&tg.openTelegramLink){e.preventDefault();tg.openTelegramLink('https://t.me/${CONTACT.tg}');}}catch(err){}})( event);">
+      <div class="ic">${ICONS.tg}</div><div class="lt">@${CONTACT.tg}</div><div class="chev">${ICONS.chev}</div>
+    </a>
     <button class="btn btn-ghost" style="margin-top:18px;" onclick="closeSheet()">${tx('close_btn')}</button>`);
 }
 
@@ -1112,9 +1152,19 @@ async function doSpendApi(amount){
 // Override spendSuccess to use API
 const _origSpendSuccess=typeof spendSuccess!=='undefined'?spendSuccess:null;
 window.spendSuccess=async function(){
+  const confirmBtn=document.querySelector('#sheet .btn.btn-primary');
+  if(confirmBtn){if(confirmBtn.dataset.loading)return;confirmBtn.dataset.loading='1';confirmBtn.disabled=true;confirmBtn.textContent='...';}
   haptic('heavy');
   try{Telegram.WebApp.HapticFeedback.notificationOccurred('success');}catch(e){}
-  await doSpendApi(spendAmount);
+  const ok=await doSpendApi(spendAmount);
+  if(!ok){
+    if(confirmBtn){confirmBtn.disabled=false;delete confirmBtn.dataset.loading;confirmBtn.textContent=tx('confirm_spend');}
+    openSheet(`<div class="sheet-ic" style="background:#fee2e2">⚠️</div>
+      <h3>Ошибка</h3>
+      <p class="sheet-sub">Не удалось списать кешбэк. Попробуйте ещё раз.</p>
+      <button class="btn btn-ghost" onclick="closeSheet()">${tx('close_btn')}</button>`);
+    return;
+  }
   // Обновляем фоновые экраны сразу — до закрытия шторки любым способом
   try{renderHome();renderGifts();renderProfile();}catch(e){}
   const colors=['#16A34A','#2E7BD6','#0E37A3','#F59E0B','#EC4899','#22C55E'];
@@ -1137,15 +1187,34 @@ window.spendSuccess=async function(){
 };
 
 /* =================== GIFT REQUEST via API =================== */
+let _giftReqInProgress=false;
 window.giftRequest=async function(name, giftId){
+  if(_giftReqInProgress) return;
+  _giftReqInProgress=true;
+  // Блокируем кнопку
+  const btn=document.querySelector('#sheet .btn.btn-primary');
+  if(btn){btn.disabled=true;btn.textContent='...';}
   haptic('medium');
-  try{Telegram.WebApp.HapticFeedback.notificationOccurred('success');}catch(e){}
-  closeSheet();
+  let ok=false;
   if(giftId && (_tgInitData||_tgUserId)){
-    try{ await apiFetch('/api/gift-requests',{method:'POST',body:JSON.stringify({gift_id:giftId})}); }catch(e){}
-    await loadRequests(); await loadUserData();
-    renderHome(); renderGifts(); renderProfile();
+    try{
+      await apiFetch('/api/gift-requests',{method:'POST',body:JSON.stringify({gift_id:giftId})});
+      ok=true;
+    }catch(e){
+      _giftReqInProgress=false;
+      if(btn){btn.disabled=false;btn.textContent=tx('order_gift');}
+      openSheet(`<div class="sheet-ic" style="background:#fee2e2">⚠️</div>
+        <h3>Ошибка</h3>
+        <p class="sheet-sub">${e.message||'Попробуйте ещё раз'}</p>
+        <button class="btn btn-ghost" onclick="closeSheet()">${tx('close_btn')}</button>`);
+      return;
+    }
   }
+  _giftReqInProgress=false;
+  if(!ok) return;
+  try{Telegram.WebApp.HapticFeedback.notificationOccurred('success');}catch(e){}
+  await loadRequests(); await loadUserData();
+  renderHome(); renderGifts(); renderProfile();
   setTimeout(()=>openSheet(`
     <div class="success-wrap">
       <div class="sc-ring"></div>
@@ -1173,6 +1242,9 @@ async function init(){
 
   // Первичный рендер со статическими данными (сразу)
   renderHome();renderGifts();renderHistory();renderCatalog();renderProfile();renderTabbar();
+
+  // Подгружаем настройки (контакты) до рендера
+  await loadSettings();
 
   // Подгружаем реальные данные из API
   const hasApi = await loadUserData();

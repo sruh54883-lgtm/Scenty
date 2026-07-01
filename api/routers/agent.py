@@ -120,24 +120,67 @@ async def get_user(user_id: int, agent: dict = Depends(get_current_agent)):
     if ids:
         user = await db.fetchrow(
             """
-            SELECT id, first_name, last_name, business_name, phone,
-                   region_id, district_id, created_at
-            FROM users WHERE id = $1 AND district_id = ANY($2::int[])
+            SELECT u.id, u.first_name, u.last_name, u.business_name, u.phone,
+                   u.cashback_balance, u.telegram_id, u.language,
+                   u.region_id, u.district_id, u.created_at,
+                   d.name_ru AS district_name, r.name_ru AS region_name
+            FROM users u
+            LEFT JOIN districts d ON d.id = u.district_id
+            LEFT JOIN regions r ON r.id = u.region_id
+            WHERE u.id = $1 AND u.district_id = ANY($2::int[])
             """,
             user_id, ids,
         )
     else:
         user = await db.fetchrow(
             """
-            SELECT id, first_name, last_name, business_name, phone,
-                   region_id, district_id, created_at
-            FROM users WHERE id = $1
+            SELECT u.id, u.first_name, u.last_name, u.business_name, u.phone,
+                   u.cashback_balance, u.telegram_id, u.language,
+                   u.region_id, u.district_id, u.created_at,
+                   d.name_ru AS district_name, r.name_ru AS region_name
+            FROM users u
+            LEFT JOIN districts d ON d.id = u.district_id
+            LEFT JOIN regions r ON r.id = u.region_id
+            WHERE u.id = $1
             """,
             user_id,
         )
     if user is None:
         raise HTTPException(status_code=404, detail="Клиент не найден")
-    return user
+
+    # История транзакций
+    txns = await db.fetch(
+        """SELECT id, amount, cashback_amount, status, note, created_at
+           FROM transactions WHERE user_id = $1
+           ORDER BY created_at DESC LIMIT 50""",
+        user_id,
+    )
+    # История кешбэк-списаний
+    spends = await db.fetch(
+        """SELECT cs.id, cs.amount, cs.created_at, g.name_ru AS gift_name
+           FROM cashback_spends cs
+           LEFT JOIN gift_requests gr ON gr.id = cs.gift_request_id
+           LEFT JOIN gifts g ON g.id = gr.gift_id
+           WHERE cs.user_id = $1
+           ORDER BY cs.created_at DESC LIMIT 50""",
+        user_id,
+    )
+    # Заявки на подарки
+    gift_reqs = await db.fetch(
+        """SELECT gr.id, gr.status, gr.price_paid, gr.created_at, g.name_ru AS gift_name, g.image_url
+           FROM gift_requests gr
+           JOIN gifts g ON g.id = gr.gift_id
+           WHERE gr.user_id = $1
+           ORDER BY gr.created_at DESC LIMIT 20""",
+        user_id,
+    )
+
+    return {
+        **dict(user),
+        "transactions": [dict(t) for t in txns],
+        "cashback_spends": [dict(s) for s in spends],
+        "gift_requests": [dict(g) for g in gift_reqs],
+    }
 
 
 class TxBody(BaseModel):
@@ -148,11 +191,19 @@ class TxBody(BaseModel):
 
 @router.post("/transactions")
 async def create_transaction(body: TxBody, agent: dict = Depends(get_current_agent)):
-    user = await db.fetchrow("SELECT id FROM users WHERE id = $1 AND is_active = TRUE", body.user_id)
+    user = await db.fetchrow("SELECT id, district_id FROM users WHERE id = $1 AND is_active = TRUE", body.user_id)
     if user is None:
         raise HTTPException(status_code=404, detail="Клиент не найден")
+    # Агент может создавать транзакции только для клиентов своих районов
+    agent_districts = await db.fetch(
+        "SELECT district_id FROM agent_districts WHERE agent_id = $1", agent["id"]
+    )
+    if agent_districts:  # если у агента назначены районы — проверяем
+        allowed_ids = {r["district_id"] for r in agent_districts}
+        if user["district_id"] not in allowed_ids:
+            raise HTTPException(status_code=403, detail="Клиент не из вашего района")
 
-    cashback = body.amount * settings.CASHBACK_PERCENT // 100
+    cashback = round(body.amount * settings.CASHBACK_PERCENT / 100)
     tx = await db.fetchrow(
         """
         INSERT INTO transactions (user_id, agent_id, amount, cashback_amount, status, note)
@@ -239,7 +290,7 @@ class GrStatusBody(BaseModel):
 _AGENT_TRANSITIONS: dict[str, list[str]] = {
     "pending":   ["approved", "rejected"],
     "approved":  ["shipping", "rejected"],
-    "shipping":  ["rejected"],
+    "shipping":  ["confirmed", "rejected"],
     "confirmed": ["delivered"],
     "delivered": [],
     "rejected":  [],
@@ -314,36 +365,139 @@ async def update_gift_request_status(
 
 @router.get("/stats")
 async def my_stats(agent: dict = Depends(get_current_agent)):
+    # Получаем районы агента
+    district_rows = await db.fetch(
+        "SELECT district_id FROM agent_districts WHERE agent_id = $1", agent["id"]
+    )
+    dist_ids = [r["district_id"] for r in district_rows]
+
+    # Если районы не назначены — агент видит 0 (нет своих клиентов)
+    if not dist_ids:
+        return {
+            "approved_count": 0, "pending_count": 0,
+            "total_amount": 0, "total_cashback": 0,
+            "client_count": 0, "clients_balance": 0,
+            "total_cashback_issued": 0, "total_cashback_spent": 0,
+            "total_gift_requests": 0, "pending_gift_requests": 0,
+            "total_gifts_value": 0,
+        }
+
+    # Транзакции ТЕКУЩЕГО МЕСЯЦА по клиентам в районах агента
     row = await db.fetchrow(
         """
         SELECT
-            COUNT(*) FILTER (WHERE status = 'approved') AS approved_count,
-            COUNT(*) FILTER (WHERE status = 'pending') AS pending_count,
-            COALESCE(SUM(amount) FILTER (WHERE status = 'approved'), 0) AS total_amount,
-            COALESCE(SUM(cashback_amount) FILTER (WHERE status = 'approved'), 0) AS total_cashback
-        FROM transactions
-        WHERE agent_id = $1
-          AND created_at >= date_trunc('month', NOW())
+            COUNT(*) FILTER (WHERE t.status IN ('approved','confirmed')) AS approved_count,
+            COUNT(*) FILTER (WHERE t.status = 'pending') AS pending_count,
+            COALESCE(SUM(t.amount) FILTER (WHERE t.status IN ('approved','confirmed')), 0) AS total_amount,
+            COALESCE(SUM(t.cashback_amount) FILTER (WHERE t.status IN ('approved','confirmed')), 0) AS total_cashback
+        FROM transactions t
+        JOIN users u ON u.id = t.user_id
+        WHERE u.district_id = ANY($1::int[])
+          AND t.created_at >= date_trunc('month', NOW())
         """,
-        agent["id"],
+        dist_ids,
     )
 
+    # Клиенты в районах агента
     client_row = await db.fetchrow(
         """
-        SELECT
-            COUNT(*) AS client_count,
-            COALESCE(SUM(cashback_balance), 0) AS clients_balance
+        SELECT COUNT(*) AS client_count,
+               COALESCE(SUM(cashback_balance), 0) AS clients_balance
         FROM users
-        WHERE is_active = TRUE
-          AND district_id IN (
-              SELECT district_id FROM agent_districts WHERE agent_id = $1
-          )
+        WHERE is_active = TRUE AND district_id = ANY($1::int[])
         """,
-        agent["id"],
+        dist_ids,
+    )
+
+    # Весь кешбэк выдан за всё время клиентам в районах агента
+    issued_row = await db.fetchrow(
+        """
+        SELECT COALESCE(SUM(t.cashback_amount) FILTER (WHERE t.status IN ('approved','confirmed')), 0) AS total_cashback_issued
+        FROM transactions t
+        JOIN users u ON u.id = t.user_id
+        WHERE u.district_id = ANY($1::int[])
+        """,
+        dist_ids,
+    )
+
+    # Потрачено кешбэка: только прямые оплаты (без подарков) — совпадает с логикой admin/stats
+    spent_row = await db.fetchrow(
+        """
+        SELECT COALESCE(SUM(cs.amount) FILTER (WHERE cs.gift_request_id IS NULL), 0) AS total_cashback_spent
+        FROM cashback_spends cs
+        JOIN users u ON u.id = cs.user_id
+        WHERE u.district_id = ANY($1::int[])
+        """,
+        dist_ids,
+    )
+
+    # Заявки на подарки: исключаем отклонённые — совпадает с логикой admin/stats
+    gift_row = await db.fetchrow(
+        """
+        SELECT
+            COUNT(*) FILTER (WHERE gr.status != 'rejected') AS total_gift_requests,
+            COUNT(*) FILTER (WHERE gr.status = 'pending') AS pending_gift_requests,
+            COALESCE(SUM(gr.price_paid) FILTER (WHERE gr.status != 'rejected'), 0) AS total_gifts_value
+        FROM gift_requests gr
+        JOIN users u ON u.id = gr.user_id
+        WHERE u.district_id = ANY($1::int[])
+        """,
+        dist_ids,
     )
 
     return {
         **dict(row),
-        "client_count": client_row["client_count"],
-        "clients_balance": client_row["clients_balance"],
+        "client_count": int(client_row["client_count"]),
+        "clients_balance": int(client_row["clients_balance"]),
+        "total_cashback_issued": int(issued_row["total_cashback_issued"]),
+        "total_cashback_spent": int(spent_row["total_cashback_spent"]),
+        "total_gift_requests": int(gift_row["total_gift_requests"]),
+        "pending_gift_requests": int(gift_row["pending_gift_requests"]),
+        "total_gifts_value": int(gift_row["total_gifts_value"]),
     }
+
+
+@router.get("/stats/by-district")
+async def stats_by_district(
+    date_from: str = "",
+    date_to: str = "",
+    agent: dict = Depends(get_current_agent),
+):
+    district_rows = await db.fetch(
+        "SELECT district_id FROM agent_districts WHERE agent_id = $1", agent["id"]
+    )
+    dist_ids = [r["district_id"] for r in district_rows]
+    if not dist_ids:
+        return []
+
+    # Строим условие по датам
+    date_cond = ""
+    params: list = [dist_ids]
+    if date_from:
+        params.append(date_from)
+        date_cond += f" AND t.created_at::date >= ${len(params)}::date"
+    if date_to:
+        params.append(date_to)
+        date_cond += f" AND t.created_at::date <= ${len(params)}::date"
+
+    rows = await db.fetch(
+        f"""
+        SELECT
+            d.id                AS district_id,
+            d.name_ru           AS district_name,
+            r.name_ru           AS region_name,
+            COUNT(DISTINCT u.id)                                                          AS client_count,
+            COUNT(t.id) FILTER (WHERE t.status IN ('approved','confirmed'){date_cond})    AS tx_count,
+            COALESCE(SUM(t.amount)          FILTER (WHERE t.status IN ('approved','confirmed'){date_cond}), 0) AS total_amount,
+            COALESCE(SUM(t.cashback_amount) FILTER (WHERE t.status IN ('approved','confirmed'){date_cond}), 0) AS total_cashback
+        FROM districts d
+        LEFT JOIN regions r ON r.id = d.region_id
+        LEFT JOIN users u ON u.district_id = d.id AND u.is_active = TRUE
+        LEFT JOIN transactions t ON t.user_id = u.id
+        WHERE d.id = ANY($1::int[])
+        GROUP BY d.id, d.name_ru, r.name_ru
+        ORDER BY total_amount DESC NULLS LAST
+        """,
+        *params,
+    )
+    return [dict(r) for r in rows]
