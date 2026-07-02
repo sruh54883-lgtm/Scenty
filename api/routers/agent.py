@@ -393,22 +393,18 @@ async def my_stats(
     df = date_from if date_from and _D_STATS.match(date_from) else None
     dt = date_to if date_to and _D_STATS.match(date_to) else None
 
-    # Строим условие по дате транзакций
-    date_cond = ""
+    # Транзакции по agent_id (прямая привязка — совпадает с логикой admin)
+    txn_params: list = [agent["id"]]
+    txn_date_cond = ""
     if df and dt:
-        date_cond = "AND t.created_at >= $2::date AND t.created_at < ($3::date + INTERVAL '1 day')"
+        txn_params.extend([df, dt])
+        txn_date_cond = "AND t.created_at >= $2::date AND t.created_at < ($3::date + INTERVAL '1 day')"
     elif df:
-        date_cond = "AND t.created_at >= $2::date"
+        txn_params.append(df)
+        txn_date_cond = "AND t.created_at >= $2::date"
     elif dt:
-        date_cond = "AND t.created_at < ($2::date + INTERVAL '1 day')"
-    else:
-        date_cond = "AND t.created_at >= date_trunc('month', NOW())"
-
-    params: list = [dist_ids]
-    if df:
-        params.append(df)
-    if dt:
-        params.append(dt)
+        txn_params.append(dt)
+        txn_date_cond = "AND t.created_at < ($2::date + INTERVAL '1 day')"
 
     row = await db.fetchrow(
         f"""
@@ -418,11 +414,10 @@ async def my_stats(
             COALESCE(SUM(t.amount) FILTER (WHERE t.status IN ('approved','confirmed')), 0) AS total_amount,
             COALESCE(SUM(t.cashback_amount) FILTER (WHERE t.status IN ('approved','confirmed')), 0) AS total_cashback
         FROM transactions t
-        JOIN users u ON u.id = t.user_id
-        WHERE u.district_id = ANY($1::int[])
-          {date_cond}
+        WHERE t.agent_id = $1
+          {txn_date_cond}
         """,
-        *params,
+        *txn_params,
     )
 
     # Клиенты в районах агента

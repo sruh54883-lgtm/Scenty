@@ -2057,13 +2057,49 @@ window.catDelFeature=i=>{catFeatures.splice(i,1);renderFeatures();};
    PAGE 6: AGENTS
    ============================================================ */
 const Agents={list:[]};
+let _agAdminPeriod='month',_agAdminFrom='',_agAdminTo='';
+function _agAdminDates(){
+  const now=new Date(),pad=n=>String(n).padStart(2,'0'),fmt0=d=>`${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
+  if(_agAdminPeriod==='7d'){const f=new Date(now);f.setDate(f.getDate()-6);return{df:fmt0(f),dt:fmt0(now)};}
+  if(_agAdminPeriod==='30d'){const f=new Date(now);f.setDate(f.getDate()-29);return{df:fmt0(f),dt:fmt0(now)};}
+  if(_agAdminPeriod==='month'){const f=new Date(now.getFullYear(),now.getMonth(),1);return{df:fmt0(f),dt:fmt0(now)};}
+  if(_agAdminPeriod==='custom') return{df:_agAdminFrom,dt:_agAdminTo};
+  return{df:'',dt:''};
+}
+function _agAdminFilterBar(){
+  const{df,dt}=_agAdminDates();
+  const chips=[{key:'7d',label:'7 дней'},{key:'30d',label:'30 дней'},{key:'month',label:'Этот месяц'},{key:'all',label:'Всё время'}];
+  return `<div style="display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin-bottom:16px;padding:12px 16px;background:#fff;border-radius:14px;box-shadow:0 1px 4px rgba(0,0,0,.07)">
+    <div style="display:flex;gap:6px;flex-wrap:wrap">${chips.map(c=>`<button class="btn btn-sm${_agAdminPeriod===c.key?' btn-primary':' btn-ghost'}" onclick="_setAgAdminPeriod('${c.key}')">${c.label}</button>`).join('')}</div>
+    <div style="display:flex;align-items:center;gap:6px;margin-left:8px">
+      <span style="font-size:13px;color:var(--muted)">с</span>
+      <input class="input" id="agAdmFrom" type="date" style="padding:5px 9px;font-size:13px;width:138px" value="${_agAdminPeriod==='custom'?_agAdminFrom:df}">
+      <span style="font-size:13px;color:var(--muted)">по</span>
+      <input class="input" id="agAdmTo" type="date" style="padding:5px 9px;font-size:13px;width:138px" value="${_agAdminPeriod==='custom'?_agAdminTo:dt}">
+      <button class="btn btn-primary btn-sm" onclick="_applyAgAdminFilter()">Применить</button>
+    </div>
+    <div style="flex:1"></div>
+    <button class="btn btn-primary btn-sm" onclick="agentEdit()">${I.plus}<span>Добавить агента</span></button>
+  </div>`;
+}
+function _setAgAdminPeriod(p){_agAdminPeriod=p;_agAdminFrom='';_agAdminTo='';loadAgents();}
+function _applyAgAdminFilter(){
+  const f=document.getElementById('agAdmFrom'),t=document.getElementById('agAdmTo');
+  if(f)_agAdminFrom=f.value;if(t)_agAdminTo=t.value;
+  _agAdminPeriod='custom';loadAgents();
+}
 async function pageAgents(){
   const c=$("#content");
-  c.innerHTML=`<div class="toolbar"><div class="spacer"></div>
-    <button class="btn btn-primary btn-sm" onclick="agentEdit()">${I.plus}<span>Добавить агента</span></button></div>
-    <div class="table-wrap"><table><thead><tr><th>Имя</th><th>Телефон</th><th>Районы</th><th>Транзакций/мес</th><th>Сумма продаж</th><th></th></tr></thead>
+  c.innerHTML=`${_agAdminFilterBar()}<div class="table-wrap"><table><thead><tr><th>Имя</th><th>Телефон</th><th>Районы</th><th>Транзакций</th><th>Сумма продаж</th><th></th></tr></thead>
     <tbody id="agBody">${loadingTable(6)}</tbody></table></div>`;
-  const data=await apiOrMock("/admin/agents",()=>MOCK.agents);
+  await loadAgents();
+}
+async function loadAgents(){
+  const{df,dt}=_agAdminDates();
+  const p=new URLSearchParams();
+  if(df)p.set('date_from',df);if(dt)p.set('date_to',dt);
+  const qs=p.toString();
+  const data=await apiOrMock(`/admin/agents${qs?'?'+qs:''}`,()=>MOCK.agents);
   Agents.list=Array.isArray(data)?data:(data?.items||[]);
   renderAgents();
 }
@@ -2732,7 +2768,24 @@ async function pageSettings(){
       btn.disabled = false; btn.innerHTML = `${I.check} Сохранить`;
     }
   });
+
+  // Опасная зона — сброс данных
+  const dangerZone = document.createElement('div');
+  dangerZone.style.cssText = 'margin-top:32px;padding-top:24px;border-top:1px solid var(--border);max-width:560px';
+  dangerZone.innerHTML = `<h3 style="color:var(--danger);margin:0 0 8px">Опасная зона</h3>
+    <p style="color:var(--muted);font-size:13px;margin:0 0 12px">Удаление всех транзакций, заявок на подарки, списаний кешбэка. Балансы клиентов сбросятся в 0. Действие необратимо.</p>
+    <button class="btn btn-sm" style="background:#fee2e2;color:#dc2626;border:1.5px solid #fca5a5" onclick="resetAllData()">🗑 Очистить все данные</button>`;
+  document.querySelector('#content .card')?.after(dangerZone);
 }
+
+window.resetAllData = async function(){
+  if(!confirm('ВНИМАНИЕ! Удалятся ВСЕ транзакции, заявки на подарки, списания кешбэка. Балансы клиентов сбросятся в 0.\n\nЭто действие НЕОБРАТИМО. Продолжить?')) return;
+  if(!confirm('Вы уверены? Это нельзя отменить!')) return;
+  try{
+    await api('/admin/reset-data',{method:'DELETE'});
+    toast('Все данные очищены','warn');
+  }catch(e){toast('Ошибка: '+(e.message||e),'err');}
+};
 
 /* ============================================================
    ROUTES MAP

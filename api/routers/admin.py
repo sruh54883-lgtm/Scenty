@@ -722,20 +722,33 @@ async def delete_diffuser(diffuser_id: int, admin: dict = Depends(get_current_ad
 
 # ============================================================ АГЕНТЫ
 @router.get("/agents")
-async def list_agents(admin: dict = Depends(get_current_admin)):
+async def list_agents(
+    admin: dict = Depends(get_current_admin),
+    date_from: str = "",
+    date_to: str = "",
+):
+    import re as _re_ag
+    _DAG = _re_ag.compile(r"^\d{4}-\d{2}-\d{2}$")
+    df = date_from if date_from and _DAG.match(date_from) else None
+    dt = date_to if date_to and _DAG.match(date_to) else None
+
+    if df and dt:
+        date_cond = f"t.created_at >= '{df}'::date AND t.created_at < ('{dt}'::date + INTERVAL '1 day')"
+    elif df:
+        date_cond = f"t.created_at >= '{df}'::date"
+    elif dt:
+        date_cond = f"t.created_at < ('{dt}'::date + INTERVAL '1 day')"
+    else:
+        date_cond = "t.created_at >= date_trunc('month', NOW())"
+
     return await db.fetch(
-        """
+        f"""
         SELECT a.id, a.name, a.phone, a.username, a.is_active, a.created_at,
                COUNT(DISTINCT t.id) AS transactions_count,
-               COUNT(DISTINCT t.id) FILTER (
-                   WHERE t.created_at >= date_trunc('month', NOW())
-                   AND t.status = 'approved'
-               ) AS txn_month,
-               COALESCE(SUM(t.amount) FILTER (
-                   WHERE t.created_at >= date_trunc('month', NOW())
-                   AND t.status = 'approved'
-               ), 0) AS sales_month,
-               array_remove(array_agg(DISTINCT d.name_ru), NULL) AS districts
+               COUNT(DISTINCT t.id) FILTER (WHERE {date_cond} AND t.status = 'approved') AS txn_month,
+               COALESCE(SUM(t.amount) FILTER (WHERE {date_cond} AND t.status = 'approved'), 0) AS sales_month,
+               array_remove(array_agg(DISTINCT d.name_ru), NULL) AS districts,
+               array_remove(array_agg(DISTINCT ad.district_id), NULL) AS district_ids
         FROM agents a
         LEFT JOIN transactions t ON t.agent_id = a.id
         LEFT JOIN agent_districts ad ON ad.agent_id = a.id
@@ -744,6 +757,18 @@ async def list_agents(admin: dict = Depends(get_current_admin)):
         ORDER BY a.created_at DESC
         """
     )
+
+
+@router.delete("/reset-data")
+async def reset_all_data(admin: dict = Depends(get_current_admin)):
+    """Сброс ВСЕХ транзакций, заявок на подарки, списаний кешбэка и балансов. НЕОБРАТИМО."""
+    async with db.get_pool().acquire() as conn:
+        async with conn.transaction():
+            await conn.execute("DELETE FROM cashback_spends")
+            await conn.execute("DELETE FROM gift_requests")
+            await conn.execute("DELETE FROM transactions")
+            await conn.execute("UPDATE users SET cashback_balance = 0")
+    return {"status": "ok", "message": "Все данные очищены"}
 
 
 class AgentBody(BaseModel):
