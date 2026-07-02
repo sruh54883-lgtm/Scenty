@@ -2273,6 +2273,39 @@ function _bcApply(edId, cmd){
 function bcFmt(cmd){ _bcApply('bcEdRu', cmd); }
 function bcFmtUz(cmd){ _bcApply('bcEdUz', cmd); }
 
+// Вставка блока соцсетей в конец редактора
+window._bcSocials = null;
+async function _bcLoadSocials(){
+  if(window._bcSocials) return window._bcSocials;
+  try{ window._bcSocials = await api("/admin/settings"); }
+  catch(e){ window._bcSocials = {}; }
+  return window._bcSocials;
+}
+async function _bcInsertSocials(edId){
+  const ed = document.getElementById(edId);
+  if(!ed) return;
+  const s = await _bcLoadSocials();
+  const tg = s.contact_tg ? `https://t.me/${s.contact_tg.replace(/^@/,'')}` : null;
+  const yt = s.youtube_url || null;
+  const ig = s.instagram_url || null;
+  const parts = [];
+  if(yt) parts.push(`<a href="${yt}">YouTube</a>`);
+  if(tg) parts.push(`<a href="${tg}">Telegram</a>`);
+  if(ig) parts.push(`<a href="${ig}">Instagram</a>`);
+  if(!parts.length){ toast("Сначала заполните соцсети в Настройках","err"); return; }
+  const line = parts.join(' | ');
+  ed.focus();
+  // Переходим в конец
+  const sel = window.getSelection();
+  const range = document.createRange();
+  range.selectNodeContents(ed);
+  range.collapse(false);
+  sel.removeAllRanges();
+  sel.addRange(range);
+  document.execCommand('insertHTML', false, '<br>' + line);
+  ed.querySelectorAll('a').forEach(a=>{ a.target='_blank'; a.rel='noopener'; });
+}
+
 // Конвертация contenteditable HTML → Telegram HTML (tree-walk, без потери тегов)
 function htmlToTgHtml(el){
   if(!el) return '';
@@ -2396,6 +2429,7 @@ async function pageCast(){
             <button type="button" class="bc-tb-btn" onmousedown="event.preventDefault()" onclick="bcFmt('underline')" title="Подчёркнутый"><u>U</u></button>
             <button type="button" class="bc-tb-btn" onmousedown="event.preventDefault()" onclick="bcFmt('createLink')" title="Ссылка">🔗</button>
             <button type="button" class="bc-tb-btn bc-tb-clear" onmousedown="event.preventDefault()" onclick="bcFmt('removeFormat')" title="Сбросить">Tx</button>
+            <button type="button" class="bc-tb-btn" onmousedown="event.preventDefault()" onclick="_bcInsertSocials('bcEdRu')" title="Вставить соцсети" style="font-size:11px;padding:2px 8px">🔗 Соцсети</button>
           </div>
           <div class="bc-editor" id="bcEdRu" contenteditable="true" placeholder="Текст сообщения на русском…"></div>
         </div>
@@ -2409,6 +2443,7 @@ async function pageCast(){
             <button type="button" class="bc-tb-btn" onmousedown="event.preventDefault()" onclick="bcFmtUz('underline')"><u>U</u></button>
             <button type="button" class="bc-tb-btn" onmousedown="event.preventDefault()" onclick="bcFmtUz('createLink')">🔗</button>
             <button type="button" class="bc-tb-btn bc-tb-clear" onmousedown="event.preventDefault()" onclick="bcFmtUz('removeFormat')">Tx</button>
+            <button type="button" class="bc-tb-btn" onmousedown="event.preventDefault()" onclick="_bcInsertSocials('bcEdUz')" title="Вставить соцсети" style="font-size:11px;padding:2px 8px">🔗 Соцсети</button>
           </div>
           <div class="bc-editor" id="bcEdUz" contenteditable="true" placeholder="O'zbekcha matn…"></div>
           <span class="muted" style="font-size:12px">Если оставить пустым — отправится RU текст всем</span>
@@ -2750,6 +2785,14 @@ async function pageSettings(){
           <input id="sf_tg" class="form-input" style="padding-left:28px" placeholder="Scentioffice1" value="">
         </div>
       </div>
+      <div class="form-group">
+        <label class="form-label">YouTube ссылка</label>
+        <input id="sf_youtube" class="form-input" placeholder="https://youtube.com/@scenti" value="">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Instagram ссылка</label>
+        <input id="sf_instagram" class="form-input" placeholder="https://instagram.com/scenti" value="">
+      </div>
       <button type="submit" class="btn btn-primary" id="sfBtn">${I.check} Сохранить</button>
     </form>
   </div>`);
@@ -2760,6 +2803,8 @@ async function pageSettings(){
     if(s.contact_phone) $("#sf_phone").value = s.contact_phone;
     if(s.contact_phone_display) $("#sf_phone_display").value = s.contact_phone_display;
     if(s.contact_tg) $("#sf_tg").value = s.contact_tg;
+    if(s.youtube_url) $("#sf_youtube").value = s.youtube_url;
+    if(s.instagram_url) $("#sf_instagram").value = s.instagram_url;
   }catch(e){ toast("Не удалось загрузить настройки","err"); }
 
   $("#settingsForm").addEventListener("submit", async e => {
@@ -2771,6 +2816,8 @@ async function pageSettings(){
         contact_phone: $("#sf_phone").value.trim(),
         contact_phone_display: $("#sf_phone_display").value.trim(),
         contact_tg: $("#sf_tg").value.trim(),
+        youtube_url: $("#sf_youtube").value.trim(),
+        instagram_url: $("#sf_instagram").value.trim(),
       })});
       toast("Настройки сохранены","ok");
     }catch(ex){

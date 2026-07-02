@@ -1902,6 +1902,8 @@ class SettingsBody(BaseModel):
     contact_phone: str = ""
     contact_phone_display: str = ""
     contact_tg: str = ""
+    youtube_url: str = ""
+    instagram_url: str = ""
 
 
 @router.put("/settings")
@@ -1910,6 +1912,8 @@ async def update_settings(body: SettingsBody, admin: dict = Depends(get_current_
         "contact_phone": body.contact_phone.strip(),
         "contact_phone_display": body.contact_phone_display.strip(),
         "contact_tg": body.contact_tg.strip().lstrip("@"),
+        "youtube_url": body.youtube_url.strip(),
+        "instagram_url": body.instagram_url.strip(),
     }
     for key, value in data.items():
         await db.execute(
