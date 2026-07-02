@@ -763,18 +763,25 @@ async def list_agents(
 async def reset_all_data(
     admin: dict = Depends(get_current_admin),
     include_users: bool = False,
+    nuclear: bool = False,
 ):
-    """Сброс ВСЕХ данных. include_users=true удаляет и клиентов. НЕОБРАТИМО."""
+    """Сброс данных. nuclear=true удаляет всё включая агентов и рассылки. НЕОБРАТИМО."""
     async with db.get_pool().acquire() as conn:
         async with conn.transaction():
             await conn.execute("DELETE FROM cashback_spends")
             await conn.execute("DELETE FROM gift_requests")
             await conn.execute("DELETE FROM transactions")
-            if include_users:
+            if nuclear or include_users:
                 await conn.execute("DELETE FROM users")
-            else:
-                await conn.execute("UPDATE users SET cashback_balance = 0")
-    msg = "Все данные включая клиентов очищены" if include_users else "Транзакции и заявки очищены"
+            if nuclear:
+                await conn.execute("DELETE FROM agents")
+                await conn.execute("DELETE FROM broadcasts")
+    if nuclear:
+        msg = "Полный сброс: клиенты, агенты, транзакции, рассылки удалены"
+    elif include_users:
+        msg = "Все данные включая клиентов очищены"
+    else:
+        msg = "Транзакции и заявки очищены"
     return {"status": "ok", "message": msg}
 
 
