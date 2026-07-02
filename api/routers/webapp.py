@@ -156,12 +156,15 @@ async def create_gift_request(body: GiftRequestBody, user: dict = Depends(get_cu
                 gift["price_cashback"],
                 user["id"],
             )
-            # stock уменьшается только при фактической доставке, не при заявке
+            if gift["stock_quantity"] is not None:
+                await conn.execute(
+                    "UPDATE gifts SET stock_quantity = stock_quantity - 1 WHERE id = $1",
+                    gift["id"],
+                )
             req = await conn.fetchrow(
-                "INSERT INTO gift_requests (user_id, gift_id, status, price_paid) VALUES ($1, $2, 'pending', $3) RETURNING id, status, created_at",
+                "INSERT INTO gift_requests (user_id, gift_id, status) VALUES ($1, $2, 'pending') RETURNING id, status, created_at",
                 user["id"],
                 gift["id"],
-                gift["price_cashback"],
             )
             await conn.execute(
                 "INSERT INTO cashback_spends (user_id, amount, gift_request_id) VALUES ($1, $2, $3)",

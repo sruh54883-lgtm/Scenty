@@ -1188,33 +1188,15 @@ window.spendSuccess=async function(){
 };
 
 /* =================== GIFT REQUEST via API =================== */
-let _giftReqInProgress=false;
 window.giftRequest=async function(name, giftId){
-  if(_giftReqInProgress||!giftId) return;
-  _giftReqInProgress=true;
-  const btn=document.querySelector('#sheet .btn.btn-primary');
-  if(btn){btn.disabled=true;btn.textContent='...';}
-  let success=false;
-  try{
-    try{Telegram.WebApp.HapticFeedback.impactOccurred('medium');}catch(e){}
-    await apiFetch('/api/gift-requests',{method:'POST',body:JSON.stringify({gift_id:giftId})});
-    success=true;
-  }catch(e){
-    if(btn){btn.disabled=false;btn.textContent=tx('order_gift');}
-    const errMsg=e.message||'Попробуйте ещё раз';
-    try{Telegram.WebApp.showAlert('⚠️ '+errMsg);}catch(_){
-      openSheet(`<div class="sheet-ic" style="background:#fee2e2">⚠️</div>
-        <h3>Ошибка обмена</h3>
-        <p class="sheet-sub">${errMsg}</p>
-        <button class="btn btn-ghost" onclick="closeSheet()">${tx('close_btn')}</button>`);
-    }
-  }finally{
-    _giftReqInProgress=false;
-  }
-  if(!success) return;
+  haptic('medium');
   try{Telegram.WebApp.HapticFeedback.notificationOccurred('success');}catch(e){}
-  await loadRequests(); await loadUserData();
-  renderHome(); renderGifts(); renderProfile();
+  closeSheet();
+  if(giftId && (_tgInitData||_tgUserId)){
+    try{ await apiFetch('/api/gift-requests',{method:'POST',body:JSON.stringify({gift_id:giftId})}); }catch(e){}
+    await loadRequests(); await loadUserData();
+    renderHome(); renderGifts(); renderProfile();
+  }
   setTimeout(()=>openSheet(`
     <div class="success-wrap">
       <div class="sc-ring"></div>
