@@ -2756,11 +2756,11 @@ async function pageSettings(){
     const btn = $("#sfBtn");
     btn.disabled = true; btn.innerHTML = "Сохранение...";
     try{
-      await api("/admin/settings","PUT",{
+      await api("/admin/settings",{method:"PUT",body:JSON.stringify({
         contact_phone: $("#sf_phone").value.trim(),
         contact_phone_display: $("#sf_phone_display").value.trim(),
         contact_tg: $("#sf_tg").value.trim(),
-      });
+      })});
       toast("Настройки сохранены","ok");
     }catch(ex){
       toast("Ошибка: "+ex.message,"err");
