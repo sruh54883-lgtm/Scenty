@@ -2277,7 +2277,10 @@ function bcFmtUz(cmd){ _bcApply('bcEdUz', cmd); }
 function htmlToTgHtml(el){
   if(!el) return '';
   function walk(node){
-    if(node.nodeType === 3) return node.textContent; // text node
+    if(node.nodeType === 3){
+      // &nbsp; (U+00A0) → обычный пробел; Telegram не поддерживает &nbsp;
+      return node.textContent.replace(/ /g,' ');
+    }
     if(node.nodeType !== 1) return '';
     const tag = node.tagName.toLowerCase();
     const inner = Array.from(node.childNodes).map(walk).join('');
@@ -2286,6 +2289,7 @@ function htmlToTgHtml(el){
     if(tag === 'b' || tag === 'strong') return '<b>' + inner + '</b>';
     if(tag === 'i' || tag === 'em') return '<i>' + inner + '</i>';
     if(tag === 'u') return '<u>' + inner + '</u>';
+    if(tag === 's' || tag === 'strike' || tag === 'del') return '<s>' + inner + '</s>';
     if(tag === 'a'){
       const href = (node.getAttribute('href')||'').replace(/&(?!amp;)/g,'&amp;').replace(/"/g,'&quot;');
       return '<a href="' + href + '">' + inner + '</a>';
