@@ -2253,10 +2253,17 @@ function _bcApply(edId, cmd){
   const ed = document.getElementById(edId);
   if(!ed) return;
   if(cmd === 'createLink'){
-    const url = prompt('Введите URL (ссылка):','https://');
-    if(!url) return;
+    // Сохраняем выделение ДО открытия prompt (иначе теряется)
     ed.focus();
-    document.execCommand('createLink', false, url);
+    const sel = window.getSelection();
+    let savedRange = null;
+    if(sel && sel.rangeCount) savedRange = sel.getRangeAt(0).cloneRange();
+    const url = prompt('Введите URL ссылки:','https://');
+    if(!url || url.trim() === 'https://' || url.trim() === 'http://') return;
+    // Восстанавливаем выделение после prompt
+    if(savedRange){ sel.removeAllRanges(); sel.addRange(savedRange); }
+    else { ed.focus(); }
+    document.execCommand('createLink', false, url.trim());
     ed.querySelectorAll('a').forEach(a=>{ a.target='_blank'; a.rel='noopener'; });
   } else {
     ed.focus();
