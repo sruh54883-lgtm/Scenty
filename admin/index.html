@@ -2774,16 +2774,23 @@ async function pageSettings(){
   dangerZone.style.cssText = 'margin-top:32px;padding-top:24px;border-top:1px solid var(--border);max-width:560px';
   dangerZone.innerHTML = `<h3 style="color:var(--danger);margin:0 0 8px">Опасная зона</h3>
     <p style="color:var(--muted);font-size:13px;margin:0 0 12px">Удаление всех транзакций, заявок на подарки, списаний кешбэка. Балансы клиентов сбросятся в 0. Действие необратимо.</p>
-    <button class="btn btn-sm" style="background:#fee2e2;color:#dc2626;border:1.5px solid #fca5a5" onclick="resetAllData()">🗑 Очистить все данные</button>`;
+    <div style="display:flex;gap:10px;flex-wrap:wrap">
+      <button class="btn btn-sm" style="background:#fee2e2;color:#dc2626;border:1.5px solid #fca5a5" onclick="resetAllData(false)">🗑 Очистить транзакции и заявки</button>
+      <button class="btn btn-sm" style="background:#dc2626;color:#fff;border:none" onclick="resetAllData(true)">💣 Удалить всё включая клиентов</button>
+    </div>`;
   document.querySelector('#content .card')?.after(dangerZone);
 }
 
-window.resetAllData = async function(){
-  if(!confirm('ВНИМАНИЕ! Удалятся ВСЕ транзакции, заявки на подарки, списания кешбэка. Балансы клиентов сбросятся в 0.\n\nЭто действие НЕОБРАТИМО. Продолжить?')) return;
+window.resetAllData = async function(includeUsers){
+  const msg = includeUsers
+    ? 'ВНИМАНИЕ! Удалятся ВСЕ транзакции, заявки, списания И ВСЕ КЛИЕНТЫ.\n\nЭто действие НЕОБРАТИМО. Продолжить?'
+    : 'ВНИМАНИЕ! Удалятся ВСЕ транзакции, заявки на подарки, списания кешбэка. Балансы сбросятся в 0.\n\nЭто действие НЕОБРАТИМО. Продолжить?';
+  if(!confirm(msg)) return;
   if(!confirm('Вы уверены? Это нельзя отменить!')) return;
   try{
-    await api('/admin/reset-data',{method:'DELETE'});
-    toast('Все данные очищены','warn');
+    const qs = includeUsers ? '?include_users=true' : '';
+    await api('/admin/reset-data'+qs,{method:'DELETE'});
+    toast('Готово: '+(includeUsers?'все клиенты и данные удалены':'данные очищены'),'warn');
   }catch(e){toast('Ошибка: '+(e.message||e),'err');}
 };
 

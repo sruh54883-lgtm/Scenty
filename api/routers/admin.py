@@ -760,15 +760,22 @@ async def list_agents(
 
 
 @router.delete("/reset-data")
-async def reset_all_data(admin: dict = Depends(get_current_admin)):
-    """Сброс ВСЕХ транзакций, заявок на подарки, списаний кешбэка и балансов. НЕОБРАТИМО."""
+async def reset_all_data(
+    admin: dict = Depends(get_current_admin),
+    include_users: bool = False,
+):
+    """Сброс ВСЕХ данных. include_users=true удаляет и клиентов. НЕОБРАТИМО."""
     async with db.get_pool().acquire() as conn:
         async with conn.transaction():
             await conn.execute("DELETE FROM cashback_spends")
             await conn.execute("DELETE FROM gift_requests")
             await conn.execute("DELETE FROM transactions")
-            await conn.execute("UPDATE users SET cashback_balance = 0")
-    return {"status": "ok", "message": "Все данные очищены"}
+            if include_users:
+                await conn.execute("DELETE FROM users")
+            else:
+                await conn.execute("UPDATE users SET cashback_balance = 0")
+    msg = "Все данные включая клиентов очищены" if include_users else "Транзакции и заявки очищены"
+    return {"status": "ok", "message": msg}
 
 
 class AgentBody(BaseModel):
