@@ -207,6 +207,8 @@ ALTER TABLE broadcasts ADD COLUMN IF NOT EXISTS total_users INT NOT NULL DEFAULT
 ALTER TABLE broadcasts ADD COLUMN IF NOT EXISTS failed_count INT NOT NULL DEFAULT 0;
 ALTER TABLE broadcasts ADD COLUMN IF NOT EXISTS started_at TIMESTAMPTZ;
 ALTER TABLE broadcasts ADD COLUMN IF NOT EXISTS completed_at TIMESTAMPTZ;
+ALTER TABLE broadcasts ADD COLUMN IF NOT EXISTS title VARCHAR(255) NOT NULL DEFAULT '';
+ALTER TABLE broadcasts ADD COLUMN IF NOT EXISTS sticker_file_id VARCHAR(255) NOT NULL DEFAULT '';
 
 -- Индекс для воркера отложенных рассылок (выборка ожидающих по времени).
 CREATE INDEX IF NOT EXISTS idx_broadcasts_pending

@@ -2306,9 +2306,15 @@ async function pageCast(){
       </div>
       <div class="form-grid">
 
+        <!-- ЗАГОЛОВОК -->
+        <div class="full">
+          <label class="sub-label" style="margin-top:0">📝 Заголовок (необязательно)</label>
+          <input class="input" id="bcTitle" type="text" placeholder="Тема или название рассылки (только для истории)">
+        </div>
+
         <!-- АУДИТОРИЯ -->
         <div class="full">
-          <label class="sub-label" style="margin-top:0">📢 Аудитория</label>
+          <label class="sub-label">📢 Аудитория</label>
           <select class="input" id="bcAud" onchange="
             document.getElementById('bcRegionWrap').classList.toggle('hidden',this.value!=='region');
             document.getElementById('bcLangWrap').classList.toggle('hidden',this.value==='language');
@@ -2373,6 +2379,13 @@ async function pageCast(){
           <span class="muted" style="font-size:12px;margin-top:4px;display:block">JPG, PNG, WebP — картинка отправится с текстом как подпись</span>
         </div>
 
+        <!-- СТИКЕР -->
+        <div class="full">
+          <label class="sub-label">🎭 Стикер (необязательно)</label>
+          <input class="input" id="bcSticker" type="text" placeholder="file_id стикера из Telegram (бот @sticker)">
+          <span class="muted" style="font-size:12px;margin-top:4px;display:block">Стикер отправится перед текстом. Получить file_id: перешлите стикер боту @getidsbot</span>
+        </div>
+
         <!-- ОТЛОЖЕННАЯ ОТПРАВКА -->
         <div class="full">
           <label class="sub-label">⏰ Отложенная отправка</label>
@@ -2403,7 +2416,7 @@ async function pageCast(){
       </div>
       <div class="table-wrap">
         <table><thead><tr>
-          <th>Дата</th><th>Аудитория</th><th>Текст</th>
+          <th>Дата</th><th>Аудитория</th><th>Заголовок / Текст</th>
           <th>Статус</th><th style="text-align:right">Отправлено</th>
         </tr></thead>
         <tbody id="castHistBody">${loadingTable(5)}</tbody></table>
@@ -2441,6 +2454,9 @@ function renderCastHistory(){
     const audMap={all:"👥 Все",region:`📍 ${esc(b.region_name||"Регион")}`,language:`🌐 ${b.lang_filter==="ru"?"Русский":"O'zbek"}`};
     const aud=audMap[b.target]||"👥 Все";
     const langBadge=b.lang_filter?`<span class="tag" style="margin-left:4px">${b.lang_filter==="ru"?"🇷🇺":"🇺🇿"}</span>`:"";
+    const titleStr=b.title?`<div style="font-weight:600;font-size:12px;color:var(--primary);margin-bottom:2px">${esc(b.title)}</div>`:"";
+    const stickerBadge=b.sticker_file_id?`<span class="tag" style="margin-right:4px">🎭</span>`:"";
+    const imgBadge=b.image_url?`<span class="tag" style="margin-right:4px">🖼</span>`:"";
     const preview=esc((b.message_ru||"").replace(/<[^>]+>/g,"").slice(0,60))+(((b.message_ru||"").length>60)?"…":"");
     const sent=b.sent_count||0;
     const total=b.total_users||0;
@@ -2452,7 +2468,7 @@ function renderCastHistory(){
     return `<tr>
       <td class="mono nowrap">${fmtDateTime(b.created_at)}</td>
       <td>${aud}${langBadge}</td>
-      <td style="max-width:240px;color:var(--text)">${preview}</td>
+      <td style="max-width:240px;color:var(--text)">${titleStr}${stickerBadge}${imgBadge}${preview}</td>
       <td>${_castStatusBadge(b)}</td>
       <td style="text-align:right">${countCell}</td>
     </tr>`;
@@ -2489,7 +2505,9 @@ window.castSend=(scheduleMode)=>{
   $("#castDo").onclick=async()=>{
     const btn=$("#castDo");
     btn.disabled=true; btn.textContent=scheduledAt?"Планируем…":"Отправляем…";
-    const bcPayload={target:aud,message_ru:ru,message_uz:uz||ru,parse_mode:"HTML",image_url:_bcImageUrl||""};
+    const bcTitle=(document.getElementById('bcTitle')?.value||"").trim();
+    const bcSticker=(document.getElementById('bcSticker')?.value||"").trim();
+    const bcPayload={title:bcTitle,target:aud,message_ru:ru,message_uz:uz||ru,parse_mode:"HTML",image_url:_bcImageUrl||"",sticker_file_id:bcSticker};
     if(regionId) bcPayload.region_id=regionId;
     if(langFilter) bcPayload.lang_filter=langFilter;
     if(scheduledAt) bcPayload.scheduled_at=scheduledAt;
@@ -2504,6 +2522,8 @@ window.castSend=(scheduleMode)=>{
       if(edRu) edRu.innerHTML="";
       if(edUz) edUz.innerHTML="";
       if(document.getElementById('bcImgPreview')) document.getElementById('bcImgPreview').innerHTML="";
+      if(document.getElementById('bcTitle')) document.getElementById('bcTitle').value="";
+      if(document.getElementById('bcSticker')) document.getElementById('bcSticker').value="";
       _bcImageUrl="";
       try{ Cast.history=await api("/admin/broadcasts"); renderCastHistory(); }catch(e){}
     }catch(e){

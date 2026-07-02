@@ -525,7 +525,7 @@ async function pageDash(){
       api('/agent/transactions').catch(()=>[]),
       api('/agent/users?search=').catch(()=>[]),
       api('/agent/gift-requests').catch(()=>[]),
-      api('/agent/stats').catch(()=>({})),
+      api(`/agent/stats?date_from=${df}&date_to=${dt}`).catch(()=>({})),
       api(`/agent/stats/by-district?date_from=${df}&date_to=${dt}`).catch(()=>[]),
     ]);
     const tAll=Array.isArray(txns)?txns:[];
@@ -563,12 +563,16 @@ async function pageDash(){
       </div>`).join('');
     };
 
-    // Строка 1: продажи (по периоду)
+    // Строка 1: продажи (по периоду — данные из API с учётом фильтра дат)
+    const apiSum = Number(stats.total_amount ?? periodSum);
+    const apiCashback = Number(stats.total_cashback ?? periodCashback);
+    const apiApproved = Number(stats.approved_count ?? approved.length);
+    const apiPending = Number(stats.pending_count ?? pending.length);
     _renderStats([
       {label:'Моих клиентов',    val:fmt(uArr.length),                                bg:'#eaf2ff',col:'var(--primary)',  ic:IC.users, sub:'в моих районах'},
-      {label:'Сумма продаж',     val:fmt(periodSum),    cur:'сум',                    bg:'#fdf3e3',col:'var(--warning)',  ic:IC.bag,   sub:`${periodCount} транзакций за период`},
-      {label:'Выдано кешбэка',   val:fmt(periodCashback),cur:'сум',                   bg:'#e3f8ef',col:'var(--success)', ic:IC.plus,  sub:`${approved.length} подтверждённых`},
-      {label:'Ожидают подтв.',   val:fmt(pending.length),                             bg:'#fbe9e7',col:'var(--danger)',   ic:IC.clock, sub:pending.length>0?'требует внимания':'всё подтверждено'},
+      {label:'Сумма продаж',     val:fmt(apiSum),       cur:'сум',                    bg:'#fdf3e3',col:'var(--warning)',  ic:IC.bag,   sub:`${apiApproved} подтверждённых за период`},
+      {label:'Выдано кешбэка',   val:fmt(apiCashback),  cur:'сум',                    bg:'#e3f8ef',col:'var(--success)', ic:IC.plus,  sub:`${apiApproved} подтверждённых`},
+      {label:'Ожидают подтв.',   val:fmt(apiPending),                                 bg:'#fbe9e7',col:'var(--danger)',   ic:IC.clock, sub:apiPending>0?'требует внимания':'всё подтверждено'},
     ],$('#dashStats'));
 
     // Строка 2: кешбэк-статистика (всё время, по районам агента)

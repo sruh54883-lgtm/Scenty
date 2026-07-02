@@ -363,8 +363,16 @@ async def update_gift_request_status(
     return {"id": gr_id, "status": body.status}
 
 
+import re as _re_stats
+_D_STATS = _re_stats.compile(r"^\d{4}-\d{2}-\d{2}$")
+
+
 @router.get("/stats")
-async def my_stats(agent: dict = Depends(get_current_agent)):
+async def my_stats(
+    date_from: str = "",
+    date_to: str = "",
+    agent: dict = Depends(get_current_agent),
+):
     # Получаем районы агента
     district_rows = await db.fetch(
         "SELECT district_id FROM agent_districts WHERE agent_id = $1", agent["id"]
@@ -382,9 +390,28 @@ async def my_stats(agent: dict = Depends(get_current_agent)):
             "total_gifts_value": 0,
         }
 
-    # Транзакции ТЕКУЩЕГО МЕСЯЦА по клиентам в районах агента
+    df = date_from if date_from and _D_STATS.match(date_from) else None
+    dt = date_to if date_to and _D_STATS.match(date_to) else None
+
+    # Строим условие по дате транзакций
+    date_cond = ""
+    if df and dt:
+        date_cond = "AND t.created_at >= $2::date AND t.created_at < ($3::date + INTERVAL '1 day')"
+    elif df:
+        date_cond = "AND t.created_at >= $2::date"
+    elif dt:
+        date_cond = "AND t.created_at < ($2::date + INTERVAL '1 day')"
+    else:
+        date_cond = "AND t.created_at >= date_trunc('month', NOW())"
+
+    params: list = [dist_ids]
+    if df:
+        params.append(df)
+    if dt:
+        params.append(dt)
+
     row = await db.fetchrow(
-        """
+        f"""
         SELECT
             COUNT(*) FILTER (WHERE t.status IN ('approved','confirmed')) AS approved_count,
             COUNT(*) FILTER (WHERE t.status = 'pending') AS pending_count,
@@ -393,9 +420,9 @@ async def my_stats(agent: dict = Depends(get_current_agent)):
         FROM transactions t
         JOIN users u ON u.id = t.user_id
         WHERE u.district_id = ANY($1::int[])
-          AND t.created_at >= date_trunc('month', NOW())
+          {date_cond}
         """,
-        dist_ids,
+        *params,
     )
 
     # Клиенты в районах агента

@@ -889,6 +889,7 @@ async def agent_stats(agent_id: int, admin: dict = Depends(get_current_admin)):
 
 # ============================================================ РАССЫЛКА
 class BroadcastBody(BaseModel):
+    title: str = ""
     message_ru: str
     message_uz: str
     target: str = Field(default="all", pattern="^(all|region|language)$")
@@ -897,6 +898,7 @@ class BroadcastBody(BaseModel):
     scheduled_at: str | None = None
     parse_mode: str = "HTML"
     image_url: str = ""
+    sticker_file_id: str = ""
 
 
 @router.get("/broadcasts")
@@ -906,7 +908,7 @@ async def list_broadcasts(admin: dict = Depends(get_current_admin)):
         SELECT b.id, b.target, b.region_id, b.sent_count, b.created_at,
                b.message_ru, b.message_uz, b.scheduled_at, b.is_sent,
                b.lang_filter, b.status, b.total_users, b.failed_count,
-               b.started_at, b.completed_at,
+               b.started_at, b.completed_at, b.title, b.sticker_file_id,
                r.name_ru AS region_name
         FROM broadcasts b
         LEFT JOIN regions r ON r.id = b.region_id
@@ -940,7 +942,8 @@ def _parse_scheduled_at(raw: str | None):
 
 
 async def _do_broadcast_send(broadcast_id: int, users: list, message_ru: str,
-                             message_uz: str, image_url: str, parse_mode: str):
+                             message_uz: str, image_url: str, parse_mode: str,
+                             sticker_file_id: str = ""):
     """Фоновая отправка рассылки — вызывается через BackgroundTasks."""
     import asyncio, sys, logging as _log
     from pathlib import Path as _Path
@@ -962,13 +965,16 @@ async def _do_broadcast_send(broadcast_id: int, users: list, message_ru: str,
                 continue
             lang = u["language"] or "ru"
             text = (message_uz or message_ru) if lang == "uz" else message_ru
-            if not text:
-                continue
             try:
-                if image_url:
+                if sticker_file_id:
+                    await bot.send_sticker(int(tg_id), sticker=sticker_file_id)
+                    await asyncio.sleep(0.04)
+                if image_url and text:
                     await bot.send_photo(int(tg_id), photo=image_url,
                                          caption=text, parse_mode=parse_mode)
-                else:
+                elif image_url:
+                    await bot.send_photo(int(tg_id), photo=image_url)
+                elif text:
                     await bot.send_message(int(tg_id), text, parse_mode=parse_mode)
                 sent += 1
                 await asyncio.sleep(0.04)
@@ -1000,12 +1006,12 @@ async def create_broadcast(body: BroadcastBody, background_tasks: BackgroundTask
     if scheduled_dt is not None:
         row = await db.fetchrow(
             """INSERT INTO broadcasts
-                (message_ru, message_uz, target, region_id, lang_filter,
-                 scheduled_at, parse_mode, image_url, is_sent, status, sent_count)
-               VALUES ($1,$2,$3,$4,$5,$6,$7,$8,FALSE,'pending',0)
+                (title, message_ru, message_uz, target, region_id, lang_filter,
+                 scheduled_at, parse_mode, image_url, sticker_file_id, is_sent, status, sent_count)
+               VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,FALSE,'pending',0)
                RETURNING id, target, region_id, lang_filter, scheduled_at, created_at""",
-            body.message_ru, body.message_uz, body.target, body.region_id,
-            lang_filter, scheduled_dt, body.parse_mode, body.image_url or "",
+            body.title or "", body.message_ru, body.message_uz, body.target, body.region_id,
+            lang_filter, scheduled_dt, body.parse_mode, body.image_url or "", body.sticker_file_id or "",
         )
         await _audit(admin["id"], "broadcast_schedule",
                      {"broadcast_id": row["id"], "scheduled_at": str(scheduled_dt)})
@@ -1030,12 +1036,12 @@ async def create_broadcast(body: BroadcastBody, background_tasks: BackgroundTask
 
     row = await db.fetchrow(
         """INSERT INTO broadcasts
-            (message_ru, message_uz, target, region_id, lang_filter,
-             parse_mode, image_url, is_sent, status, total_users, sent_count)
-           VALUES ($1,$2,$3,$4,$5,$6,$7,FALSE,'pending',$8,0)
+            (title, message_ru, message_uz, target, region_id, lang_filter,
+             parse_mode, image_url, sticker_file_id, is_sent, status, total_users, sent_count)
+           VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,FALSE,'pending',$10,0)
            RETURNING id, target, region_id, created_at""",
-        body.message_ru, body.message_uz, body.target, body.region_id,
-        lang_filter, body.parse_mode, body.image_url or "", total,
+        body.title or "", body.message_ru, body.message_uz, body.target, body.region_id,
+        lang_filter, body.parse_mode, body.image_url or "", body.sticker_file_id or "", total,
     )
     broadcast_id = row["id"]
     await _audit(admin["id"], "broadcast_create",
@@ -1045,6 +1051,7 @@ async def create_broadcast(body: BroadcastBody, background_tasks: BackgroundTask
     background_tasks.add_task(
         _do_broadcast_send, broadcast_id, list(users),
         body.message_ru, body.message_uz, body.image_url or "", body.parse_mode,
+        body.sticker_file_id or "",
     )
     return {"id": broadcast_id, "target": body.target, "scheduled": False,
             "sent_count": 0, "total_users": total, "status": "pending",
