@@ -977,9 +977,8 @@ async def _do_broadcast_send(broadcast_id: int, users: list, message_ru: str,
                              message_uz: str, image_url: str, parse_mode: str,
                              sticker_file_id: str = ""):
     """Фоновая отправка рассылки — вызывается через BackgroundTasks."""
-    import asyncio, sys, logging as _log
+    import asyncio, sys, os as _os, logging as _log
     from pathlib import Path as _Path
-    from datetime import datetime, timezone
     _bp = str(_Path(__file__).resolve().parent.parent.parent / "bot")
     if _bp not in sys.path:
         sys.path.insert(0, _bp)
@@ -988,6 +987,22 @@ async def _do_broadcast_send(broadcast_id: int, users: list, message_ru: str,
     )
     sent = 0
     failed = 0
+
+    # Если image_url относительный (/uploads/...) — конвертируем в FSInputFile
+    photo_input = None
+    if image_url:
+        if image_url.startswith("/uploads/"):
+            uploads_dir = _Path(_os.environ.get("UPLOADS_DIR", "/app/uploads"))
+            local_path = uploads_dir / image_url[len("/uploads/"):]
+            if local_path.exists():
+                from aiogram.types import FSInputFile
+                photo_input = FSInputFile(str(local_path))
+            else:
+                _log.getLogger("scenti.broadcast").error("Image not found: %s", local_path)
+                photo_input = None  # пошлём без картинки
+        else:
+            photo_input = image_url  # абсолютный URL — передаём как есть
+
     try:
         from notifications import get_bot
         bot = get_bot()
@@ -1001,20 +1016,30 @@ async def _do_broadcast_send(broadcast_id: int, users: list, message_ru: str,
                 if sticker_file_id:
                     await bot.send_sticker(int(tg_id), sticker=sticker_file_id)
                     await asyncio.sleep(0.04)
-                if image_url and text:
-                    await bot.send_photo(int(tg_id), photo=image_url,
-                                         caption=text, parse_mode=parse_mode)
-                elif image_url:
-                    await bot.send_photo(int(tg_id), photo=image_url)
+
+                if photo_input:
+                    try:
+                        await bot.send_photo(
+                            int(tg_id), photo=photo_input,
+                            caption=text or None,
+                            parse_mode=parse_mode if text else None,
+                        )
+                    except Exception as photo_ex:
+                        _log.getLogger("scenti.broadcast").warning(
+                            "send_photo failed tg_id=%s err=%s — fallback to text", tg_id, photo_ex)
+                        if text:
+                            await bot.send_message(int(tg_id), text, parse_mode=parse_mode)
                 elif text:
                     await bot.send_message(int(tg_id), text, parse_mode=parse_mode)
+
                 sent += 1
-                await asyncio.sleep(0.04)
+                await asyncio.sleep(0.05)
             except Exception as ex:
                 failed += 1
                 _log.getLogger("scenti.broadcast").warning("tg_id=%s err=%s", tg_id, ex)
     except Exception as e:
         _log.getLogger("scenti.api").error("Broadcast send error bid=%s: %s", broadcast_id, e)
+
     await db.execute(
         """UPDATE broadcasts SET status=$1, sent_count=$2, failed_count=$3,
            completed_at=NOW(), is_sent=TRUE WHERE id=$4""",

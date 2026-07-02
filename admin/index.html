@@ -2287,7 +2287,7 @@ function htmlToTgHtml(el){
     if(tag === 'i' || tag === 'em') return '<i>' + inner + '</i>';
     if(tag === 'u') return '<u>' + inner + '</u>';
     if(tag === 'a'){
-      const href = (node.getAttribute('href')||'').replace(/"/g,'&quot;');
+      const href = (node.getAttribute('href')||'').replace(/&(?!amp;)/g,'&amp;').replace(/"/g,'&quot;');
       return '<a href="' + href + '">' + inner + '</a>';
     }
     return inner;
