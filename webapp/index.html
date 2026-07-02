@@ -1018,7 +1018,7 @@ function openGiftDetail(id){
       <div class="kv"><span class="k">${tx('your_cashback')}</span><span class="v blue">${fmt(USER.balance)} сум</span></div>
       <div class="kv"><span class="k">${tx('remainder_lbl')}</span><span class="v ${enough?'green':'red'}">${enough?fmt(remain)+' сум':tx('not_enough')}</span></div>
     </div>
-    <button class="btn btn-primary" ${enough?`onclick="giftRequest(${JSON.stringify(g.name)},${g.id})"`:' disabled'}>${enough?tx('order_gift'):tx('no_funds_btn')}</button>`);
+    <button class="btn btn-primary" ${enough?`onclick="giftRequest('${g.name.replace(/'/g,"\\'")}',${g.id})"`:' disabled'}>${enough?tx('order_gift'):tx('no_funds_btn')}</button>`);
 }
 
 /* =================== CATALOG DETAIL =================== */
