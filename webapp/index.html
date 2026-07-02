@@ -1201,10 +1201,13 @@ window.giftRequest=async function(name, giftId){
     success=true;
   }catch(e){
     if(btn){btn.disabled=false;btn.textContent=tx('order_gift');}
-    openSheet(`<div class="sheet-ic" style="background:#fee2e2">⚠️</div>
-      <h3>Ошибка обмена</h3>
-      <p class="sheet-sub">${e.message||'Попробуйте ещё раз'}</p>
-      <button class="btn btn-ghost" onclick="closeSheet()">${tx('close_btn')}</button>`);
+    const errMsg=e.message||'Попробуйте ещё раз';
+    try{Telegram.WebApp.showAlert('⚠️ '+errMsg);}catch(_){
+      openSheet(`<div class="sheet-ic" style="background:#fee2e2">⚠️</div>
+        <h3>Ошибка обмена</h3>
+        <p class="sheet-sub">${errMsg}</p>
+        <button class="btn btn-ghost" onclick="closeSheet()">${tx('close_btn')}</button>`);
+    }
   }finally{
     _giftReqInProgress=false;
   }

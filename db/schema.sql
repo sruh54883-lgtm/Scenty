@@ -87,6 +87,7 @@ CREATE TABLE IF NOT EXISTS gift_requests (
     gift_id INT NOT NULL REFERENCES gifts(id),
     status VARCHAR(20) NOT NULL DEFAULT 'pending',
     admin_notes TEXT NOT NULL DEFAULT '',
+    price_paid BIGINT NOT NULL DEFAULT 0,
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
@@ -190,6 +191,9 @@ DO $$ BEGIN
 END $$;
 
 -- ============================================================ MIGRATIONS
+-- price_paid для gift_requests (добавлено постфактум)
+ALTER TABLE gift_requests ADD COLUMN IF NOT EXISTS price_paid BIGINT NOT NULL DEFAULT 0;
+
 -- Отложенная рассылка + фильтр по языку для broadcasts.
 -- Идемпотентно (IF NOT EXISTS). Существующие строки трактуются как уже
 -- отправленные (is_sent=TRUE) — defaults берут это на себя.
