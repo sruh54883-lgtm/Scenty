@@ -813,6 +813,8 @@ const URL_MAP={dash:'/admin/',users:'/admin/clients',txns:'/admin/transactions',
 const URL_TO_PAGE=Object.fromEntries(Object.entries(URL_MAP).map(([k,v])=>[v,k]));
 
 function go(page, pushHistory=true){
+  // Останавливаем polling транзакций при переходе на другую страницу
+  if(page !== 'txns' && window._txnPollTimer){ clearInterval(window._txnPollTimer); window._txnPollTimer=null; }
   State.page = page;
   if(pushHistory && history.pushState){
     history.pushState({page}, '', URL_MAP[page]||'/admin/');
@@ -1403,6 +1405,23 @@ async function pageTxns(){
   Txns.list=Array.isArray(data)?data:(data?.items||[]);
   Badges.pendingTxn=Txns.list.filter(t=>t.status==="pending").length; renderNav();
   renderTxns();
+
+  // Авто-обновление каждые 20 сек пока на этой странице
+  if(window._txnPollTimer) clearInterval(window._txnPollTimer);
+  window._txnPollTimer = setInterval(async ()=>{
+    if(State.page !== 'txns'){ clearInterval(window._txnPollTimer); return; }
+    try{
+      const fresh = await apiOrMock("/admin/transactions",()=>MOCK.txns);
+      const newList = Array.isArray(fresh)?fresh:(fresh?.items||[]);
+      const prevPending = Txns.list.filter(t=>t.status==='pending').length;
+      const newPending = newList.filter(t=>t.status==='pending').length;
+      Txns.list = newList;
+      Badges.pendingTxn = newPending; renderNav();
+      // Показываем toast если появились новые заявки
+      if(newPending > prevPending) toast(`Новая заявка на подтверждение (${newPending})`, 'info');
+      renderTxns();
+    }catch(e){ /* тихий сбой — не мешаем */ }
+  }, 20000);
 }
 
 window.openCreateTx=async function(){
