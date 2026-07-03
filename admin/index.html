@@ -981,9 +981,9 @@ async function pageDash(){
     apiOrMock("/admin/transactions", ()=>MOCK.txns),
     apiOrMock("/admin/claims", ()=>MOCK.claims),
   ]);
-  const uArr = Array.isArray(users)?users:(users?.items||[]);
-  const tArr = Array.isArray(txns)?txns:(txns?.items||[]);
-  const cArr = Array.isArray(claims)?claims:(claims?.items||[]);
+  const uArr = Array.isArray(users)?users:(users?.data||[]);
+  const tArr = Array.isArray(txns)?txns:(txns?.data||[]);
+  const cArr = Array.isArray(claims)?claims:(claims?.data||[]);
   const pending = tArr.filter(t=>t.status==="pending");
   const s = stats;
 
@@ -1242,7 +1242,7 @@ async function pageUsers(){
     </div>`;
   $("#uSearch").addEventListener("input",e=>{Clients.q=e.target.value;Clients.page=1;renderUsers();});
   const data = await apiOrMock("/admin/users", ()=>MOCK.users);
-  Clients.list = Array.isArray(data)?data:(data?.items||[]);
+  Clients.list = Array.isArray(data)?data:(data?.data||[]);
   renderUsers();
 }
 function filterUsers(){
@@ -1402,7 +1402,7 @@ async function pageTxns(){
       <div id="txnPager"></div>
     </div>`;
   const data=await apiOrMock("/admin/transactions",()=>MOCK.txns);
-  Txns.list=Array.isArray(data)?data:(data?.items||[]);
+  Txns.list=Array.isArray(data)?data:(data?.data||[]);
   Badges.pendingTxn=Txns.list.filter(t=>t.status==="pending").length; renderNav();
   renderTxns();
 
@@ -1412,7 +1412,7 @@ async function pageTxns(){
     if(State.page !== 'txns'){ clearInterval(window._txnPollTimer); return; }
     try{
       const fresh = await apiOrMock("/admin/transactions",()=>MOCK.txns);
-      const newList = Array.isArray(fresh)?fresh:(fresh?.items||[]);
+      const newList = Array.isArray(fresh)?fresh:(fresh?.data||[]);
       const prevPending = Txns.list.filter(t=>t.status==='pending').length;
       const newPending = newList.filter(t=>t.status==='pending').length;
       Txns.list = newList;
@@ -1571,7 +1571,7 @@ window.openCreateTx=async function(){
       closeModal();
       toast("Транзакция создана","ok",`Кешбэк ${Math.round(r.cashback_amount??r.cashback??0).toLocaleString("ru-RU")} UZS — ожидает подтверждения`);
       const data=await apiOrMock("/admin/transactions",()=>MOCK.txns);
-      Txns.list=Array.isArray(data)?data:(data?.items||[]);
+      Txns.list=Array.isArray(data)?data:(data?.data||[]);
       Badges.pendingTxn=Txns.list.filter(t=>t.status==="pending").length;
       renderNav(); renderTxns();
     }catch(e){
