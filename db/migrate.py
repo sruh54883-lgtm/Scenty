@@ -19,6 +19,10 @@ async def migrate():
         await conn.execute(
             "ALTER TABLE transactions ALTER COLUMN agent_id DROP NOT NULL"
         )
+        # Прогрессивный кешбэк: колонка для хранения применённого процента
+        await conn.execute(
+            "ALTER TABLE transactions ADD COLUMN IF NOT EXISTS cashback_percent SMALLINT NOT NULL DEFAULT 10"
+        )
         # Уникальность номера телефона клиента
         await conn.execute(
             "CREATE UNIQUE INDEX IF NOT EXISTS idx_users_phone ON users(phone) WHERE phone IS NOT NULL"

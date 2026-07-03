@@ -206,17 +206,29 @@ async def create_transaction(body: TxBody, bg: BackgroundTasks, agent: dict = De
         if user["district_id"] not in allowed_ids:
             raise HTTPException(status_code=403, detail="Клиент не из вашего района")
 
-    cashback = round(body.amount * settings.CASHBACK_PERCENT / 100)
+    # Прогрессивный кешбэк: 1-я покупка 5%, 2-я 7%, с 3-й 10%
+    approved_count = await db.fetchval(
+        "SELECT COUNT(*) FROM transactions WHERE user_id = $1 AND status IN ('approved', 'confirmed')",
+        body.user_id,
+    )
+    if approved_count == 0:
+        cashback_percent = 5
+    elif approved_count == 1:
+        cashback_percent = 7
+    else:
+        cashback_percent = 10
+    cashback = round(body.amount * cashback_percent / 100)
     tx = await db.fetchrow(
         """
-        INSERT INTO transactions (user_id, agent_id, amount, cashback_amount, status, note)
-        VALUES ($1, $2, $3, $4, 'pending', $5)
-        RETURNING id, user_id, amount, cashback_amount, status, note, created_at
+        INSERT INTO transactions (user_id, agent_id, amount, cashback_amount, cashback_percent, status, note)
+        VALUES ($1, $2, $3, $4, $5, 'pending', $6)
+        RETURNING id, user_id, amount, cashback_amount, cashback_percent, status, note, created_at
         """,
         body.user_id,
         agent["id"],
         body.amount,
         cashback,
+        cashback_percent,
         body.note or "",
     )
 

@@ -356,7 +356,6 @@ class CreateTxBody(BaseModel):
 
 @router.post("/transactions")
 async def admin_create_transaction(body: CreateTxBody, admin: dict = Depends(get_current_admin)):
-    cashback = int(round(body.amount * 0.10))
     amount_int = int(round(body.amount))
     async with db.get_pool().acquire() as conn:
         async with conn.transaction():
@@ -367,25 +366,39 @@ async def admin_create_transaction(body: CreateTxBody, admin: dict = Depends(get
             if user is None:
                 raise HTTPException(status_code=404, detail="Пользователь не найден")
 
+            # Прогрессивный кешбэк: 1-я покупка 5%, 2-я 7%, с 3-й 10%
+            approved_count = await conn.fetchval(
+                "SELECT COUNT(*) FROM transactions WHERE user_id = $1 AND status IN ('approved', 'confirmed')",
+                body.user_id,
+            )
+            if approved_count == 0:
+                cashback_percent = 5
+            elif approved_count == 1:
+                cashback_percent = 7
+            else:
+                cashback_percent = 10
+            cashback = int(round(amount_int * cashback_percent / 100))
+
             # Создаём как pending — кешбэк зачислится только после подтверждения
             tx_id = await conn.fetchval(
                 """INSERT INTO transactions
-                   (user_id, agent_id, amount, cashback_amount, status, note)
-                   VALUES ($1, NULL, $2, $3, 'pending', $4)
+                   (user_id, agent_id, amount, cashback_amount, cashback_percent, status, note)
+                   VALUES ($1, NULL, $2, $3, $4, 'pending', $5)
                    RETURNING id""",
                 body.user_id,
                 amount_int,
                 cashback,
+                cashback_percent,
                 body.note or "Ручное начисление администратором",
             )
             await conn.execute(
                 "INSERT INTO audit_log (admin_id, action, details) VALUES ($1, $2, $3)",
                 admin["id"],
                 "transaction_manual_create",
-                json.dumps({"tx_id": tx_id, "user_id": body.user_id, "amount": amount_int, "cashback": cashback}),
+                json.dumps({"tx_id": tx_id, "user_id": body.user_id, "amount": amount_int, "cashback": cashback, "cashback_percent": cashback_percent}),
             )
 
-    return {"id": tx_id, "cashback_amount": cashback}
+    return {"id": tx_id, "cashback_amount": cashback, "cashback_percent": cashback_percent}
 
 
 # ============================================================ ПОДАРКИ

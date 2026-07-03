@@ -58,6 +58,7 @@ CREATE TABLE IF NOT EXISTS transactions (
     agent_id INT REFERENCES agents(id),
     amount BIGINT NOT NULL,
     cashback_amount BIGINT NOT NULL,
+    cashback_percent SMALLINT NOT NULL DEFAULT 10,
     status VARCHAR(20) NOT NULL DEFAULT 'pending',
     note TEXT NOT NULL DEFAULT '',
     confirmed_at TIMESTAMPTZ,
