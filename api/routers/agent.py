@@ -1,6 +1,6 @@
 from __future__ import annotations
 """Агент-панель — эндпоинты /agent/*. JWT Bearer (role=agent)."""
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
 from pydantic import BaseModel, Field
 
 import database as db
@@ -190,8 +190,11 @@ class TxBody(BaseModel):
 
 
 @router.post("/transactions")
-async def create_transaction(body: TxBody, agent: dict = Depends(get_current_agent)):
-    user = await db.fetchrow("SELECT id, district_id FROM users WHERE id = $1 AND is_active = TRUE", body.user_id)
+async def create_transaction(body: TxBody, bg: BackgroundTasks, agent: dict = Depends(get_current_agent)):
+    user = await db.fetchrow(
+        "SELECT id, district_id, first_name, last_name, business_name FROM users WHERE id = $1 AND is_active = TRUE",
+        body.user_id,
+    )
     if user is None:
         raise HTTPException(status_code=404, detail="Клиент не найден")
     # Агент может создавать транзакции только для клиентов своих районов
@@ -216,6 +219,21 @@ async def create_transaction(body: TxBody, agent: dict = Depends(get_current_age
         cashback,
         body.note or "",
     )
+
+    # Уведомить администратора о новой транзакции
+    user_name = (user.get("business_name") or
+                 f"{user.get('first_name', '')} {user.get('last_name', '')}".strip() or
+                 f"ID {body.user_id}")
+
+    async def _notify():
+        try:
+            from notifications import notify_admin_new_transaction
+            await notify_admin_new_transaction(0, user_name, body.amount)
+        except Exception as _e:
+            import logging as _log
+            _log.getLogger("scenti.agent").warning("admin notify failed: %s", _e)
+
+    bg.add_task(_notify)
     return tx
 
 
