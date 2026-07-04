@@ -2920,8 +2920,9 @@ window.doBackup=async()=>{
    SETTINGS PAGE
    ============================================================ */
 async function pageSettings(){
-  main(`<div class="page-header"><h1>${I.gear} Настройки контактов</h1></div>
-  <div class="card" style="max-width:560px">
+  const c=$("#content");
+  c.innerHTML=`<div class="page-header"><h1>${I.gear} Настройки контактов</h1></div>
+  <div class="card card-pad" style="max-width:560px">
     <div id="settingsMsg"></div>
     <form id="settingsForm" style="display:flex;flex-direction:column;gap:18px">
       <div>
@@ -2956,7 +2957,7 @@ async function pageSettings(){
       </div>
       <button type="submit" class="btn btn-primary" id="sfBtn">${I.check} Сохранить</button>
     </form>
-  </div>`);
+  </div>`;
 
   // Загружаем текущие значения
   try{
@@ -3004,7 +3005,7 @@ async function pageSettings(){
       <button class="btn btn-sm" style="background:#fee2e2;color:#dc2626;border:1.5px solid #fca5a5" onclick="resetAllData(false)">🗑 Очистить транзакции и заявки</button>
       <button class="btn btn-sm" style="background:#dc2626;color:#fff;border:none" onclick="resetAllData(true)">💣 Удалить всё включая клиентов</button>
     </div>`;
-  document.querySelector('#content .card')?.after(dangerZone);
+  c.querySelector('.card')?.after(dangerZone);
 }
 
 window.resetAllData = async function(includeUsers){
