@@ -1,4 +1,4 @@
-"""Регистрация клиента: /start → язык → политика → имя → бизнес → телефон → регион → район."""
+"""Регистрация клиента: /start → язык → политика → имя → бизнес → телефон → регион → район → диффузор."""
 import logging
 
 from aiogram import F, Router
@@ -27,7 +27,8 @@ T = {
         "phone_saved":      "✅ Телефон принят!\n\nВыберите ваш <b>регион</b>:",
         "region_selected":  "✅ Регион выбран!\n\nВыберите ваш <b>район</b>:",
         "no_districts":     "В этом регионе пока нет районов. Выберите другой регион:",
-        "registered":       "🎉 <b>Регистрация успешно завершена!</b>\n\nТеперь за каждую покупку вы получаете <b>10% кешбэк</b>. Накапливайте баллы и обменивайте их на ценные подарки.",
+        "choose_diffuser":  "✅ Район выбран!\n\n📟 Выберите <b>аппарат</b>, которым вы пользуетесь:",
+        "registered":       "🎉 <b>Регистрация успешно завершена!</b>\n\nТеперь за каждую покупку вы получаете <b>кешбэк</b>. Накапливайте баллы и обменивайте их на ценные подарки.",
         "share_phone_btn":  "📞 Поделиться номером",
         "err_name":         "Пожалуйста, введите корректное имя (до 100 символов):",
         "err_business":     "Пожалуйста, введите корректное название (до 200 символов):",
@@ -46,7 +47,8 @@ T = {
         "phone_saved":      "✅ Telefon qabul qilindi!\n\n<b>Viloyatingizni</b> tanlang:",
         "region_selected":  "✅ Viloyat tanlandi!\n\n<b>Tumaningizni</b> tanlang:",
         "no_districts":     "Bu viloyatda tumanlar yo'q. Boshqa viloyat tanlang:",
-        "registered":       "🎉 <b>Ro'yxatdan o'tish muvaffaqiyatli yakunlandi!</b>\n\nHar bir xaridingiz uchun <b>10% keshbek</b> olasiz. Ballaringizni to'plang va qimmatli sovg'alarga almashtiring.",
+        "choose_diffuser":  "✅ Tuman tanlandi!\n\n📟 Foydalanadigan <b>apparatingizni</b> tanlang:",
+        "registered":       "🎉 <b>Ro'yxatdan o'tish muvaffaqiyatli yakunlandi!</b>\n\nHar bir xaridingiz uchun <b>keshbek</b> olasiz. Ballaringizni to'plang va qimmatli sovg'alarga almashtiring.",
         "share_phone_btn":  "📞 Raqamni ulashish",
         "err_name":         "Iltimos, to'g'ri ism kiriting (100 belgigacha):",
         "err_business":     "Iltimos, to'g'ri nom kiriting (200 belgigacha):",
@@ -293,6 +295,50 @@ async def process_district(callback: CallbackQuery, state: FSMContext) -> None:
         await callback.message.answer("Error. Try /start")
         return
 
+    await state.update_data(district_id=district_id)
+
+    diffusers = await db.get_diffusers()
+    if not diffusers:
+        # Если диффузоров нет — завершаем без выбора
+        await _complete_registration(callback, state, district_id, None, lang)
+        return
+
+    await state.set_state(Registration.waiting_diffuser)
+    await callback.message.edit_reply_markup(reply_markup=None)
+    await callback.message.answer(
+        t_lang(lang, "choose_diffuser"),
+        reply_markup=ikb.diffusers_keyboard(diffusers, lang),
+    )
+
+
+@router.callback_query(Registration.waiting_diffuser, F.data.startswith(ikb.CB_DIFFUSER_PREFIX))
+async def process_diffuser(callback: CallbackQuery, state: FSMContext) -> None:
+    await callback.answer()
+    data = await state.get_data()
+    lang = data.get("lang", "ru")
+    try:
+        diffuser_id = int(callback.data.split(":", 1)[1])
+    except (ValueError, IndexError):
+        await callback.message.answer("Error. Try /start")
+        return
+
+    district_id = data.get("district_id")
+    if not district_id:
+        await callback.message.answer("Что-то пошло не так. Попробуйте /start")
+        await state.clear()
+        return
+
+    await _complete_registration(callback, state, int(district_id), diffuser_id, lang)
+
+
+async def _complete_registration(
+    callback: CallbackQuery,
+    state: FSMContext,
+    district_id: int,
+    diffuser_id,
+    lang: str,
+) -> None:
+    data = await state.get_data()
     user_tg = callback.from_user
     try:
         user = await db.upsert_user(
@@ -304,6 +350,7 @@ async def process_district(callback: CallbackQuery, state: FSMContext) -> None:
             phone=data.get("phone", ""),
             region_id=int(data["region_id"]),
             district_id=district_id,
+            diffuser_id=diffuser_id,
             language=lang,
         )
     except KeyError:
@@ -313,7 +360,7 @@ async def process_district(callback: CallbackQuery, state: FSMContext) -> None:
         return
     except Exception:
         logger.exception("Ошибка сохранения пользователя")
-        await callback.message.answer(t(data, "db_down"))
+        await callback.message.answer(T.get(lang, T["ru"]).get("db_down", ""))
         return
 
     await state.clear()

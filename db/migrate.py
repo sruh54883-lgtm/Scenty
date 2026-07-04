@@ -27,6 +27,10 @@ async def migrate():
         await conn.execute(
             "ALTER TABLE users ADD COLUMN IF NOT EXISTS cashback_reset_at TIMESTAMPTZ NOT NULL DEFAULT NOW()"
         )
+        # Выбор аппарата (диффузора) при регистрации
+        await conn.execute(
+            "ALTER TABLE users ADD COLUMN IF NOT EXISTS diffuser_id INT REFERENCES diffusers(id)"
+        )
         # Уникальность номера телефона клиента
         await conn.execute(
             "CREATE UNIQUE INDEX IF NOT EXISTS idx_users_phone ON users(phone) WHERE phone IS NOT NULL"

@@ -35,6 +35,7 @@ CB_POLICY_DECLINE = "policy:decline"
 CB_REGION_PREFIX = "region:"
 CB_DISTRICT_PREFIX = "district:"
 CB_DISTRICT_BACK = "district:back"
+CB_DIFFUSER_PREFIX = "diffuser:"
 
 
 def language_keyboard() -> InlineKeyboardMarkup:
@@ -81,4 +82,17 @@ def districts_keyboard(districts: list[dict[str, Any]], lang: str = "ru") -> Inl
     builder.adjust(2)
     back_text = "⬅️ Orqaga" if lang == "uz" else "⬅️ Назад к регионам"
     builder.row(InlineKeyboardButton(text=back_text, callback_data=CB_DISTRICT_BACK))
+    return builder.as_markup()
+
+
+def diffusers_keyboard(diffusers: list[dict[str, Any]], lang: str = "ru") -> InlineKeyboardMarkup:
+    """Список аппаратов по 1 в ряд (до 4 штук)."""
+    name_key = "name_uz" if lang == "uz" else "name_ru"
+    builder = InlineKeyboardBuilder()
+    for d in diffusers[:4]:
+        builder.button(
+            text=d[name_key],
+            callback_data=f"{CB_DIFFUSER_PREFIX}{d['id']}",
+        )
+    builder.adjust(1)
     return builder.as_markup()

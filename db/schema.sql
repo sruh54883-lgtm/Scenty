@@ -29,6 +29,7 @@ CREATE TABLE IF NOT EXISTS users (
     district_id INT REFERENCES districts(id),
     cashback_balance BIGINT NOT NULL DEFAULT 0,
     cashback_reset_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    diffuser_id INT REFERENCES diffusers(id),
     language VARCHAR(5) NOT NULL DEFAULT 'ru',
     privacy_accepted BOOLEAN NOT NULL DEFAULT FALSE,
     is_active BOOLEAN NOT NULL DEFAULT TRUE,

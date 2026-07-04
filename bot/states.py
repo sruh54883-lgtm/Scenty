@@ -10,3 +10,4 @@ class Registration(StatesGroup):
     waiting_phone = State()        # отправка контакта
     waiting_region = State()       # выбор региона (inline)
     waiting_district = State()     # выбор района (inline)
+    waiting_diffuser = State()     # выбор аппарата/диффузора (inline)

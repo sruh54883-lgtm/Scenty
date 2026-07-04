@@ -111,6 +111,12 @@ async def get_privacy_policy_text(lang: str = "ru") -> str:
     return "Политика конфиденциальности временно недоступна."
 
 
+async def get_diffusers() -> list[dict[str, Any]]:
+    return await fetch(
+        "SELECT id, name_ru, name_uz FROM diffusers WHERE is_active = TRUE ORDER BY sort_order LIMIT 4"
+    )
+
+
 async def get_regions() -> list[dict[str, Any]]:
     return await fetch("SELECT id, name_ru, name_uz FROM regions ORDER BY name_ru")
 
@@ -143,6 +149,7 @@ async def upsert_user(
     phone: str,
     region_id: int,
     district_id: int,
+    diffuser_id: Optional[int] = None,
     language: str = "ru",
 ) -> dict[str, Any]:
     """Создать или обновить пользователя по telegram_id, отметив согласие с политикой."""
@@ -151,9 +158,9 @@ async def upsert_user(
         INSERT INTO users (
             telegram_id, username, first_name, last_name,
             business_name, phone, region_id, district_id,
-            language, privacy_accepted, is_active
+            diffuser_id, language, privacy_accepted, is_active
         )
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, TRUE, TRUE)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, TRUE, TRUE)
         ON CONFLICT (telegram_id) DO UPDATE SET
             username = EXCLUDED.username,
             first_name = EXCLUDED.first_name,
@@ -162,6 +169,7 @@ async def upsert_user(
             phone = EXCLUDED.phone,
             region_id = EXCLUDED.region_id,
             district_id = EXCLUDED.district_id,
+            diffuser_id = EXCLUDED.diffuser_id,
             language = EXCLUDED.language,
             privacy_accepted = TRUE,
             is_active = TRUE,
@@ -177,6 +185,7 @@ async def upsert_user(
         phone,
         region_id,
         district_id,
+        diffuser_id,
         language,
     )
     return row  # type: ignore[return-value]
