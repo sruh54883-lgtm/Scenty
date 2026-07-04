@@ -1240,7 +1240,7 @@ async def stats_regions(
         f"""
         SELECT r.name_ru,
                COUNT(DISTINCT u.id) AS clients,
-               COALESCE(SUM(t.cashback_amount)
+               COALESCE(SUM(t.amount)
                    FILTER (WHERE t.status IN ('approved','confirmed'){date_filter}), 0) AS earned
         FROM regions r
         LEFT JOIN users u ON u.region_id = r.id AND u.is_active = TRUE
