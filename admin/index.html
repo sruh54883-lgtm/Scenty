@@ -1233,11 +1233,18 @@ function initDashMap(regionStats){
 /* ============================================================
    GEO DRILL-DOWN TABLE (Dashboard)
    ============================================================ */
+function _geoDateQs(){
+  const {df,dt} = _dashDates();
+  return [df?`date_from=${df}`:'', dt?`date_to=${dt}`:''].filter(Boolean).join('&');
+}
+
 async function loadGeoRegions(){
   const card = $("#geoTableCard");
   if(!card) return;
+  card.innerHTML = `<div class="skeleton" style="height:200px;border-radius:var(--radius)"></div>`;
   try{
-    const data = await api("/admin/geo/regions");
+    const qs = _geoDateQs();
+    const data = await api(`/admin/geo/regions${qs?'?'+qs:''}`);
     renderGeoTable("regions", data, null, null);
   }catch(e){
     if(card) card.innerHTML = "";
@@ -1256,8 +1263,8 @@ function renderGeoTable(level, rows, parentId, parentName){
   const hasDrilldown = !isUsers;
 
   const thead = isUsers
-    ? `<th>Клиент</th><th>Телефон</th><th style="text-align:right">Баллы</th><th style="text-align:right">Заявки</th>`
-    : `<th>Название</th><th style="text-align:right">Клиентов</th><th style="text-align:right">Баллы накоплены</th><th style="text-align:right">Заявки на подарки</th><th></th>`;
+    ? `<th>Клиент</th><th>Телефон</th><th style="text-align:right">Кешбэк за период</th><th style="text-align:right">Текущий баланс</th><th style="text-align:right">Заявки</th>`
+    : `<th>Название</th><th style="text-align:right">Клиентов</th><th style="text-align:right">Кешбэк выдан</th><th style="text-align:right">Заявки на подарки</th><th></th>`;
 
   const tbody = rows.map(r => {
     if(isUsers){
@@ -1267,7 +1274,8 @@ function renderGeoTable(level, rows, parentId, parentName){
           <span style="font-weight:600">${esc(r.name)}</span>
         </div></td>
         <td style="color:var(--muted)">${esc(r.phone||"—")}</td>
-        <td style="text-align:right;font-weight:700;color:var(--primary)">${fmt(r.balance)} <span style="font-size:11px;font-weight:400;color:var(--muted)">сум</span></td>
+        <td style="text-align:right;font-weight:700;color:var(--success)">${r.balance > 0 ? fmt(r.balance)+' <span style="font-size:11px;font-weight:400;color:var(--muted)">сум</span>' : '<span style="color:var(--muted)">—</span>'}</td>
+        <td style="text-align:right;font-weight:700;color:var(--primary)">${fmt(r.current_balance||0)} <span style="font-size:11px;font-weight:400;color:var(--muted)">сум</span></td>
         <td style="text-align:right">${r.gift_requests > 0 ? `<span style="background:#f3eaff;color:#7b46c9;border-radius:6px;padding:2px 8px;font-weight:700;font-size:12px">${r.gift_requests}</span>` : `<span style="color:var(--muted)">—</span>`}</td>
       </tr>`;
     }
@@ -1307,7 +1315,9 @@ async function loadGeoDistricts(regionId, regionName){
   const card = $("#geoTableCard");
   if(card) card.innerHTML = `<div class="skeleton" style="height:200px;border-radius:var(--radius)"></div>`;
   try{
-    const data = await api(`/admin/geo/districts?region_id=${regionId}`);
+    const qs = _geoDateQs();
+    const base = `/admin/geo/districts?region_id=${regionId}`;
+    const data = await api(qs ? base+'&'+qs : base);
     renderGeoTable("districts", data, regionId, regionName);
   }catch(e){
     if(card) card.innerHTML = "";
@@ -1315,10 +1325,14 @@ async function loadGeoDistricts(regionId, regionName){
 }
 
 async function loadGeoUsers(districtId, districtName){
+  window._geoDistrictId = districtId;
+  window._geoDistrictName = districtName;
   const card = $("#geoTableCard");
   if(card) card.innerHTML = `<div class="skeleton" style="height:200px;border-radius:var(--radius)"></div>`;
   try{
-    const data = await api(`/admin/geo/users?district_id=${districtId}`);
+    const qs = _geoDateQs();
+    const base = `/admin/geo/users?district_id=${districtId}`;
+    const data = await api(qs ? base+'&'+qs : base);
     renderGeoTable("users", data, districtId, districtName);
   }catch(e){
     if(card) card.innerHTML = "";
