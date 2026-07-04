@@ -113,7 +113,7 @@ async def get_privacy_policy_text(lang: str = "ru") -> str:
 
 async def get_diffusers() -> list[dict[str, Any]]:
     return await fetch(
-        "SELECT id, name_ru, name_uz FROM diffusers WHERE is_active = TRUE ORDER BY sort_order LIMIT 4"
+        "SELECT id, name_ru, name_uz FROM diffusers WHERE is_active = TRUE AND type = 'device' ORDER BY sort_order LIMIT 4"
     )
 
 
