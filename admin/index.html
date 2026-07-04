@@ -621,6 +621,17 @@ async function loadRegions(){
     REGIONS_DATA = [];
   }
 }
+
+/* ---------- DIFFUSERS (загружается из API) ---------- */
+let DIFFUSERS_DATA = []; // [{id, name_ru}]
+async function loadDiffusers(){
+  try{
+    const d = await api("/admin/diffusers");
+    DIFFUSERS_DATA = Array.isArray(d) ? d : (d?.data || []);
+  }catch(e){
+    DIFFUSERS_DATA = [];
+  }
+}
 // Совместимость: старый объект REGIONS (строки) для broadcast и агентов
 const REGIONS = {};
 function rebuildRegionsCompat(){
@@ -1405,6 +1416,7 @@ window.openUser = async id=>{
 
   const curRegionId = fullUser.region_id || null;
   const curDistrictId = fullUser.district_id || null;
+  const curDiffuserId = fullUser.diffuser_id || null;
 
   function buildRegionOpts(selId){
     return `<option value="">— Не выбран —</option>`+
@@ -1415,6 +1427,10 @@ window.openUser = async id=>{
     const dists = reg ? reg.districts||[] : [];
     return `<option value="">— Не выбран —</option>`+
       dists.map(d=>`<option value="${d.id}" ${d.id===selId?'selected':''}>${esc(d.name_ru)}</option>`).join("");
+  }
+  function buildDiffuserOpts(selId){
+    return `<option value="">— Не выбран —</option>`+
+      DIFFUSERS_DATA.filter(d=>d.is_active!==false).map(d=>`<option value="${d.id}" ${d.id===selId?'selected':''}>${esc(d.name_ru)}</option>`).join("");
   }
 
   const body=`
@@ -1432,6 +1448,7 @@ window.openUser = async id=>{
       <div><label class="sub-label" style="margin-top:0">Бизнес</label><input class="input" id="euBiz" value="${esc(u.business||"")}"></div>
       <div><label class="sub-label" style="margin-top:0">Регион</label><select class="input" id="euRegion">${buildRegionOpts(curRegionId)}</select></div>
       <div><label class="sub-label" style="margin-top:0">Район</label><select class="input" id="euDist">${buildDistOpts(curRegionId, curDistrictId)}</select></div>
+      <div class="full"><label class="sub-label" style="margin-top:0">Аппарат</label><select class="input" id="euDiffuser">${buildDiffuserOpts(curDiffuserId)}</select></div>
       <div class="full"><label class="sub-label" style="margin-top:0">Баланс (сум)</label><input class="input mono" id="euBal" type="number" value="${u.balance}"></div>
     </div>
     <div class="balance-box" style="margin-top:12px">
@@ -1456,6 +1473,7 @@ window.openUser = async id=>{
   $("#euSave").onclick=async()=>{
     const rid=+$("#euRegion").value||null;
     const did=+$("#euDist").value||null;
+    const dfid=+$("#euDiffuser").value||null;
     const payload={
       first_name:$("#euName").value,
       phone:$("#euPhone").value,
@@ -1464,6 +1482,7 @@ window.openUser = async id=>{
     };
     if(rid) payload.region_id=rid;
     if(did) payload.district_id=did;
+    if(dfid) payload.diffuser_id=dfid;
     try{
       await api("/admin/users/"+id,{method:"PUT",body:JSON.stringify(payload)});
       u.name=payload.first_name; u.phone=payload.phone; u.business=payload.business_name; u.balance=payload.cashback_balance;
@@ -3075,7 +3094,7 @@ async function enterApp(){
   // Show spinner in content while regions load
   $("#content").innerHTML=`<div class="page-loading"><div class="spin"></div><span>Загрузка данных...</span></div>`;
   npStart();
-  await loadRegions();
+  await Promise.all([loadRegions(), loadDiffusers()]);
   rebuildRegionsCompat();
   npDone();
   hideBoot();

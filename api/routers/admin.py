@@ -174,6 +174,7 @@ class UserUpdate(BaseModel):
     phone: str | None = None
     region_id: int | None = None
     district_id: int | None = None
+    diffuser_id: int | None = None
     cashback_balance: int | None = None
     is_active: bool | None = None
 
