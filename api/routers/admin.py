@@ -252,11 +252,11 @@ async def list_transactions(
         SELECT t.id, t.user_id, t.agent_id, t.amount,
                t.cashback_amount AS cashback,
                t.status, t.note, t.created_at, t.confirmed_at,
-               TRIM(COALESCE(u.first_name,'') || ' ' || COALESCE(u.last_name,'')) AS user_name,
+               COALESCE(TRIM(COALESCE(u.first_name,'') || ' ' || COALESCE(u.last_name,'')), 'Удалённый клиент') AS user_name,
                u.business_name, u.phone,
                a.name AS agent_name
         FROM transactions t
-        JOIN users u ON u.id = t.user_id
+        LEFT JOIN users u ON u.id = t.user_id
         LEFT JOIN agents a ON a.id = t.agent_id
         {where}
         ORDER BY t.created_at DESC
