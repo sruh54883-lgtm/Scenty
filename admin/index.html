@@ -2949,6 +2949,11 @@ async function pageSettings(){
         <label class="form-label">Instagram ссылка</label>
         <input id="sf_instagram" class="form-input" placeholder="https://instagram.com/scenti" value="">
       </div>
+      <div>
+        <label class="form-label">Telegram ID для уведомлений о транзакциях</label>
+        <input id="sf_notify_ids" class="form-input mono" placeholder="123456789" value="">
+        <div style="font-size:12px;color:#888;margin-top:4px">Числовой ID Telegram (узнать: @userinfobot). Можно несколько через запятую: 111,222</div>
+      </div>
       <button type="submit" class="btn btn-primary" id="sfBtn">${I.check} Сохранить</button>
     </form>
   </div>`);
@@ -2961,12 +2966,18 @@ async function pageSettings(){
     if(s.contact_tg) $("#sf_tg").value = s.contact_tg;
     if(s.youtube_url) $("#sf_youtube").value = s.youtube_url;
     if(s.instagram_url) $("#sf_instagram").value = s.instagram_url;
+    if(s.admin_notify_telegram_ids){
+      const v = s.admin_notify_telegram_ids;
+      $("#sf_notify_ids").value = Array.isArray(v) ? v.join(",") : v;
+    }
   }catch(e){ toast("Не удалось загрузить настройки","err"); }
 
   $("#settingsForm").addEventListener("submit", async e => {
     e.preventDefault();
     const btn = $("#sfBtn");
     btn.disabled = true; btn.innerHTML = "Сохранение...";
+    const notifyRaw = $("#sf_notify_ids").value.trim();
+    const notifyIds = notifyRaw ? notifyRaw.split(",").map(s=>parseInt(s.trim(),10)).filter(Boolean) : [];
     try{
       await api("/admin/settings",{method:"PUT",body:JSON.stringify({
         contact_phone: $("#sf_phone").value.trim(),
@@ -2974,6 +2985,7 @@ async function pageSettings(){
         contact_tg: $("#sf_tg").value.trim(),
         youtube_url: $("#sf_youtube").value.trim(),
         instagram_url: $("#sf_instagram").value.trim(),
+        admin_notify_telegram_ids: notifyIds,
       })});
       toast("Настройки сохранены","ok");
     }catch(ex){

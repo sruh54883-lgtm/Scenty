@@ -246,10 +246,17 @@ async def create_transaction(body: TxBody, bg: BackgroundTasks, agent: dict = De
                  f"{user.get('first_name', '')} {user.get('last_name', '')}".strip() or
                  f"ID {body.user_id}")
 
+    _cashback_val = cashback
+    _agent_name = agent.get("name") or agent.get("username") or ""
+
     async def _notify():
         try:
             from notifications import notify_admin_new_transaction
-            await notify_admin_new_transaction(0, user_name, body.amount)
+            await notify_admin_new_transaction(
+                0, user_name, body.amount,
+                cashback=_cashback_val,
+                agent_name=_agent_name,
+            )
         except Exception as _e:
             import logging as _log
             _log.getLogger("scenti.agent").warning("admin notify failed: %s", _e)
