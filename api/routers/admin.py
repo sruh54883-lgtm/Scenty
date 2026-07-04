@@ -333,7 +333,7 @@ async def reject_transaction(tx_id: int, body: RejectBody, admin: dict = Depends
     async with db.get_pool().acquire() as conn:
         async with conn.transaction():
             tx = await conn.fetchrow(
-                "SELECT id, status FROM transactions WHERE id = $1 FOR UPDATE", tx_id
+                "SELECT id, user_id, amount, status FROM transactions WHERE id = $1 FOR UPDATE", tx_id
             )
             if tx is None:
                 raise HTTPException(status_code=404, detail="Транзакция не найдена")
@@ -347,7 +347,43 @@ async def reject_transaction(tx_id: int, body: RejectBody, admin: dict = Depends
             )
             if updated is None:
                 raise HTTPException(status_code=400, detail="Транзакция уже обработана")
+            _tx_user = await conn.fetchrow(
+                "SELECT telegram_id, language FROM users WHERE id = $1", tx["user_id"]
+            )
     await _audit(admin["id"], "transaction_reject", {"tx_id": tx_id, "note": body.note})
+    # Уведомление клиенту
+    try:
+        import sys as _sys
+        from pathlib import Path as _Path
+        _bot_path = str(_Path(__file__).resolve().parent.parent.parent / "bot")
+        if _bot_path not in _sys.path:
+            _sys.path.insert(0, _bot_path)
+        from notifications import _safe_send, _fmt
+        if _tx_user and _tx_user["telegram_id"]:
+            _reason = body.note or ""
+            _lang = _tx_user.get("language") or "ru"
+            if _lang == "uz":
+                _text = (
+                    f"❌ <b>Tranzaksiya rad etildi</b>\n\n"
+                    f"Xarid summasi: <b>{_fmt(int(tx['amount']))} so'm</b>\n"
+                    + (f"Sabab: {_reason}\n\n" if _reason else "\n")
+                    + "Murojaat uchun:\n"
+                    + "📞 +998 77 383 11 11\n"
+                    + "💬 <a href='https://t.me/Scentioffice1'>@Scentioffice1</a>"
+                )
+            else:
+                _text = (
+                    f"❌ <b>Транзакция отклонена</b>\n\n"
+                    f"Сумма покупки: <b>{_fmt(int(tx['amount']))} сум</b>\n"
+                    + (f"Причина: {_reason}\n\n" if _reason else "\n")
+                    + "Для уточнения свяжитесь с нами:\n"
+                    + "📞 +998 77 383 11 11\n"
+                    + "💬 <a href='https://t.me/Scentioffice1'>@Scentioffice1</a>"
+                )
+            await _safe_send(int(_tx_user["telegram_id"]), _text)
+    except Exception as _e:
+        import logging as _log
+        _log.getLogger("scenti.admin").warning("reject tx notify failed: %s", _e)
     return {"status": "rejected"}
 
 
