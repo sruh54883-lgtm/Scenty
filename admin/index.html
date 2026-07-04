@@ -1532,7 +1532,7 @@ async function pageTxns(){
     <button class="btn btn-primary btn-sm" onclick="openCreateTx()">${I.plus}<span>Создать транзакцию</span></button></div>
     <div id="txnTabs"></div>
     <div class="table-wrap">
-      <table><thead><tr><th>Клиент</th><th>Агент</th><th>Сумма покупки</th><th>Кешбэк (10%)</th><th>Дата</th><th>Статус</th><th></th></tr></thead>
+      <table><thead><tr><th>Клиент</th><th>Агент</th><th>Сумма покупки</th><th>Кешбэк</th><th>Дата</th><th>Статус</th><th></th></tr></thead>
       <tbody id="txnBody">${loadingTable(7)}</tbody></table>
       <div id="txnPager"></div>
     </div>`;
@@ -1583,7 +1583,7 @@ window.openCreateTx=async function(){
         <input class="input" id="ctxAmount" type="number" min="1" step="1000" placeholder="Например: 500000">
       </div>
       <div id="ctxCashbackPreview" style="display:none;background:var(--success);color:#fff;border-radius:var(--radius-sm);padding:11px 14px;font-weight:700;font-size:15px">
-        💰 Кешбэк: <span id="ctxCashbackVal">0</span> UZS (10%)
+        💰 Кешбэк: <span id="ctxCashbackVal">0</span> UZS (<span id="ctxCashbackPct">5</span>%)
       </div>
       <div>
         <label class="form-label">Примечание (необязательно)</label>
@@ -1593,7 +1593,7 @@ window.openCreateTx=async function(){
   const foot=`<button class="btn btn-ghost x">Отмена</button><button class="btn btn-primary" id="ctxDo">${I.plus} Создать транзакцию</button>`;
   openModal(modalShell("Создать транзакцию",body,foot));
 
-  let allUsers=[], selectedUserId=null, dropOpen=false;
+  let allUsers=[], selectedUserId=null, dropOpen=false, selectedUserTier=5;
 
   function userLabel(u){
     const name=(u.first_name||u.name||"").trim()+(u.last_name&&!u.name?" "+u.last_name:"");
@@ -1652,6 +1652,12 @@ window.openCreateTx=async function(){
       $("#ctxTriggerText").textContent=userLabel(u);
       $("#ctxTriggerText").style.color="var(--text)";
       $("#ctxUserId").value=id;
+      const cnt=parseInt(u.approved_tx_count||0);
+      selectedUserTier = cnt===0?5:cnt===1?7:10;
+      const pctEl=$("#ctxCashbackPct"); if(pctEl)pctEl.textContent=selectedUserTier;
+      // обновить превью если уже введена сумма
+      const v=parseFloat($("#ctxAmount")?$("#ctxAmount").value:0)||0;
+      if(v>0){const cb=Math.round(v*selectedUserTier/100);const val=$("#ctxCashbackVal");if(val)val.textContent=cb.toLocaleString("ru-RU");}
     }
     // close
     dropOpen=false;
@@ -1686,11 +1692,12 @@ window.openCreateTx=async function(){
   const amtEl=$("#ctxAmount");
   if(amtEl)amtEl.oninput=function(){
     const v=parseFloat(this.value)||0;
-    const cb=Math.round(v*0.10);
+    const cb=Math.round(v*selectedUserTier/100);
     const prev=$("#ctxCashbackPreview");
     if(prev)prev.style.display=cb>0?"block":"none";
     const val=$("#ctxCashbackVal");
     if(val)val.textContent=cb.toLocaleString("ru-RU");
+    const pctEl=$("#ctxCashbackPct"); if(pctEl)pctEl.textContent=selectedUserTier;
   };
 
   const doBtn=$("#ctxDo");

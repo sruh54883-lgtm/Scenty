@@ -131,7 +131,11 @@ async def list_users(
                r.name_ru AS region,
                d.name_ru AS district,
                u.cashback_balance AS balance,
-               u.language, u.is_active, u.created_at
+               u.language, u.is_active, u.created_at,
+               (SELECT COUNT(*) FROM transactions t
+                WHERE t.user_id = u.id
+                  AND t.status IN ('approved','confirmed')
+                  AND t.created_at >= u.cashback_reset_at) AS approved_tx_count
         FROM users u
         LEFT JOIN regions r ON r.id = u.region_id
         LEFT JOIN districts d ON d.id = u.district_id
