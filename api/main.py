@@ -98,25 +98,21 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(title="Scenti Loyalty API", version="1.0.0", lifespan=lifespan)
 
-# SPA browser fallback middleware — перехватывает браузерные GET запросы к путям,
-# которые конфликтуют с API-роутами. Браузерный запрос = нет Authorization и Accept: text/html.
-_ADMIN_SPA_CONFLICT_PATHS = {
-    "/admin/users", "/admin/transactions", "/admin/gifts", "/admin/claims",
-    "/admin/catalog", "/admin/regions", "/admin/agents", "/admin/stats",
-    "/admin/backups", "/admin/privacy",
-}
+# SPA browser fallback middleware — любой браузерный GET /admin/* без Authorization → index.html
+_admin_index_path = Path(__file__).resolve().parent.parent / "admin" / "index.html"
 
 class _AdminBrowserFallback(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next):
-        path = request.url.path.rstrip("/") or request.url.path
+        path = request.url.path
         if (
-            path in _ADMIN_SPA_CONFLICT_PATHS
+            path.startswith("/admin/")
             and request.method == "GET"
             and "text/html" in request.headers.get("accept", "")
             and "authorization" not in request.headers
+            and not path.startswith("/admin/static")
+            and "." not in path.split("/")[-1]  # не файлы (*.js, *.css, *.png)
         ):
-            _idx = Path(__file__).resolve().parent.parent / "admin" / "index.html"
-            return FileResponse(str(_idx))
+            return FileResponse(str(_admin_index_path))
         return await call_next(request)
 
 app.add_middleware(_AdminBrowserFallback)
