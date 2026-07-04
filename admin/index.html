@@ -135,14 +135,17 @@ textarea.input{height:auto;padding:12px 14px;resize:vertical;min-height:90px;lin
   z-index:50;transition:width var(--t);
 }
 .sidebar .brand{
-  display:flex;align-items:center;gap:10px;padding:22px 20px 18px;
+  display:flex;align-items:center;gap:10px;padding:16px 14px;min-height:64px;
+  border-bottom:1px solid #1a2233;
 }
-.sidebar .brand .mark{
-  width:34px;height:34px;border-radius:10px;flex-shrink:0;
-  background:linear-gradient(135deg,var(--primary),var(--light));
-  display:flex;align-items:center;justify-content:center;color:#fff;font-weight:800;font-size:17px;
+.burger-btn{
+  width:36px;height:36px;border-radius:9px;flex-shrink:0;
+  background:transparent;border:none;cursor:pointer;color:#9aa7be;
+  display:flex;align-items:center;justify-content:center;transition:background var(--t),color var(--t);
 }
-.sidebar .brand .name{font-size:20px;font-weight:800;color:#fff;letter-spacing:-.4px;white-space:nowrap}
+.burger-btn:hover{background:#161c2b;color:#fff}
+.burger-btn svg{width:20px;height:20px}
+.sidebar .brand .name{font-size:19px;font-weight:800;color:#fff;letter-spacing:-.4px;white-space:nowrap}
 .nav{flex:1;overflow-y:auto;padding:6px 12px 12px;display:flex;flex-direction:column;gap:2px}
 .nav::-webkit-scrollbar{width:6px}
 .nav::-webkit-scrollbar-thumb{background:#22293a;border:none}
@@ -160,25 +163,20 @@ textarea.input{height:auto;padding:12px 14px;resize:vertical;min-height:90px;lin
   min-width:20px;height:20px;border-radius:10px;display:flex;align-items:center;justify-content:center;padding:0 6px;
 }
 .nav-item.active .badge{background:#fff;color:var(--primary)}
-.sidebar .foot{padding:12px;border-top:1px solid #1a2233}
-.sidebar-collapse{
-  display:flex;align-items:center;gap:12px;padding:10px 12px;border-radius:10px;
-  color:#9aa7be;font-weight:600;font-size:13px;width:100%;
-}
-.sidebar-collapse:hover{background:#161c2b;color:#fff}
+.sidebar .foot{display:none}
 
 /* collapsed */
-body.collapsed .sidebar{width:72px}
+body.collapsed .sidebar{width:64px}
 body.collapsed .sidebar .brand .name,
-body.collapsed .nav-item span.label,
-body.collapsed .sidebar-collapse span{display:none}
+body.collapsed .nav-item span.label{display:none}
 body.collapsed .nav-item{justify-content:center;padding:11px}
 body.collapsed .nav-item .badge{position:absolute;top:4px;right:4px;margin:0}
-body.collapsed .main{margin-left:72px}
-body.collapsed .sidebar-collapse{justify-content:center}
+body.collapsed .main{margin-left:64px}
+body.collapsed .sidebar .brand{justify-content:center;padding:14px 0}
+body:not(.collapsed) .main{margin-left:var(--sidebar-w)}
 
 .main{
-  flex:1;margin-left:var(--sidebar-w);min-width:0;transition:margin var(--t);
+  flex:1;margin-left:64px;min-width:0;transition:margin var(--t);
   display:flex;flex-direction:column;min-height:100vh;
 }
 .topbar{
@@ -532,15 +530,13 @@ tbody tr.removing{animation:rowOut .45s forwards}
 <div id="app" class="hidden">
   <aside class="sidebar">
     <div class="brand">
-      <div class="mark">S</div>
+      <button class="burger-btn" id="collapseBtn" title="Меню">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+      </button>
       <div class="name">scenti</div>
     </div>
     <nav class="nav" id="nav"></nav>
-    <div class="foot">
-      <button class="sidebar-collapse" id="collapseBtn">
-        <span class="ic" id="collapseIc"></span><span>Свернуть</span>
-      </button>
-    </div>
+    <div class="foot"></div>
   </aside>
 
   <div class="main">
@@ -3076,12 +3072,12 @@ function logout(){
 $("#logoutBtn").addEventListener("click",logout);
 
 /* collapse */
-$("#collapseIc").innerHTML=I.collapse;
 $("#collapseBtn").addEventListener("click",()=>{
   document.body.classList.toggle("collapsed");
-  localStorage.setItem("scenti_collapsed",document.body.classList.contains("collapsed")?"1":"");
+  localStorage.setItem("scenti_collapsed",document.body.classList.contains("collapsed")?"1":"0");
 });
-if(localStorage.getItem("scenti_collapsed"))document.body.classList.add("collapsed");
+// по умолчанию свёрнут, если не сохранено иное
+if(localStorage.getItem("scenti_collapsed")!=="0")document.body.classList.add("collapsed");
 
 /* ============ PROGRESS BAR ============ */
 let _npTimer=null;
