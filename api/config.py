@@ -20,7 +20,7 @@ class Settings:
     JWT_SECRET: str = _require("JWT_SECRET")
 
     JWT_ALGORITHM: str = "HS256"
-    JWT_EXPIRE_HOURS: int = 24  # сокращено с 7 дней до 24 часов
+    JWT_EXPIRE_HOURS: int = 720  # 30 дней
 
     CASHBACK_PERCENT: int = 10
     ADMIN_TELEGRAM_ID: int = int(os.getenv("ADMIN_TELEGRAM_ID", "0") or "0")
