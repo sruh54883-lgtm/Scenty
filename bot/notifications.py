@@ -201,30 +201,6 @@ async def notify_user_gift_status(
 
 # --- уведомление администратору ---
 
-async def _get_admin_notify_ids() -> list[int]:
-    """Читаем telegram_id для уведомлений из app_settings + fallback на env."""
-    ids: list[int] = []
-    try:
-        import sys, os
-        sys.path.insert(0, os.path.join(os.path.dirname(__file__), "../api"))
-        import database as _db  # type: ignore[import]
-        row = await _db.fetchrow(
-            "SELECT value FROM app_settings WHERE key = 'admin_notify_telegram_ids'"
-        )
-        if row and row["value"]:
-            import json as _json
-            raw = _json.loads(row["value"]) if isinstance(row["value"], str) else row["value"]
-            if isinstance(raw, list):
-                ids = [int(x) for x in raw if x]
-            elif raw:
-                ids = [int(raw)]
-    except Exception as _e:
-        logger.debug("app_settings read failed: %s", _e)
-    if not ids and settings.ADMIN_TELEGRAM_ID:
-        ids = [settings.ADMIN_TELEGRAM_ID]
-    return ids
-
-
 async def notify_admin_new_transaction(
     admin_telegram_id: int,
     user_name: str,
@@ -233,11 +209,9 @@ async def notify_admin_new_transaction(
     agent_name: str = "",
 ) -> bool:
     """Новая транзакция, требующая подтверждения супер-админом."""
-    targets = await _get_admin_notify_ids()
-    if admin_telegram_id:
-        targets = list(set(targets + [admin_telegram_id]))
-    if not targets:
-        logger.warning("Нет получателей уведомлений о транзакциях (admin_notify_telegram_ids не задан)")
+    target = settings.ADMIN_TELEGRAM_ID
+    if not target:
+        logger.warning("ADMIN_TELEGRAM_ID не задан — уведомление пропущено")
         return False
 
     admin_url = settings.WEBAPP_URL.replace("/webapp", "").rstrip("/") + "/admin/"
@@ -252,10 +226,7 @@ async def notify_admin_new_transaction(
         + (f"🧑‍💼 Агент: <b>{agent_name}</b>\n" if agent_name else "")
         + "\nПодтвердите в админ-панели 👇"
     )
-    results = []
-    for tg_id in targets:
-        results.append(await _safe_send(tg_id, text, reply_markup=btn))
-    return any(results)
+    return await _safe_send(target, text, reply_markup=btn)
 
 
 # --- рассылка ---
