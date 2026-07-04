@@ -100,15 +100,19 @@ async def get_user_by_telegram_id(telegram_id: int) -> Optional[dict[str, Any]]:
     )
 
 
-async def get_privacy_policy_text(lang: str = "ru") -> str:
+async def get_privacy_policy(lang: str = "ru") -> dict[str, str]:
     column = "content_uz" if lang == "uz" else "content_ru"
-    # column выбирается из белого списка выше, не из пользовательского ввода
     row = await fetchrow(
-        f"SELECT {column} AS content FROM privacy_policy ORDER BY id LIMIT 1"
+        f"SELECT {column} AS content, file_url FROM privacy_policy ORDER BY id LIMIT 1"
     )
-    if row and row.get("content"):
-        return row["content"]
-    return "Политика конфиденциальности временно недоступна."
+    return {
+        "text": (row.get("content") or "Политика конфиденциальности временно недоступна.") if row else "Политика конфиденциальности временно недоступна.",
+        "file_url": (row.get("file_url") or "") if row else "",
+    }
+
+
+async def get_privacy_policy_text(lang: str = "ru") -> str:
+    return (await get_privacy_policy(lang))["text"]
 
 
 async def get_diffusers() -> list[dict[str, Any]]:

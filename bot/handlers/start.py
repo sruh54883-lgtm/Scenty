@@ -4,7 +4,7 @@ import logging
 from aiogram import F, Router
 from aiogram.filters import CommandStart
 from aiogram.fsm.context import FSMContext
-from aiogram.types import CallbackQuery, Message
+from aiogram.types import CallbackQuery, Message, URLInputFile
 
 import database as db
 from handlers.menu import show_main_menu
@@ -119,13 +119,24 @@ async def _ask_policy(message: Message, state: FSMContext) -> None:
     data = await state.get_data()
     lang = data.get("lang", "ru")
     try:
-        policy = await db.get_privacy_policy_text(lang)
+        policy_data = await db.get_privacy_policy(lang)
     except Exception:
         logger.exception("Ошибка загрузки политики")
         await message.answer(t_lang(lang, "db_down"))
         return
 
-    text = "🌿 <b>Scenti</b>\n\n" + t_lang(lang, "policy_intro") + policy
+    # Отправить PDF-документ если загружен
+    file_url = policy_data.get("file_url", "")
+    if file_url:
+        try:
+            from config import settings
+            full_url = settings.WEBAPP_URL.rstrip("/") + file_url if file_url.startswith("/") else file_url
+            doc = URLInputFile(full_url, filename=file_url.split("/")[-1])
+            await message.answer_document(doc)
+        except Exception:
+            logger.warning("Не удалось отправить PDF политики")
+
+    text = "🌿 <b>Scenti</b>\n\n" + t_lang(lang, "policy_intro") + policy_data["text"]
     await state.set_state(Registration.waiting_policy)
     await message.answer(text, reply_markup=ikb.policy_keyboard(lang))
 
