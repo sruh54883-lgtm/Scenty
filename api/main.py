@@ -132,6 +132,10 @@ class _SecurityHeadersMiddleware(BaseHTTPMiddleware):
         response.headers["Permissions-Policy"] = "geolocation=(), microphone=(), camera=()"
         if request.url.scheme == "https":
             response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
+        # HTML-страницы SPA не кешируем — иначе браузер подаёт старый JS после деплоя
+        ct = response.headers.get("content-type", "")
+        if "text/html" in ct:
+            response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate"
         return response
 
 app.add_middleware(_SecurityHeadersMiddleware)
