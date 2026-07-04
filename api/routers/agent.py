@@ -45,7 +45,9 @@ async def search_users(
             return await db.fetch(
                 """
                 SELECT u.id, u.first_name, u.last_name, u.business_name, u.phone,
-                       u.cashback_balance, u.district_id, u.region_id
+                       u.cashback_balance, u.district_id, u.region_id,
+                       (SELECT COUNT(*) FROM transactions t
+                        WHERE t.user_id = u.id AND t.status IN ('approved','confirmed')) AS approved_tx_count
                 FROM users u
                 WHERE u.is_active = TRUE
                   AND (u.first_name ILIKE $1 OR u.last_name ILIKE $1
@@ -57,7 +59,9 @@ async def search_users(
         return await db.fetch(
             """
             SELECT u.id, u.first_name, u.last_name, u.business_name, u.phone,
-                   u.cashback_balance, u.district_id, u.region_id
+                   u.cashback_balance, u.district_id, u.region_id,
+                   (SELECT COUNT(*) FROM transactions t
+                    WHERE t.user_id = u.id AND t.status IN ('approved','confirmed')) AS approved_tx_count
             FROM users u WHERE u.is_active = TRUE
             ORDER BY u.created_at DESC LIMIT 100
             """

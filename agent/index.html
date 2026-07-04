@@ -976,7 +976,8 @@ window.txSearchClient=function(q){
 function renderTxResults(arr,res){
   res.innerHTML=arr.map(u=>{
     const nm=[u.first_name,u.last_name].filter(Boolean).join(' ')||u.business_name||'—';
-    return `<div class="user-result-item" onclick="txSelectUser(${u.id},'${esc(nm)}','${esc(u.phone||'')}')">
+    const cnt=u.approved_tx_count??0;
+    return `<div class="user-result-item" onclick="txSelectUser(${u.id},'${esc(nm)}','${esc(u.phone||'')}',${cnt})">
       <div class="uri-av">${initials(nm)}</div>
       <div><div class="uri-name">${esc(nm)}</div><div class="uri-ph">${esc(u.phone||'')}</div></div>
     </div>`;
@@ -984,8 +985,8 @@ function renderTxResults(arr,res){
   res.classList.add('open');
 };
 
-window.txSelectUser=function(id,name,phone){
-  _newTxUser={id,name,phone};
+window.txSelectUser=function(id,name,phone,approvedCount){
+  _newTxUser={id,name,phone,approvedCount:approvedCount??0};
   const si=$('#txSelectedUser');
   if(si){
     si.innerHTML=`<div class="uri-av" style="width:34px;height:34px;border-radius:9px;background:var(--primary);color:#fff;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;flex-shrink:0">${initials(name)}</div>
@@ -1002,8 +1003,12 @@ window.txUpdateCashback=function(){
   const amt=Number(($('#txAmount')||{}).value||0);
   const hint=$('#txCashbackHint');
   if(!hint)return;
-  if(amt>0){hint.textContent=`Кешбэк клиенту: ${fmt(Math.round(amt*0.1))} сум (10%)`;hint.classList.add('show');}
-  else hint.classList.remove('show');
+  if(amt>0){
+    const cnt=_newTxUser?(_newTxUser.approvedCount??0):0;
+    const pct=cnt===0?5:cnt===1?7:10;
+    hint.textContent=`Кешбэк клиенту: ${fmt(Math.round(amt*pct/100))} сум (${pct}%)`;
+    hint.classList.add('show');
+  } else hint.classList.remove('show');
 };
 
 window.submitNewTx=async function(){
