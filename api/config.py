@@ -23,6 +23,7 @@ class Settings:
     JWT_EXPIRE_HOURS: int = 24  # сокращено с 7 дней до 24 часов
 
     CASHBACK_PERCENT: int = 10
+    ADMIN_TELEGRAM_ID: int = int(os.getenv("ADMIN_TELEGRAM_ID", "0") or "0")
 
 
 settings = Settings()
