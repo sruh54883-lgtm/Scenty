@@ -164,7 +164,9 @@ async def upsert_user(
             district_id = EXCLUDED.district_id,
             language = EXCLUDED.language,
             privacy_accepted = TRUE,
-            is_active = TRUE
+            is_active = TRUE,
+            cashback_balance   = CASE WHEN users.is_active = FALSE THEN 0          ELSE users.cashback_balance   END,
+            cashback_reset_at  = CASE WHEN users.is_active = FALSE THEN NOW()      ELSE users.cashback_reset_at  END
         RETURNING *
         """,
         telegram_id,

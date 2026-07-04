@@ -23,6 +23,10 @@ async def migrate():
         await conn.execute(
             "ALTER TABLE transactions ADD COLUMN IF NOT EXISTS cashback_percent SMALLINT NOT NULL DEFAULT 10"
         )
+        # Дата последней регистрации — для сброса кешбэк-тира при перерегистрации
+        await conn.execute(
+            "ALTER TABLE users ADD COLUMN IF NOT EXISTS cashback_reset_at TIMESTAMPTZ NOT NULL DEFAULT NOW()"
+        )
         # Уникальность номера телефона клиента
         await conn.execute(
             "CREATE UNIQUE INDEX IF NOT EXISTS idx_users_phone ON users(phone) WHERE phone IS NOT NULL"

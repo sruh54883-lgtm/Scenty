@@ -47,7 +47,8 @@ async def search_users(
                 SELECT u.id, u.first_name, u.last_name, u.business_name, u.phone,
                        u.cashback_balance, u.district_id, u.region_id,
                        (SELECT COUNT(*) FROM transactions t
-                        WHERE t.user_id = u.id AND t.status IN ('approved','confirmed')) AS approved_tx_count
+                        WHERE t.user_id = u.id AND t.status IN ('approved','confirmed')
+                          AND t.created_at >= u.cashback_reset_at) AS approved_tx_count
                 FROM users u
                 WHERE u.is_active = TRUE
                   AND (u.first_name ILIKE $1 OR u.last_name ILIKE $1
@@ -61,7 +62,8 @@ async def search_users(
             SELECT u.id, u.first_name, u.last_name, u.business_name, u.phone,
                    u.cashback_balance, u.district_id, u.region_id,
                    (SELECT COUNT(*) FROM transactions t
-                    WHERE t.user_id = u.id AND t.status IN ('approved','confirmed')) AS approved_tx_count
+                    WHERE t.user_id = u.id AND t.status IN ('approved','confirmed')
+                      AND t.created_at >= u.cashback_reset_at) AS approved_tx_count
             FROM users u WHERE u.is_active = TRUE
             ORDER BY u.created_at DESC LIMIT 100
             """
@@ -210,9 +212,12 @@ async def create_transaction(body: TxBody, bg: BackgroundTasks, agent: dict = De
         if user["district_id"] not in allowed_ids:
             raise HTTPException(status_code=403, detail="Клиент не из вашего района")
 
-    # Прогрессивный кешбэк: 1-я покупка 5%, 2-я 7%, с 3-й 10%
+    # Прогрессивный кешбэк: 1-я покупка 5%, 2-я 7%, с 3-й 10% (считаем с момента последней регистрации)
     approved_count = await db.fetchval(
-        "SELECT COUNT(*) FROM transactions WHERE user_id = $1 AND status IN ('approved', 'confirmed')",
+        """SELECT COUNT(*) FROM transactions t
+           JOIN users u ON u.id = t.user_id
+           WHERE t.user_id = $1 AND t.status IN ('approved', 'confirmed')
+             AND t.created_at >= u.cashback_reset_at""",
         body.user_id,
     )
     if approved_count == 0:

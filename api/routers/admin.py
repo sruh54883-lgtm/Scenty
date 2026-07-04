@@ -366,9 +366,12 @@ async def admin_create_transaction(body: CreateTxBody, admin: dict = Depends(get
             if user is None:
                 raise HTTPException(status_code=404, detail="Пользователь не найден")
 
-            # Прогрессивный кешбэк: 1-я покупка 5%, 2-я 7%, с 3-й 10%
+            # Прогрессивный кешбэк: 1-я покупка 5%, 2-я 7%, с 3-й 10% (с момента последней регистрации)
             approved_count = await conn.fetchval(
-                "SELECT COUNT(*) FROM transactions WHERE user_id = $1 AND status IN ('approved', 'confirmed')",
+                """SELECT COUNT(*) FROM transactions t
+                   JOIN users u ON u.id = t.user_id
+                   WHERE t.user_id = $1 AND t.status IN ('approved', 'confirmed')
+                     AND t.created_at >= u.cashback_reset_at""",
                 body.user_id,
             )
             if approved_count == 0:
