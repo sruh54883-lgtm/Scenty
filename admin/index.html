@@ -2932,42 +2932,60 @@ window.doBackup=async()=>{
    ============================================================ */
 async function pageSettings(){
   const c=$("#content");
-  c.innerHTML=`<div class="page-header"><h1>${I.gear} Настройки контактов</h1></div>
-  <div class="card card-pad" style="max-width:560px">
-    <div id="settingsMsg"></div>
-    <form id="settingsForm" style="display:flex;flex-direction:column;gap:18px">
-      <div>
-        <label class="form-label">Телефон (для звонка)</label>
-        <input id="sf_phone" class="form-input" placeholder="+998771234567" value="">
-        <div style="font-size:12px;color:#888;margin-top:4px">Без пробелов и тире: +998771234567</div>
-      </div>
-      <div>
-        <label class="form-label">Телефон (как отображается)</label>
-        <input id="sf_phone_display" class="form-input" placeholder="+998 77 123 45 67" value="">
-        <div style="font-size:12px;color:#888;margin-top:4px">Для показа пользователям: +998 77 123 45 67</div>
-      </div>
-      <div>
-        <label class="form-label">Telegram username</label>
-        <div style="position:relative">
-          <span style="position:absolute;left:14px;top:50%;transform:translateY(-50%);color:#888;font-size:15px">@</span>
-          <input id="sf_tg" class="form-input" style="padding-left:28px" placeholder="Scentioffice1" value="">
+  c.innerHTML=`
+  <div style="max-width:600px">
+    <div class="card" style="padding:28px 32px;margin-bottom:0">
+      <div style="display:flex;align-items:center;gap:14px;margin-bottom:28px;padding-bottom:20px;border-bottom:1px solid var(--border)">
+        <div style="width:42px;height:42px;border-radius:12px;background:linear-gradient(135deg,var(--primary),var(--light));display:flex;align-items:center;justify-content:center;color:#fff;flex-shrink:0">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+        </div>
+        <div>
+          <div style="font-size:16px;font-weight:700;color:var(--text)">Настройки контактов</div>
+          <div style="font-size:13px;color:var(--muted);margin-top:2px">Контакты показываются клиентам в уведомлениях</div>
         </div>
       </div>
-      <div class="form-group">
-        <label class="form-label">YouTube ссылка</label>
-        <input id="sf_youtube" class="form-input" placeholder="https://youtube.com/@scenti" value="">
-      </div>
-      <div class="form-group">
-        <label class="form-label">Instagram ссылка</label>
-        <input id="sf_instagram" class="form-input" placeholder="https://instagram.com/scenti" value="">
-      </div>
-      <div>
-        <label class="form-label">Telegram ID для уведомлений о транзакциях</label>
-        <input id="sf_notify_ids" class="form-input mono" placeholder="123456789" value="">
-        <div style="font-size:12px;color:#888;margin-top:4px">Числовой ID Telegram (узнать: @userinfobot). Можно несколько через запятую: 111,222</div>
-      </div>
-      <button type="submit" class="btn btn-primary" id="sfBtn">${I.check} Сохранить</button>
-    </form>
+      <form id="settingsForm" style="display:flex;flex-direction:column;gap:16px">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
+          <div>
+            <label class="form-label">Телефон (для звонка)</label>
+            <input id="sf_phone" class="input" placeholder="+998771234567" value="">
+            <div class="muted" style="font-size:12px;margin-top:4px">Без пробелов: +998771234567</div>
+          </div>
+          <div>
+            <label class="form-label">Телефон (отображение)</label>
+            <input id="sf_phone_display" class="input" placeholder="+998 77 123 45 67" value="">
+            <div class="muted" style="font-size:12px;margin-top:4px">Показывается клиентам</div>
+          </div>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
+          <div>
+            <label class="form-label">Telegram username</label>
+            <div style="position:relative">
+              <span style="position:absolute;left:13px;top:50%;transform:translateY(-50%);color:var(--muted);font-size:14px;font-weight:600">@</span>
+              <input id="sf_tg" class="input" style="padding-left:26px" placeholder="Scentioffice1" value="">
+            </div>
+          </div>
+          <div>
+            <label class="form-label">Telegram ID уведомлений</label>
+            <input id="sf_notify_ids" class="input mono" placeholder="-1001234567890" value="">
+            <div class="muted" style="font-size:12px;margin-top:4px">Канал или личный ID (@getidsbot)</div>
+          </div>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
+          <div>
+            <label class="form-label">YouTube</label>
+            <input id="sf_youtube" class="input" placeholder="https://youtube.com/@scenti" value="">
+          </div>
+          <div>
+            <label class="form-label">Instagram</label>
+            <input id="sf_instagram" class="input" placeholder="https://instagram.com/scenti" value="">
+          </div>
+        </div>
+        <div style="padding-top:4px">
+          <button type="submit" class="btn btn-primary" id="sfBtn" style="min-width:160px">${I.check} Сохранить</button>
+        </div>
+      </form>
+    </div>
   </div>`;
 
   // Загружаем текущие значения
