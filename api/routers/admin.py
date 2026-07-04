@@ -1252,6 +1252,69 @@ async def stats_regions(
     return [{"name_ru": r["name_ru"], "clients": int(r["clients"]), "earned": int(r["earned"])} for r in rows]
 
 
+@router.get("/geo/regions")
+async def geo_regions(admin: dict = Depends(get_current_admin)):
+    rows = await db.fetch(
+        """
+        SELECT r.id, r.name_ru,
+               COUNT(DISTINCT u.id)  AS users,
+               COALESCE(SUM(u.cashback_balance), 0) AS balance,
+               COUNT(DISTINCT gr.id) AS gift_requests
+        FROM regions r
+        LEFT JOIN users u  ON u.region_id = r.id AND u.is_active = TRUE
+        LEFT JOIN gift_requests gr ON gr.user_id = u.id
+        GROUP BY r.id, r.name_ru
+        ORDER BY users DESC, r.name_ru
+        """
+    )
+    return [{"id": r["id"], "name_ru": r["name_ru"],
+             "users": int(r["users"]), "balance": int(r["balance"]),
+             "gift_requests": int(r["gift_requests"])} for r in rows]
+
+
+@router.get("/geo/districts")
+async def geo_districts(region_id: int, admin: dict = Depends(get_current_admin)):
+    rows = await db.fetch(
+        """
+        SELECT d.id, d.name_ru,
+               COUNT(DISTINCT u.id)  AS users,
+               COALESCE(SUM(u.cashback_balance), 0) AS balance,
+               COUNT(DISTINCT gr.id) AS gift_requests
+        FROM districts d
+        LEFT JOIN users u  ON u.district_id = d.id AND u.is_active = TRUE
+        LEFT JOIN gift_requests gr ON gr.user_id = u.id
+        WHERE d.region_id = $1
+        GROUP BY d.id, d.name_ru
+        ORDER BY users DESC, d.name_ru
+        """,
+        region_id,
+    )
+    return [{"id": r["id"], "name_ru": r["name_ru"],
+             "users": int(r["users"]), "balance": int(r["balance"]),
+             "gift_requests": int(r["gift_requests"])} for r in rows]
+
+
+@router.get("/geo/users")
+async def geo_users(district_id: int, admin: dict = Depends(get_current_admin)):
+    rows = await db.fetch(
+        """
+        SELECT u.id, u.first_name, u.last_name, u.phone, u.cashback_balance,
+               COUNT(gr.id) AS gift_requests
+        FROM users u
+        LEFT JOIN gift_requests gr ON gr.user_id = u.id
+        WHERE u.district_id = $1 AND u.is_active = TRUE
+        GROUP BY u.id
+        ORDER BY u.cashback_balance DESC
+        """,
+        district_id,
+    )
+    return [{"id": r["id"],
+             "name": ((r["first_name"] or "") + " " + (r["last_name"] or "")).strip() or "—",
+             "phone": r["phone"] or "",
+             "balance": int(r["cashback_balance"]),
+             "gift_requests": int(r["gift_requests"])} for r in rows]
+
+
 @router.get("/stats")
 async def stats(
     admin: dict = Depends(get_current_admin),
