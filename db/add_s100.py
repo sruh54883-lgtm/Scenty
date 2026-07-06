@@ -1,5 +1,7 @@
 """Добавляет диффузор S-100 в каталог."""
-import asyncio, os, sys
+import asyncio
+import os
+import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent.parent / "api"))
@@ -9,7 +11,8 @@ async def main():
     import asyncpg
     url = os.environ.get("DATABASE_URL", "")
     if not url:
-        print("DATABASE_URL not set"); return
+        print("DATABASE_URL not set")
+        return
     ssl = "require" if "sslmode=require" in url else None
     conn = await asyncpg.connect(url, timeout=15, ssl=ssl)
     try:

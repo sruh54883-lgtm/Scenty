@@ -1,6 +1,5 @@
 """SQLite database adapter for local development."""
 import aiosqlite
-import asyncio
 import os
 from typing import Optional
 

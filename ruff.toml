@@ -1,0 +1,10 @@
+# Ruff configuration — https://docs.astral.sh/ruff
+target-version = "py312"
+line-length = 100
+
+[lint]
+# E4 (imports), E7 (statements), E9 (syntax), F (pyflakes — real bugs), W (warnings)
+select = ["E4", "E7", "E9", "F", "W"]
+# E402: the app intentionally does lazy imports after sys.path manipulation
+# (bot/ path injection) and inside functions to break import cycles.
+ignore = ["E402"]

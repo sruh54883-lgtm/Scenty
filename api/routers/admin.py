@@ -2,17 +2,16 @@ from __future__ import annotations
 """Супер-Админ панель — эндпоинты /admin/*. JWT Bearer (role=admin)."""
 import json
 import os
-import subprocess
 import uuid
 from datetime import datetime
 from pathlib import Path
 
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, UploadFile, File
-from fastapi.responses import FileResponse
 from pydantic import BaseModel, Field
 
 import database as db
 from auth import hash_password
+from config import settings
 from deps import get_current_admin
 
 router = APIRouter(prefix="/admin", tags=["admin"])
@@ -1071,7 +1070,10 @@ async def _do_broadcast_send(broadcast_id: int, users: list, message_ru: str,
                              message_uz: str, image_url: str, parse_mode: str,
                              sticker_file_id: str = ""):
     """Фоновая отправка рассылки — вызывается через BackgroundTasks."""
-    import asyncio, sys, os as _os, logging as _log
+    import asyncio
+    import sys
+    import os as _os
+    import logging as _log
     from pathlib import Path as _Path
     _bp = str(_Path(__file__).resolve().parent.parent.parent / "bot")
     if _bp not in sys.path:
@@ -1294,7 +1296,6 @@ async def backup_full(admin: dict = Depends(get_current_admin)):
     import io as _io
     import json as _json
     import zipfile
-    import os
     from pathlib import Path as _Path
     from fastapi.responses import StreamingResponse
 
@@ -1400,8 +1401,10 @@ def _geo_date_filter(date_from, date_to):
     df = date_from if date_from and _DATE.match(date_from) else None
     dt = date_to if date_to and _DATE.match(date_to) else None
     f = ""
-    if df: f += f" AND t.created_at >= '{df}'"
-    if dt: f += f" AND t.created_at < '{dt}'::date + INTERVAL '1 day'"
+    if df:
+        f += f" AND t.created_at >= '{df}'"
+    if dt:
+        f += f" AND t.created_at < '{dt}'::date + INTERVAL '1 day'"
     return f
 
 
@@ -1507,8 +1510,10 @@ async def stats(
 
     def _p(col: str = "created_at") -> str:
         parts = []
-        if df: parts.append(f"{col} >= '{df}'")
-        if dt: parts.append(f"{col} < '{dt}'::date + INTERVAL '1 day'")
+        if df:
+            parts.append(f"{col} >= '{df}'")
+        if dt:
+            parts.append(f"{col} < '{dt}'::date + INTERVAL '1 day'")
         return (" AND " + " AND ".join(parts)) if parts else ""
 
     total_users = await db.fetchval("SELECT COUNT(*) FROM users WHERE is_active = TRUE")

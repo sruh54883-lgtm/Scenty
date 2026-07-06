@@ -4,7 +4,6 @@ from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
 from pydantic import BaseModel, Field
 
 import database as db
-from config import settings
 from deps import get_current_agent
 
 router = APIRouter(prefix="/agent", tags=["agent"])
@@ -531,8 +530,10 @@ async def stats_by_district(
     df = date_from if date_from and _D.match(date_from) else None
     dt = date_to if date_to and _D.match(date_to) else None
     date_cond = ""
-    if df: date_cond += f" AND t.created_at >= '{df}'"
-    if dt: date_cond += f" AND t.created_at < '{dt}'::date + INTERVAL '1 day'"
+    if df:
+        date_cond += f" AND t.created_at >= '{df}'"
+    if dt:
+        date_cond += f" AND t.created_at < '{dt}'::date + INTERVAL '1 day'"
 
     rows = await db.fetch(
         f"""

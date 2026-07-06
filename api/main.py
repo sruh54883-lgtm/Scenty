@@ -1,6 +1,5 @@
 """Scenti Loyalty API — FastAPI приложение."""
 import asyncio
-import os
 import time
 from collections import defaultdict
 from contextlib import asynccontextmanager
