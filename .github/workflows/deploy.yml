@@ -1,18 +1,71 @@
-name: Deploy to production
+name: CI/CD
 
 on:
   push:
     branches: [main]
+  pull_request:
+    branches: [main]
   workflow_dispatch:
 
-# Never run two deploys at once; let an in-flight deploy finish.
+# One production deploy at a time; never cancel an in-flight deploy.
 concurrency:
   group: production-deploy
   cancel-in-progress: false
 
 jobs:
+  # ---------------------------------------------------------------- TEST
+  test:
+    name: Test
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: scenti
+          POSTGRES_PASSWORD: scenti_test
+          POSTGRES_DB: scenti_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U scenti"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      DATABASE_URL: postgresql://scenti:scenti_test@localhost:5432/scenti_test
+      BOT_TOKEN: "123456789:TEST-token-for-ci-only-do-not-use-anywhere"
+      ADMIN_SECRET: test_admin_secret
+      JWT_SECRET: test_jwt_secret_ci
+      WEBAPP_URL: https://example.test/webapp
+      UPLOADS_DIR: /tmp/scenti-uploads
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install -r requirements-dev.txt
+
+      - name: Initialize test database (schema + admin)
+        run: python db/migrate.py
+
+      - name: Run tests
+        run: pytest
+
+  # -------------------------------------------------------------- DEPLOY
   deploy:
-    name: Deploy to server
+    name: Deploy to production
+    needs: test                       # only deploys if tests pass
+    if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
@@ -30,6 +83,6 @@ jobs:
           ssh -i ~/.ssh/deploy_key -o IdentitiesOnly=yes -o BatchMode=yes \
               "${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }}" 2>&1
 
-      - name: Deploy failed
+      - name: Report failure
         if: failure()
-        run: echo "::error::Deployment failed — server auto-rolled back to the previous release. Check the log above."
+        run: echo "::error::Deployment failed — server auto-rolled back to the previous release. See log above."

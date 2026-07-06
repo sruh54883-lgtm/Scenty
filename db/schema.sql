@@ -17,6 +17,24 @@ CREATE TABLE IF NOT EXISTS districts (
     code VARCHAR(20) UNIQUE NOT NULL
 );
 
+-- diffusers must be defined before users (users.diffuser_id references it)
+CREATE TABLE IF NOT EXISTS diffusers (
+    id SERIAL PRIMARY KEY,
+    name_ru VARCHAR(255) NOT NULL UNIQUE,
+    name_uz VARCHAR(255) NOT NULL,
+    description_ru TEXT NOT NULL DEFAULT '',
+    description_uz TEXT NOT NULL DEFAULT '',
+    type VARCHAR(20) NOT NULL,
+    tag_ru VARCHAR(100),
+    tag_uz VARCHAR(100),
+    image_url VARCHAR(500) NOT NULL DEFAULT '',
+    specs JSONB NOT NULL DEFAULT '{}',
+    features TEXT[] NOT NULL DEFAULT '{}',
+    is_active BOOLEAN NOT NULL DEFAULT TRUE,
+    sort_order INT NOT NULL DEFAULT 0,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
 CREATE TABLE IF NOT EXISTS users (
     id BIGSERIAL PRIMARY KEY,
     telegram_id BIGINT UNIQUE NOT NULL,
@@ -100,23 +118,6 @@ CREATE TABLE IF NOT EXISTS cashback_spends (
     user_id BIGINT NOT NULL REFERENCES users(id),
     amount BIGINT NOT NULL,
     gift_request_id BIGINT REFERENCES gift_requests(id),
-    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-);
-
-CREATE TABLE IF NOT EXISTS diffusers (
-    id SERIAL PRIMARY KEY,
-    name_ru VARCHAR(255) NOT NULL,
-    name_uz VARCHAR(255) NOT NULL,
-    description_ru TEXT NOT NULL DEFAULT '',
-    description_uz TEXT NOT NULL DEFAULT '',
-    type VARCHAR(20) NOT NULL,
-    tag_ru VARCHAR(100),
-    tag_uz VARCHAR(100),
-    image_url VARCHAR(500) NOT NULL DEFAULT '',
-    specs JSONB NOT NULL DEFAULT '{}',
-    features TEXT[] NOT NULL DEFAULT '{}',
-    is_active BOOLEAN NOT NULL DEFAULT TRUE,
-    sort_order INT NOT NULL DEFAULT 0,
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
