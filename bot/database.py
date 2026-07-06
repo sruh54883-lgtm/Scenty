@@ -103,11 +103,15 @@ async def get_user_by_telegram_id(telegram_id: int) -> Optional[dict[str, Any]]:
 async def get_privacy_policy(lang: str = "ru") -> dict[str, str]:
     column = "content_uz" if lang == "uz" else "content_ru"
     row = await fetchrow(
-        f"SELECT {column} AS content, file_url FROM privacy_policy ORDER BY id LIMIT 1"
+        f"SELECT {column} AS content, file_url, file_url_uz, tg_file_id, tg_file_id_uz FROM privacy_policy ORDER BY id LIMIT 1"
     )
+    if not row:
+        return {"text": "Политика конфиденциальности временно недоступна.", "file_url": "", "tg_file_id": ""}
+    is_uz = lang == "uz"
     return {
-        "text": (row.get("content") or "Политика конфиденциальности временно недоступна.") if row else "Политика конфиденциальности временно недоступна.",
-        "file_url": (row.get("file_url") or "") if row else "",
+        "text": row.get("content") or ("Maxfiylik siyosati vaqtincha mavjud emas." if is_uz else "Политика конфиденциальности временно недоступна."),
+        "file_url": (row.get("file_url_uz") or row.get("file_url") or "") if is_uz else (row.get("file_url") or ""),
+        "tg_file_id": (row.get("tg_file_id_uz") or row.get("tg_file_id") or "") if is_uz else (row.get("tg_file_id") or ""),
     }
 
 

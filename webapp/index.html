@@ -403,6 +403,17 @@ img{display:block;max-width:100%;}
   <nav class="tabbar" id="tabbar"></nav>
 </div>
 
+<!-- ============ REGISTRATION REQUIRED SCREEN ============ -->
+<div id="reg-wall" style="display:none;position:fixed;inset:0;z-index:9999;background:#EDF1F7;display:none;flex-direction:column;align-items:center;justify-content:center;padding:32px 24px;text-align:center;">
+  <div style="font-size:64px;margin-bottom:20px">🌿</div>
+  <div style="font-size:22px;font-weight:800;color:#1a1a2e;margin-bottom:10px" id="reg-wall-title">Завершите регистрацию</div>
+  <div style="font-size:15px;color:#6b7280;line-height:1.6;margin-bottom:28px" id="reg-wall-body">Чтобы открыть приложение, пройдите регистрацию в боте @scentiuz_bot</div>
+  <a href="https://t.me/scentiuz_bot" style="display:inline-flex;align-items:center;gap:8px;background:#2563eb;color:#fff;padding:14px 28px;border-radius:14px;font-size:16px;font-weight:700;text-decoration:none" id="reg-wall-btn">
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M22 2L11 13"/><path d="M22 2L15 22l-4-9-9-4 20-7z"/></svg>
+    <span id="reg-wall-btn-text">Открыть бот</span>
+  </a>
+</div>
+
 <!-- ============ OVERLAY / SHEET ============ -->
 <div class="overlay" id="overlay">
   <div class="sheet" id="sheet"></div>
@@ -600,6 +611,20 @@ function txnStatusInfo(status){
   return {cls:cls[status]||'wait', text:tx('txn_'+status)||status};
 }
 
+function _isRegistered(me){
+  return !!(me && me.privacy_accepted && me.phone && me.business_name);
+}
+function _showRegWall(lang){
+  const wall=document.getElementById('reg-wall');
+  if(!wall)return;
+  const isUz=lang==='uz';
+  document.getElementById('reg-wall-title').textContent=isUz?"Ro'yxatdan o'ting":"Завершите регистрацию";
+  document.getElementById('reg-wall-body').textContent=isUz?"Ilovani ochish uchun @scentiuz_bot botida ro'yxatdan o'ting":"Чтобы открыть приложение, пройдите регистрацию в боте @scentiuz_bot";
+  document.getElementById('reg-wall-btn-text').textContent=isUz?"Botni ochish":"Открыть бот";
+  wall.style.display='flex';
+  // Скрываем основной контент
+  document.getElementById('app').style.visibility='hidden';
+}
 async function loadUserData(){
   if(!_tgInitData&&!_tgUserId) return false;
   try{
@@ -613,6 +638,11 @@ async function loadUserData(){
     USER.tgId=me.telegram_id?'TG '+me.telegram_id:'—';
     USER.lang=me.language||'ru';
     if(me.region) USER.location=(me.region.name_ru||'')+(me.district?', '+(me.district.name_ru||''):'');
+    // Блокируем доступ если регистрация не завершена
+    if(!_isRegistered(me)){
+      _showRegWall(USER.lang);
+      return false;
+    }
     return true;
   }catch(e){return false;}
 }
@@ -650,9 +680,10 @@ async function loadRequests(){
 }
 
 async function loadCatalog(){
-  if(!_tgInitData&&!_tgUserId) return;
   try{
-    CATALOG_RAW=await apiFetch('/api/diffusers');
+    // Публичный эндпоинт — не требует авторизации
+    const r=await fetch('/api/catalog');
+    if(r.ok) CATALOG_RAW=await r.json();
     reprocessData();
   }catch(e){}
 }
@@ -1049,18 +1080,21 @@ async function openPrivacy(){
     <button class="btn btn-ghost" onclick="closeSheet()">${tx('ok_btn')}</button>`);
   try{
     const p=await apiFetch('/api/privacy');
-    const txt=USER.lang==='uz'?(p.content_uz||p.content_ru):p.content_ru;
+    const isUz=USER.lang==='uz';
+    const txt=isUz?(p.content_uz||p.content_ru):p.content_ru;
     const el=document.getElementById('privacyText');
     if(el&&txt) el.textContent=txt;
-    if(p.file_url){
+    const fileUrl=isUz?(p.pdf_uz||p.pdf):p.pdf;
+    if(fileUrl){
       const btn=document.getElementById('privacyDlBtn');
       if(btn){
         btn.style.display='';
         btn.onclick=()=>{
           try{
             const tg=window.Telegram&&window.Telegram.WebApp;
-            if(tg&&tg.openLink) tg.openLink(p.file_url);
-            else window.open(p.file_url,'_blank');
+            const full=fileUrl.startsWith('/')?location.origin+fileUrl:fileUrl;
+            if(tg&&tg.openLink) tg.openLink(full);
+            else window.open(full,'_blank');
           }catch(e){}
         };
       }

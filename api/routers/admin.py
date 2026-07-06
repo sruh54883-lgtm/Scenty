@@ -86,7 +86,28 @@ async def upload_doc(
     filename = uuid.uuid4().hex + ext
     dest = UPLOADS_DIR / filename
     dest.write_bytes(content)
-    return {"url": f"/uploads/{filename}", "filename": file.filename}
+
+    # Загружаем в Telegram — получаем постоянный file_id
+    tg_file_id = None
+    try:
+        import sys as _sys
+        from pathlib import Path as _Path
+        _bot_path = str(_Path(__file__).resolve().parent.parent.parent / "bot")
+        if _bot_path not in _sys.path:
+            _sys.path.insert(0, _bot_path)
+        from notifications import get_bot
+        from aiogram.types import BufferedInputFile
+        _bot = get_bot()
+        _tg = settings.ADMIN_TELEGRAM_ID
+        if _tg:
+            _buf = BufferedInputFile(content, filename=file.filename or filename)
+            _msg = await _bot.send_document(_tg, _buf)
+            tg_file_id = _msg.document.file_id if _msg and _msg.document else None
+    except Exception as _e:
+        import logging as _log
+        _log.getLogger("scenti.admin").warning("Не удалось загрузить файл в TG: %s", _e)
+
+    return {"url": f"/uploads/{filename}", "filename": file.filename, "tg_file_id": tg_file_id or ""}
 
 
 async def _audit(admin_id: int, action: str, details: dict | None = None):
@@ -801,16 +822,23 @@ async def list_agents(
     return await db.fetch(
         f"""
         SELECT a.id, a.name, a.phone, a.username, a.is_active, a.created_at,
-               COUNT(DISTINCT t.id) AS transactions_count,
-               COUNT(DISTINCT t.id) FILTER (WHERE {date_cond} AND t.status = 'approved') AS txn_month,
-               COALESCE(SUM(t.amount) FILTER (WHERE {date_cond} AND t.status = 'approved'), 0) AS sales_month,
+               COALESCE(ts.transactions_count, 0) AS transactions_count,
+               COALESCE(ts.txn_month, 0) AS txn_month,
+               COALESCE(ts.sales_month, 0) AS sales_month,
                array_remove(array_agg(DISTINCT d.name_ru), NULL) AS districts,
                array_remove(array_agg(DISTINCT ad.district_id), NULL) AS district_ids
         FROM agents a
-        LEFT JOIN transactions t ON t.agent_id = a.id
+        LEFT JOIN (
+            SELECT t.agent_id,
+                   COUNT(t.id) AS transactions_count,
+                   COUNT(t.id) FILTER (WHERE {date_cond} AND t.status = 'approved') AS txn_month,
+                   COALESCE(SUM(t.amount) FILTER (WHERE {date_cond} AND t.status = 'approved'), 0) AS sales_month
+            FROM transactions t
+            GROUP BY t.agent_id
+        ) ts ON ts.agent_id = a.id
         LEFT JOIN agent_districts ad ON ad.agent_id = a.id
         LEFT JOIN districts d ON d.id = ad.district_id
-        GROUP BY a.id
+        GROUP BY a.id, ts.transactions_count, ts.txn_month, ts.sales_month
         ORDER BY a.created_at DESC
         """
     )
@@ -846,13 +874,15 @@ class AgentBody(BaseModel):
     name: str
     phone: str
     username: str
-    password: str
+    password: str = ""
     district_ids: list[int] = []
 
 
 @router.post("/agents")
 async def create_agent(body: AgentBody, admin: dict = Depends(get_current_admin)):
-    exists = await db.fetchval("SELECT 1 FROM agents WHERE username = $1", body.username)
+    if not body.password:
+        raise HTTPException(status_code=400, detail="Пароль обязателен")
+    exists = await db.fetchval("SELECT 1 FROM agents WHERE LOWER(username) = LOWER($1)", body.username)
     if exists:
         raise HTTPException(status_code=400, detail="Username уже занят")
 
@@ -1255,6 +1285,77 @@ async def backup(admin: dict = Depends(get_current_admin)):
         _io.BytesIO(raw),
         media_type="application/json",
         headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
+
+
+@router.post("/backup/full")
+async def backup_full(admin: dict = Depends(get_current_admin)):
+    """Полный бэкап: исходный код + дамп БД в одном ZIP-файле."""
+    import io as _io
+    import json as _json
+    import zipfile
+    import os
+    from pathlib import Path as _Path
+    from fastapi.responses import StreamingResponse
+
+    ts = datetime.now().strftime("%Y%m%d_%H%M%S")
+    zip_filename = f"scenti_full_backup_{ts}.zip"
+
+    # --- дамп БД ---
+    tables = [
+        "users", "regions", "districts", "transactions", "cashback_spends",
+        "gifts", "gift_requests", "agents", "agent_districts",
+        "diffusers", "broadcasts", "monthly_reminder", "privacy_policy",
+        "app_settings", "audit_log",
+    ]
+
+    def _serialize(val):
+        if val is None:
+            return None
+        if isinstance(val, (int, float, bool, str)):
+            return val
+        return str(val)
+
+    dump: dict = {"meta": {"ts": ts, "version": "1"}, "tables": {}}
+    for table in tables:
+        try:
+            rows = await db.fetch(f"SELECT * FROM {table} ORDER BY id")  # noqa: S608
+            dump["tables"][table] = [{k: _serialize(v) for k, v in dict(row).items()} for row in rows]
+        except Exception:
+            dump["tables"][table] = []
+
+    db_json = _json.dumps(dump, ensure_ascii=False, indent=2).encode("utf-8")
+
+    # --- корень проекта ---
+    project_root = _Path(__file__).resolve().parent.parent.parent
+    SKIP_DIRS = {"__pycache__", ".venv", "venv", "node_modules", ".git", ".railway"}
+    SKIP_EXTS = {".pyc", ".pyo"}
+
+    buf = _io.BytesIO()
+    with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as zf:
+        # исходный код
+        for fpath in project_root.rglob("*"):
+            if fpath.is_file():
+                parts = set(fpath.relative_to(project_root).parts)
+                if parts & SKIP_DIRS:
+                    continue
+                if fpath.suffix in SKIP_EXTS:
+                    continue
+                arcname = str(fpath.relative_to(project_root))
+                try:
+                    zf.write(fpath, arcname)
+                except Exception:
+                    pass
+        # дамп БД
+        zf.writestr(f"db_dump_{ts}.json", db_json)
+
+    size = buf.tell()
+    buf.seek(0)
+    await _audit(admin["id"], "backup_full", {"filename": zip_filename, "size": size})
+    return StreamingResponse(
+        buf,
+        media_type="application/zip",
+        headers={"Content-Disposition": f'attachment; filename="{zip_filename}"'},
     )
 
 
@@ -1981,14 +2082,21 @@ async def update_reminder(body: ReminderBody, admin: dict = Depends(get_current_
 async def get_policy(admin: dict = Depends(get_current_admin)):
     row = await db.fetchrow("SELECT * FROM privacy_policy ORDER BY id DESC LIMIT 1")
     if not row:
-        return {"ru": "", "uz": "", "pdf": ""}
-    return {"ru": row["content_ru"], "uz": row["content_uz"], "pdf": row.get("file_url", "")}
+        return {"ru": "", "uz": "", "pdf": "", "pdf_uz": "", "tg_file_id": "", "tg_file_id_uz": ""}
+    return {
+        "ru": row["content_ru"], "uz": row["content_uz"],
+        "pdf": row.get("file_url", ""), "pdf_uz": row.get("file_url_uz", ""),
+        "tg_file_id": row.get("tg_file_id", ""), "tg_file_id_uz": row.get("tg_file_id_uz", ""),
+    }
 
 
 class PolicyBody(BaseModel):
     ru: str = ""
     uz: str = ""
     pdf: str = ""
+    pdf_uz: str = ""
+    tg_file_id: str = ""
+    tg_file_id_uz: str = ""
 
 
 @router.put("/policy")
@@ -1996,13 +2104,13 @@ async def update_policy(body: PolicyBody, admin: dict = Depends(get_current_admi
     existing = await db.fetchrow("SELECT id FROM privacy_policy ORDER BY id DESC LIMIT 1")
     if existing:
         await db.execute(
-            "UPDATE privacy_policy SET content_ru=$1, content_uz=$2, file_url=$3, updated_at=NOW() WHERE id=$4",
-            body.ru, body.uz, body.pdf, existing["id"],
+            "UPDATE privacy_policy SET content_ru=$1, content_uz=$2, file_url=$3, file_url_uz=$4, tg_file_id=$5, tg_file_id_uz=$6, updated_at=NOW() WHERE id=$7",
+            body.ru, body.uz, body.pdf, body.pdf_uz, body.tg_file_id, body.tg_file_id_uz, existing["id"],
         )
     else:
         await db.execute(
-            "INSERT INTO privacy_policy (content_ru, content_uz, file_url) VALUES ($1,$2,$3)",
-            body.ru, body.uz, body.pdf,
+            "INSERT INTO privacy_policy (content_ru, content_uz, file_url, file_url_uz, tg_file_id, tg_file_id_uz) VALUES ($1,$2,$3,$4,$5,$6)",
+            body.ru, body.uz, body.pdf, body.pdf_uz, body.tg_file_id, body.tg_file_id_uz,
         )
     await _audit(admin["id"], "policy_update", {})
     return {"status": "updated"}
@@ -2071,9 +2179,19 @@ class SettingsBody(BaseModel):
 
 @router.put("/settings")
 async def update_settings(body: SettingsBody, admin: dict = Depends(get_current_admin)):
+    phone = body.contact_phone.strip()
+    phone_display = body.contact_phone_display.strip()
+    # Если поле отображения пустое или совпадает с raw-номером — авто-форматируем
+    if phone and (not phone_display or phone_display.replace(" ", "") == phone.replace(" ", "")):
+        import re as _re
+        digits = _re.sub(r"[^\d]", "", phone)
+        if len(digits) == 12:  # 998XXXXXXXXX
+            phone_display = f"+{digits[:3]} {digits[3:5]} {digits[5:8]} {digits[8:10]} {digits[10:12]}"
+        else:
+            phone_display = phone
     data = {
-        "contact_phone": body.contact_phone.strip(),
-        "contact_phone_display": body.contact_phone_display.strip(),
+        "contact_phone": phone,
+        "contact_phone_display": phone_display,
         "contact_tg": body.contact_tg.strip().lstrip("@"),
         "youtube_url": body.youtube_url.strip(),
         "instagram_url": body.instagram_url.strip(),

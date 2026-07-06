@@ -39,66 +39,55 @@ async def search_users(
 ):
     like = f"%{search}%" if search else None
 
-    # all=true: показать всех активных клиентов (для создания транзакции агентом)
+    _reg = "u.is_active = TRUE AND u.privacy_accepted = TRUE AND u.phone IS NOT NULL AND u.phone != ''"
+
+    # Получаем районы агента (применяется везде — и для клиентов, и для транзакций)
+    district_ids = await db.fetch(
+        "SELECT district_id FROM agent_districts WHERE agent_id = $1", agent["id"]
+    )
+    ids = [r["district_id"] for r in district_ids]
+    if not ids:
+        return []  # Нет районов — агент не видит никого
+
     if all:
+        # Поиск для создания транзакции — только из районов агента
         if like:
             return await db.fetch(
-                """
+                f"""
                 SELECT u.id, u.first_name, u.last_name, u.business_name, u.phone,
                        u.cashback_balance, u.district_id, u.region_id,
                        (SELECT COUNT(*) FROM transactions t
                         WHERE t.user_id = u.id AND t.status IN ('approved','confirmed')
                           AND t.created_at >= u.cashback_reset_at) AS approved_tx_count
                 FROM users u
-                WHERE u.is_active = TRUE
-                  AND (u.first_name ILIKE $1 OR u.last_name ILIKE $1
-                       OR u.business_name ILIKE $1 OR u.phone ILIKE $1)
+                WHERE {_reg} AND u.district_id = ANY($1::int[])
+                  AND (u.first_name ILIKE $2 OR u.last_name ILIKE $2
+                       OR u.business_name ILIKE $2 OR u.phone ILIKE $2)
                 ORDER BY u.first_name, u.last_name LIMIT 50
                 """,
-                like,
+                ids, like,
             )
         return await db.fetch(
-            """
+            f"""
             SELECT u.id, u.first_name, u.last_name, u.business_name, u.phone,
                    u.cashback_balance, u.district_id, u.region_id,
                    (SELECT COUNT(*) FROM transactions t
                     WHERE t.user_id = u.id AND t.status IN ('approved','confirmed')
                       AND t.created_at >= u.cashback_reset_at) AS approved_tx_count
-            FROM users u WHERE u.is_active = TRUE
+            FROM users u
+            WHERE {_reg} AND u.district_id = ANY($1::int[])
             ORDER BY u.created_at DESC LIMIT 100
-            """
-        )
-
-    # Фильтр по районам агента (таб Клиенты)
-    district_ids = await db.fetch(
-        "SELECT district_id FROM agent_districts WHERE agent_id = $1", agent["id"]
-    )
-    ids = [r["district_id"] for r in district_ids]
-    if not ids:
-        # Нет районов — показать всех клиентов
-        if like:
-            return await db.fetch(
-                """
-                SELECT u.id, u.first_name, u.last_name, u.business_name, u.phone,
-                       u.cashback_balance, u.district_id, u.region_id
-                FROM users u WHERE u.is_active = TRUE
-                  AND (u.first_name ILIKE $1 OR u.last_name ILIKE $1
-                       OR u.business_name ILIKE $1 OR u.phone ILIKE $1)
-                ORDER BY u.first_name LIMIT 100
-                """,
-                like,
-            )
-        return await db.fetch(
-            "SELECT u.id, u.first_name, u.last_name, u.business_name, u.phone, u.cashback_balance, u.district_id, u.region_id FROM users u WHERE u.is_active=TRUE ORDER BY u.created_at DESC LIMIT 100"
+            """,
+            ids,
         )
 
     if like:
         return await db.fetch(
-            """
+            f"""
             SELECT u.id, u.first_name, u.last_name, u.business_name, u.phone,
                    u.cashback_balance, u.district_id, u.region_id
             FROM users u
-            WHERE u.is_active = TRUE AND u.district_id = ANY($1::int[])
+            WHERE {_reg} AND u.district_id = ANY($1::int[])
               AND (u.first_name ILIKE $2 OR u.last_name ILIKE $2
                    OR u.business_name ILIKE $2 OR u.phone ILIKE $2)
             ORDER BY u.created_at DESC LIMIT 100
@@ -106,11 +95,11 @@ async def search_users(
             ids, like,
         )
     return await db.fetch(
-        """
+        f"""
         SELECT u.id, u.first_name, u.last_name, u.business_name, u.phone,
                u.cashback_balance, u.district_id, u.region_id
         FROM users u
-        WHERE u.is_active = TRUE AND u.district_id = ANY($1::int[])
+        WHERE {_reg} AND u.district_id = ANY($1::int[])
         ORDER BY u.created_at DESC LIMIT 100
         """,
         ids,
@@ -488,10 +477,9 @@ async def my_stats(
         dist_ids,
     )
 
-    # Только прямые оплаты кешбэком (без подарков)
     spent_row = await db.fetchrow(
         """
-        SELECT COALESCE(SUM(cs.amount) FILTER (WHERE cs.gift_request_id IS NULL), 0) AS total_cashback_spent
+        SELECT COALESCE(SUM(cs.amount), 0) AS total_cashback_spent
         FROM cashback_spends cs
         JOIN users u ON u.id = cs.user_id
         WHERE u.district_id = ANY($1::int[])

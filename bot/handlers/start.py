@@ -77,7 +77,9 @@ MAX_BUSINESS_LEN = 200
 
 @router.message(CommandStart())
 async def cmd_start(message: Message, state: FSMContext) -> None:
-    await state.clear()
+    current = await state.get_state()
+    if current is not None:
+        await state.clear()
 
     if not db.is_available():
         await message.answer(T["ru"]["db_down"])
@@ -125,18 +127,40 @@ async def _ask_policy(message: Message, state: FSMContext) -> None:
         await message.answer(t_lang(lang, "db_down"))
         return
 
-    # Отправить PDF-документ если загружен
+    # Отправить документ политики
+    tg_file_id = policy_data.get("tg_file_id", "")
     file_url = policy_data.get("file_url", "")
-    if file_url:
+    if tg_file_id:
+        # Используем постоянный Telegram file_id — не зависит от Railway filesystem
+        try:
+            await message.answer_document(tg_file_id)
+        except Exception as _e:
+            logger.warning("Не удалось отправить документ по tg_file_id: %s", _e)
+    elif file_url:
         try:
             from config import settings
-            full_url = settings.WEBAPP_URL.rstrip("/") + file_url if file_url.startswith("/") else file_url
+            from urllib.parse import urlparse
+            parsed = urlparse(settings.WEBAPP_URL)
+            base = f"{parsed.scheme}://{parsed.netloc}"
+            full_url = base + file_url if file_url.startswith("/") else file_url
             doc = URLInputFile(full_url, filename=file_url.split("/")[-1])
             await message.answer_document(doc)
-        except Exception:
-            logger.warning("Не удалось отправить PDF политики")
+        except Exception as _e:
+            logger.warning("Не удалось отправить PDF по URL: %s", _e)
 
-    text = "🌿 <b>Scenti</b>\n\n" + t_lang(lang, "policy_intro") + policy_data["text"]
+    has_file = bool(policy_data.get("tg_file_id") or policy_data.get("file_url"))
+    content = policy_data["text"]
+    # Не показываем заглушку "временно недоступна" если файл уже отправлен
+    fallbacks = {
+        "Политика конфиденциальности временно недоступна.",
+        "Maxfiylik siyosati vaqtincha mavjud emas.",
+    }
+    if has_file and content in fallbacks:
+        content = ""
+    body = t_lang(lang, "policy_intro")
+    if content:
+        body += content
+    text = "🌿 <b>Scenti</b>\n\n" + body
     await state.set_state(Registration.waiting_policy)
     await message.answer(text, reply_markup=ikb.policy_keyboard(lang))
 
@@ -191,7 +215,7 @@ async def process_business(message: Message, state: FSMContext) -> None:
 
 import re as _re
 
-_PHONE_RE = _re.compile(r"^\+?[\d\s\-\(\)]{7,20}$")
+_PHONE_RE = _re.compile(r"^\+998\d{9}$")
 
 
 def _normalize_phone(raw: str) -> str:

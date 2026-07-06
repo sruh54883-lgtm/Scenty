@@ -71,6 +71,24 @@ async def migrate():
             """
         )
         print(f"cashback_spends cleanup OK: {deleted}")
+        # Постоянный Telegram file_id для документа политики конфиденциальности
+        await conn.execute(
+            "ALTER TABLE privacy_policy ADD COLUMN IF NOT EXISTS tg_file_id VARCHAR(200) NOT NULL DEFAULT ''"
+        )
+        await conn.execute(
+            "ALTER TABLE privacy_policy ADD COLUMN IF NOT EXISTS file_url_uz VARCHAR(500) NOT NULL DEFAULT ''"
+        )
+        await conn.execute(
+            "ALTER TABLE privacy_policy ADD COLUMN IF NOT EXISTS tg_file_id_uz VARCHAR(200) NOT NULL DEFAULT ''"
+        )
+        # Установить файлы политики по умолчанию если ещё не заданы
+        await conn.execute("""
+            UPDATE privacy_policy
+            SET file_url = '/admin/policy_ru.docx',
+                file_url_uz = '/admin/policy_uz.docx'
+            WHERE (file_url IS NULL OR file_url = '')
+               OR (file_url_uz IS NULL OR file_url_uz = '')
+        """)
         print("DB schema applied OK")
 
         # Сбрасываем пароль admin через passlib (bcrypt $2b$), не pgcrypto
@@ -97,12 +115,6 @@ async def migrate():
             print("Admin password reset OK")
             print(f"Old admin accounts removed: {deleted}")
 
-            shox_pass = os.environ.get("SHOX_PASS", "Shox2026!")
-            await conn.execute(
-                "UPDATE agents SET password_hash=$1, is_active=TRUE WHERE username='shox'",
-                hash_password(shox_pass),
-            )
-            print("Agent shox password reset OK")
         except Exception as e:
             print(f"Admin setup warning: {e}")
 

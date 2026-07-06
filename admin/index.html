@@ -1528,21 +1528,34 @@ function txnStatusRu(s){
 /* ============================================================
    PAGE 2: TRANSACTIONS
    ============================================================ */
-const Txns = {list:[], tab:"pending", page:1};
+const Txns = {list:[], tab:"pending", page:1, agentFilter:""};
 async function pageTxns(){
   const c=$("#content");
   c.innerHTML=`<div class="toolbar"><div class="spacer"></div>
     <button class="btn btn-ghost btn-sm" onclick="pageTxns()" title="Обновить список">${I.refresh||'↻'} Обновить</button>
     <button class="btn btn-primary btn-sm" onclick="openCreateTx()">${I.plus}<span>Создать транзакцию</span></button></div>
+    <div id="txnAgentFilterWrap" style="padding:0 0 12px 0"></div>
     <div id="txnTabs"></div>
     <div class="table-wrap">
       <table><thead><tr><th>Клиент</th><th>Агент</th><th>Сумма покупки</th><th>Кешбэк</th><th>Дата</th><th>Статус</th><th></th></tr></thead>
       <tbody id="txnBody">${loadingTable(7)}</tbody></table>
       <div id="txnPager"></div>
     </div>`;
-  const data=await apiOrMock("/admin/transactions",()=>MOCK.txns);
+  const [data, agentsData] = await Promise.all([
+    apiOrMock("/admin/transactions",()=>MOCK.txns),
+    fetch((window.API_BASE||"")+"/admin/agents?date_from=2020-01-01&date_to=2099-01-01",{headers:{"Authorization":"Bearer "+State.token}}).then(r=>r.json()).catch(()=>[])
+  ]);
   Txns.list=Array.isArray(data)?data:(data?.data||[]);
+  Txns.agents=Array.isArray(agentsData)?agentsData:[];
   Badges.pendingTxn=Txns.list.filter(t=>t.status==="pending").length; renderNav();
+  // Рендерим фильтр по агентам
+  const wrap=$("#txnAgentFilterWrap");
+  if(wrap && Txns.agents.length){
+    wrap.innerHTML=`<select id="txnAgentSelect" onchange="txnSetAgent(this.value)" style="padding:8px 12px;border:1.5px solid var(--border);border-radius:8px;font-size:14px;background:#fff;cursor:pointer;min-width:200px">
+      <option value="">Все агенты</option>
+      ${Txns.agents.map(a=>`<option value="${a.id}" ${Txns.agentFilter==a.id?'selected':''}>${esc(a.name)}</option>`).join('')}
+    </select>`;
+  }
   renderTxns();
 
   // Авто-обновление каждые 20 сек пока на этой странице
@@ -1734,7 +1747,8 @@ function renderTxns(){
     <div class="tab ${Txns.tab==='approved'?'active':''}" onclick="txnTab('approved')">Подтверждённые</div>
     <div class="tab ${Txns.tab==='rejected'?'active':''}" onclick="txnTab('rejected')">Отклонённые</div>
   </div>`;
-  const arr=Txns.list.filter(t=>Txns.tab==='approved'?(t.status==='approved'||t.status==='confirmed'):t.status===Txns.tab);
+  let arr=Txns.list.filter(t=>Txns.tab==='approved'?(t.status==='approved'||t.status==='confirmed'):t.status===Txns.tab);
+  if(Txns.agentFilter) arr=arr.filter(t=>String(t.agent_id)===String(Txns.agentFilter));
   const p=paginate(arr,Txns.page,20);
   const body=$("#txnBody"); if(!body)return;
   if(!p.items.length){body.innerHTML=emptyRow(7,"Нет транзакций");$("#txnPager").innerHTML="";return;}
@@ -1754,6 +1768,7 @@ function renderTxns(){
   $("#txnPager").innerHTML=pagerHTML(p,"txnGo");
 }
 window.txnTab=t=>{Txns.tab=t;Txns.page=1;renderTxns();};
+window.txnSetAgent=v=>{Txns.agentFilter=v;Txns.page=1;renderTxns();};
 window.txnGo=p=>{Txns.page=p;renderTxns();};
 window.txnConfirm=async id=>{
   const t=Txns.list.find(x=>x.id===id);
@@ -2007,9 +2022,16 @@ window.clReject=id=>{
    PAGE 5: CATALOG
    ============================================================ */
 const Catalog={list:[]};
+let _catFilter='all';
 async function pageCatalog(){
   const c=$("#content");
-  c.innerHTML=`<div class="toolbar"><div class="spacer"></div>
+  c.innerHTML=`<div class="toolbar">
+    <div style="display:flex;gap:6px">
+      <button class="btn btn-sm ${_catFilter==='all'?'btn-primary':'btn-ghost'}" onclick="setCatFilter('all')">Все</button>
+      <button class="btn btn-sm ${_catFilter==='device'?'btn-primary':'btn-ghost'}" onclick="setCatFilter('device')">🖥 Аппараты</button>
+      <button class="btn btn-sm ${_catFilter==='aroma'?'btn-primary':'btn-ghost'}" onclick="setCatFilter('aroma')">🌸 Ароматы</button>
+    </div>
+    <div class="spacer"></div>
     <button class="btn btn-primary btn-sm" onclick="catEdit()">${I.plus}<span>Добавить</span></button></div>
     <div class="table-wrap"><table><thead><tr><th>Тип</th><th>Название</th><th>Тег</th><th>Активен</th><th></th></tr></thead>
     <tbody id="catBody">${loadingTable(5)}</tbody></table></div>`;
@@ -2017,6 +2039,15 @@ async function pageCatalog(){
   Catalog.list=Array.isArray(data)?data:(data?.items||[]);
   renderCatalog();
 }
+window.setCatFilter=function(f){
+  _catFilter=f;
+  const btns=document.querySelectorAll('.toolbar .btn-sm:not(.btn-primary[onclick*="catEdit"])');
+  btns.forEach(b=>{
+    const isActive=(f==='all'&&b.textContent.trim()==='Все')||(f==='device'&&b.textContent.includes('Аппарат'))||(f==='aroma'&&b.textContent.includes('Аромат'));
+    b.className='btn btn-sm '+(isActive?'btn-primary':'btn-ghost');
+  });
+  renderCatalog();
+};
 function catThumb(it){
   const name=it.name_ru||'';
   if(it.image_url){
@@ -2028,8 +2059,9 @@ function catThumb(it){
 }
 function renderCatalog(){
   const body=$("#catBody");if(!body)return;
-  if(!Catalog.list.length){body.innerHTML=emptyRow(5,"Каталог пуст");return;}
-  body.innerHTML=Catalog.list.map(it=>`
+  const list=_catFilter==='all'?Catalog.list:Catalog.list.filter(x=>x.type===_catFilter);
+  if(!list.length){body.innerHTML=emptyRow(5,_catFilter==='all'?"Каталог пуст":_catFilter==='device'?"Нет аппаратов":"Нет ароматов");return;}
+  body.innerHTML=list.map(it=>`
     <tr class="clickable" data-id="${it.id}" onclick="catEdit(${it.id})">
       <td><span class="tag" style="background:${it.type==='device'?'#eaf2ff':'#f3eaff'};color:${it.type==='device'?'var(--primary)':'#7b46c9'}">${it.type==='device'?'Аппарат':'Аромат'}</span></td>
       <td style="display:flex;align-items:center;padding-top:14px;padding-bottom:14px">
@@ -2341,7 +2373,12 @@ window.agentEdit=id=>{
     <div><label class="sub-label" style="margin-top:0">Имя</label><input class="input" id="aName" value="${esc(a.name)}"></div>
     <div><label class="sub-label" style="margin-top:0">Телефон</label><input class="input" id="aPhone" value="${esc(a.phone)}"></div>
     <div><label class="sub-label" style="margin-top:0">Username (для входа)</label><input class="input" id="aUser" value="${esc(a.username)}"></div>
-    <div><label class="sub-label" style="margin-top:0">Пароль ${id?'(оставьте пустым)':''}</label><input class="input" id="aPass" type="password" placeholder="${id?'без изменений':'новый пароль'}"></div>
+    <div><label class="sub-label" style="margin-top:0">Пароль ${id?'(оставьте пустым чтобы не менять)':''}</label>
+      <div style="display:flex;gap:8px">
+        <input class="input" id="aPass" type="text" placeholder="${id?'без изменений':'новый пароль'}" style="flex:1">
+        <button type="button" onclick="(()=>{const p=Math.random().toString(36).slice(2,8).toUpperCase();document.getElementById('aPass').value=p;})()" style="padding:0 12px;background:var(--primary);color:#fff;border:none;border-radius:8px;cursor:pointer;font-size:12px;white-space:nowrap">Генерировать</button>
+      </div>
+    </div>
   </div>
   <div class="sub-label">Районы обслуживания</div>
   <div class="ag-pick" id="agDistPicker">
@@ -2365,10 +2402,22 @@ window.agentEdit=id=>{
     const pass=$("#aPass").value; if(pass)payload.password=pass;
     if(!payload.name||!payload.username){toast("Имя и username обязательны","err");return;}
     try{
-      if(id){await api("/admin/agents/"+id,{method:"PUT",body:JSON.stringify(payload)});Object.assign(a,payload);a.districts=distNames;}
-      else{const r=await api("/admin/agents",{method:"POST",body:JSON.stringify(payload)});Agents.list.push(Object.assign({id:r.id||Date.now(),txn_month:0,sales_month:0},payload,{districts:distNames}));}
-    }catch(e){if(e.message==="401")return;if(id){Object.assign(a,payload);a.districts=distNames;}else Agents.list.push(Object.assign({id:Date.now(),txn_month:0,sales_month:0},payload,{districts:distNames}));}
-    closeModal();renderAgents();toast(id?"Агент обновлён":"Агент добавлен");
+      if(id){
+        await api("/admin/agents/"+id,{method:"PUT",body:JSON.stringify(payload)});
+        Object.assign(a,payload);a.districts=distNames;
+        closeModal();renderAgents();
+        if(pass) toast("Агент обновлён. Новый пароль: "+pass);
+        else toast("Агент обновлён");
+      } else {
+        const r=await api("/admin/agents",{method:"POST",body:JSON.stringify(payload)});
+        Agents.list.push(Object.assign({id:r.id||Date.now(),txn_month:0,sales_month:0},payload,{districts:distNames}));
+        closeModal();renderAgents();
+        alert("✅ Агент создан!\n\nЛогин: "+payload.username+"\nПароль: "+(pass||"(не задан)"));
+      }
+    }catch(e){
+      if(e.message==="401")return;
+      toast("Ошибка: "+e.message,"err");
+    }
   };
 };
 window.agentDelete=async(id,name)=>{
@@ -2619,11 +2668,13 @@ async function pageCast(){
         <!-- КАРТИНКА -->
         <div class="full">
           <label class="sub-label">🖼 Картинка (необязательно)</label>
-          <label style="display:flex;align-items:center;gap:10px;padding:12px 16px;border:2px dashed #c7d8f8;border-radius:10px;cursor:pointer;background:#f8faff;transition:border-color .15s" onmouseenter="this.style.borderColor='var(--primary)'" onmouseleave="this.style.borderColor='#c7d8f8'">
-            <svg viewBox="0 0 24 24" fill="none" stroke="var(--primary)" stroke-width="2" stroke-linecap="round" width="22" height="22"><rect x="3" y="3" width="18" height="18" rx="3"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21,15 16,10 5,21"/></svg>
+          <input type="file" id="bcImgInput" accept="image/*" style="display:none" onchange="bcUploadImage(this)">
+          <button type="button" onclick="document.getElementById('bcImgInput').click()"
+            style="display:flex;align-items:center;gap:10px;padding:12px 16px;border:2px dashed #c7d8f8;border-radius:10px;cursor:pointer;background:#f8faff;width:100%;text-align:left;transition:border-color .15s;font-family:inherit"
+            onmouseenter="this.style.borderColor='var(--primary)'" onmouseleave="this.style.borderColor='#c7d8f8'">
+            <svg viewBox="0 0 24 24" fill="none" stroke="var(--primary)" stroke-width="2" stroke-linecap="round" width="22" height="22" style="flex-shrink:0"><rect x="3" y="3" width="18" height="18" rx="3"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21,15 16,10 5,21"/></svg>
             <span style="font-size:13px;font-weight:600;color:var(--primary)">Нажмите чтобы выбрать изображение</span>
-            <input type="file" id="bcImgInput" accept="image/*" style="display:none" onchange="bcUploadImage(this)">
-          </label>
+          </button>
           <div id="bcImgPreview"></div>
           <span class="muted" style="font-size:12px;margin-top:4px;display:block">JPG, PNG, WebP — картинка отправится с текстом как подпись</span>
         </div>
@@ -2811,36 +2862,54 @@ window.remSave=async()=>{
 async function pagePolicy(){
   const c=$("#content");
   const p=await apiOrMock("/admin/policy");
-  const d=(p&&p.ru!==undefined)?p:{ru:'',uz:'',pdf:''};
+  const d=(p&&p.ru!==undefined)?p:{ru:'',uz:'',pdf:'',pdf_uz:'',tg_file_id:'',tg_file_id_uz:''};
+  const fileBtn=(id,nameId,val,label)=>`
+    <input type="hidden" id="${id}" value="${esc(val||'')}">
+    <input type="file" id="${id}File" accept=".pdf,.doc,.docx" style="display:none" onchange="polUploadFile(this,'${id}','${nameId}')">
+    <button type="button" onclick="document.getElementById('${id}File').click()"
+      style="display:flex;align-items:center;gap:12px;padding:14px 16px;border:2px dashed var(--border);border-radius:10px;cursor:pointer;margin-bottom:6px;background:#fafbfd;width:100%;text-align:left;transition:border-color .15s;font-family:inherit"
+      onmouseenter="this.style.borderColor='var(--primary)'" onmouseleave="this.style.borderColor='var(--border)'">
+      <span style="font-size:22px">📎</span>
+      <div style="flex:1">
+        <div id="${nameId}" style="font-size:14px;font-weight:600;color:var(--text)">${val?'📄 '+val.split('/').pop():'Нажмите чтобы выбрать файл'}</div>
+        <div class="muted" style="font-size:12px;margin-top:2px">${val?'Заменить файл':'Поддерживаются .pdf, .doc, .docx'}</div>
+      </div>
+      <span style="font-size:11px;font-weight:700;padding:3px 10px;border-radius:20px;background:${val?'#e3f8ef':'#eaf2ff'};color:${val?'#22c55e':'var(--primary)'};">${label}</span>
+    </button>`;
   c.innerHTML=`<div class="card card-pad setting-card">
     <div class="section-head" style="margin-bottom:18px"><h2 style="font-size:18px">Политика конфиденциальности</h2></div>
-    <label class="sub-label" style="margin-top:0">Контент RU</label><textarea class="input" id="polRu" style="min-height:160px">${esc(d.ru)}</textarea>
-    <label class="sub-label">Контент UZ</label><textarea class="input" id="polUz" style="min-height:160px">${esc(d.uz)}</textarea>
-    <label class="sub-label">PDF файл (прикрепить)</label>
-    <input type="hidden" id="polPdf" value="${esc(d.pdf)}">
-    <label id="polPdfLabel" style="display:flex;align-items:center;gap:12px;padding:12px 16px;border:2px dashed var(--border);border-radius:10px;cursor:pointer;margin-bottom:14px;background:#fafbfd;transition:border-color .2s" onmouseover="this.style.borderColor='var(--primary)'" onmouseout="this.style.borderColor='var(--border)'">
-      <span style="font-size:22px">${I.file}</span>
-      <div>
-        <div id="polPdfName" style="font-size:14px;font-weight:600;color:var(--text)">${d.pdf ? '📎 '+d.pdf.split('/').pop() : 'Нажмите чтобы выбрать PDF'}</div>
-        <div class="muted" style="font-size:12px;margin-top:2px">${d.pdf ? '<span style=\"color:var(--primary)\">Заменить файл</span>' : '.pdf, .doc, .docx — макс. 20 МБ'}</div>
-      </div>
-      <input type="file" id="polPdfFile" accept=".pdf,.doc,.docx" style="display:none" onchange="polUploadFile(this)">
-    </label>
-    <button class="btn btn-primary" style="margin-top:4px" onclick="polSave()">Сохранить</button>
+    <label class="sub-label" style="margin-top:0">Контент RU</label>
+    <textarea class="input" id="polRu" style="min-height:130px">${esc(d.ru)}</textarea>
+    <label class="sub-label">Контент UZ</label>
+    <textarea class="input" id="polUz" style="min-height:130px">${esc(d.uz)}</textarea>
+    <label class="sub-label" style="margin-top:16px">Файл политики — Русский (RU)</label>
+    ${fileBtn('polPdfRu','polPdfRuName',d.pdf,'RU')}
+    <input type="hidden" id="polTgFileIdRu" value="${esc(d.tg_file_id||'')}">
+    <label class="sub-label" style="margin-top:10px">Файл политики — Узбекский (UZ)</label>
+    ${fileBtn('polPdfUz','polPdfUzName',d.pdf_uz,'UZ')}
+    <input type="hidden" id="polTgFileIdUz" value="${esc(d.tg_file_id_uz||'')}">
+    <button class="btn btn-primary" style="margin-top:16px" onclick="polSave()">Сохранить</button>
   </div>`;
 }
-window.polUploadFile=async(input)=>{
+window.polUploadFile=async(input,hiddenId,nameId)=>{
   const file=input.files[0]; if(!file)return;
   const fd=new FormData(); fd.append("file",file);
   try{
     const data=await api("/admin/upload-doc",{method:"POST",body:fd,_raw:true});
-    $("#polPdf").value=data.url;
-    $("#polPdfName").textContent="📎 "+data.filename;
-    toast("Файл загружен");
+    document.getElementById(hiddenId).value=data.url||"";
+    const tgField=hiddenId==='polPdfRu'?'polTgFileIdRu':'polTgFileIdUz';
+    if(data.tg_file_id) document.getElementById(tgField).value=data.tg_file_id;
+    document.getElementById(nameId).textContent="📎 "+data.filename+(data.tg_file_id?" ✅":" ⚠️");
+    toast(data.tg_file_id?"Файл загружен в Telegram ✅":"Файл загружен");
   }catch(e){ toast("Ошибка загрузки файла","err"); }
 };
 window.polSave=async()=>{
-  const payload={ru:$("#polRu").value,uz:$("#polUz").value,pdf:$("#polPdf").value};
+  const payload={
+    ru:$("#polRu").value, uz:$("#polUz").value,
+    pdf:$("#polPdfRu").value, pdf_uz:$("#polPdfUz").value,
+    tg_file_id:$("#polTgFileIdRu")?.value||"",
+    tg_file_id_uz:$("#polTgFileIdUz")?.value||"",
+  };
   try{ await api("/admin/policy",{method:"PUT",body:JSON.stringify(payload)}); }catch(e){ if(e.message==="401")return; }
   toast("Политика сохранена");
 };
@@ -2887,8 +2956,11 @@ async function pageBackup(){
   c.innerHTML=`<div class="card card-pad setting-card">
     <div class="section-head" style="margin-bottom:8px"><h2 style="font-size:18px">Бэкап базы данных</h2></div>
     <p class="muted" style="margin-bottom:18px">Создайте резервную копию всей базы данных и скачайте файл.</p>
-    <button class="btn btn-primary" id="bkBtn" onclick="doBackup()">${I.backup}<span>Создать бэкап БД</span></button>
-    <div class="sub-label">История бэкапов (последние 5)</div>
+    <div style="display:flex;gap:12px;flex-wrap:wrap">
+      <button class="btn btn-primary" id="bkBtn" onclick="doBackup()">${I.backup}<span>Бэкап БД (JSON)</span></button>
+      <button class="btn btn-primary" id="bkFullBtn" onclick="doFullBackup()" style="background:#1a3a6e">${I.backup}<span>Полный бэкап (код + БД)</span></button>
+    </div>
+    <div class="sub-label" style="margin-top:16px">История бэкапов (последние 5)</div>
     <div id="bkList">${list.slice(0,5).map(b=>`
       <div class="backup-item"><div class="fic">${I.file}</div>
         <div><b style="font-weight:700">${esc(b.name)}</b><div class="muted" style="font-size:12px">${esc(b.size)} · ${fmtDateTime(b.created_at)}</div></div>
@@ -2927,6 +2999,33 @@ window.doBackup=async()=>{
   }
 };
 
+window.doFullBackup=async()=>{
+  const btn=$("#bkFullBtn");
+  btn.disabled=true; btn.style.opacity=".7";
+  btn.innerHTML=`<div class="spin" style="width:16px;height:16px;border-width:2px;margin-right:6px"></div><span>Создание ZIP...</span>`;
+  try{
+    const BASE=window.API_BASE||"";
+    const resp=await fetch(BASE+"/admin/backup/full",{
+      method:"POST",
+      headers:{"Authorization":"Bearer "+State.token,"Content-Type":"application/json"}
+    });
+    if(!resp.ok){const err=await resp.json().catch(()=>({}));throw new Error(err.detail||"Ошибка "+resp.status);}
+    const blob=await resp.blob();
+    const cd=resp.headers.get("Content-Disposition")||"";
+    const match=cd.match(/filename="?([^"]+)"?/);
+    const name=match?match[1]:"scenti_full_backup.zip";
+    const url=URL.createObjectURL(blob);
+    const a=document.createElement("a"); a.href=url; a.download=name; a.click();
+    URL.revokeObjectURL(url);
+    toast("Полный бэкап скачан","ok",name);
+  }catch(e){
+    toast("Ошибка бэкапа","err",e.message);
+  }finally{
+    const b=$("#bkFullBtn");
+    if(b){b.disabled=false;b.style.opacity="";b.innerHTML=`${I.backup}<span>Полный бэкап (код + БД)</span>`;}
+  }
+};
+
 /* ============================================================
    SETTINGS PAGE
    ============================================================ */
@@ -2948,7 +3047,7 @@ async function pageSettings(){
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
           <div>
             <label class="form-label">Телефон (для звонка)</label>
-            <input id="sf_phone" class="input" placeholder="+998771234567" value="">
+            <input id="sf_phone" class="input" placeholder="+998771234567" value="" oninput="(function(v){const d=v.replace(/\D/g,'');if(d.length===12){document.getElementById('sf_phone_display').value='+'+d.slice(0,3)+' '+d.slice(3,5)+' '+d.slice(5,8)+' '+d.slice(8,10)+' '+d.slice(10,12);}else{document.getElementById('sf_phone_display').value=v;}})(this.value)">
             <div class="muted" style="font-size:12px;margin-top:4px">Без пробелов: +998771234567</div>
           </div>
           <div>

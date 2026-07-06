@@ -345,7 +345,7 @@ function toast(msg,type='',dur=3400){
 }
 
 /* ===== AUTH ===== */
-const token = ()=>localStorage.getItem(LS_TOKEN);
+const token = ()=>sessionStorage.getItem(LS_TOKEN);
 
 async function api(path,{method='GET',body=null}={}){
   const headers={'Content-Type':'application/json'};
@@ -366,11 +366,11 @@ $('#loginForm').addEventListener('submit',async e=>{
   btn.disabled=true;btn.textContent='Вход...';
   try{
     const data=await api('/auth/agent/login',{method:'POST',body:{username,password}});
-    localStorage.setItem(LS_TOKEN,data.token||data.access_token);
+    sessionStorage.setItem(LS_TOKEN,data.token||data.access_token);
     // Load agent profile
     try{
       const me=await api('/agent/me');
-      localStorage.setItem(LS_AGENT,JSON.stringify(me));
+      sessionStorage.setItem(LS_AGENT,JSON.stringify(me));
     }catch(e){}
     enterApp();
   }catch(ex){
@@ -381,8 +381,8 @@ $('#loginForm').addEventListener('submit',async e=>{
 });
 
 function doLogout(){
-  localStorage.removeItem(LS_TOKEN);
-  localStorage.removeItem(LS_AGENT);
+  sessionStorage.removeItem(LS_TOKEN);
+  sessionStorage.removeItem(LS_AGENT);
   $('#app').style.display='none';
   $('#login').style.display='flex';
 }
@@ -392,7 +392,7 @@ function enterApp(){
   $('#app').style.display='flex';
   // Set agent name in sidebar
   try{
-    const a=JSON.parse(localStorage.getItem(LS_AGENT)||'{}');
+    const a=JSON.parse(sessionStorage.getItem(LS_AGENT)||'{}');
     const name=a.name||'Агент';
     $('#sideAgentName').textContent=name;
     $('#sideAv').textContent=initials(name);
@@ -578,7 +578,7 @@ async function pageDash(){
     // Строка 2: кешбэк-статистика (всё время, по районам агента)
     _renderStats([
       {label:'Баланс клиентов',    val:fmt(stats.clients_balance??0),          cur:'сум', bg:'#eaf2ff',col:'var(--primary)', ic:IC.wallet, sub:`у ${stats.client_count??uArr.length} клиентов в районах`},
-      {label:'Потрачено кешбэка',  val:fmt(stats.total_cashback_spent??0),    cur:'сум', bg:'#fdf3e3',col:'var(--warning)', ic:IC.minus,  sub:'прямые кешбэк-оплаты клиентов'},
+      {label:'Потрачено кешбэка',  val:fmt(stats.total_cashback_spent??0),    cur:'сум', bg:'#fdf3e3',col:'var(--warning)', ic:IC.minus,  sub:'все списания кешбэка клиентов'},
       {label:'Заявки на подарки',  val:fmt(stats.total_gift_requests??gArr.length), bg:'#f3eaff',col:'#7b46c9', ic:IC.gift, sub:`ожидают: ${stats.pending_gift_requests??gPending.length}`},
     ],$('#dashStats2'));
 
@@ -702,7 +702,6 @@ function renderClients(){
   const eyeIc=`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="16" height="16"><path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7z"/><circle cx="12" cy="12" r="3"/></svg>`;
   body.innerHTML=p.items.map(u=>{
     const name=[u.first_name,u.last_name].filter(Boolean).join(' ')||u.business_name||'—';
-    const jj=JSON.stringify(JSON.stringify(u));
     return `<tr>
       <td><div class="cell-user"><div class="avatar">${initials(name)}</div><div><b style="font-size:13.5px">${esc(name)}</b></div></div></td>
       <td>${esc(u.phone||'—')}</td>
@@ -710,7 +709,7 @@ function renderClients(){
       <td>${esc(u.district_name||u.district||'—')}</td>
       <td><b style="color:var(--primary)">${fmt(u.cashback_balance||0)} сум</b></td>
       <td style="color:var(--muted)">${fmtDate(u.created_at)}</td>
-      <td><button class="btn btn-icon" style="width:34px;height:34px;padding:0;border-radius:9px;background:#eaf2ff;color:var(--primary);border:none;cursor:pointer;display:flex;align-items:center;justify-content:center" onclick="openClientModal(${jj})" title="Просмотр">${eyeIc}</button></td>
+      <td><button class="btn btn-icon" style="width:34px;height:34px;padding:0;border-radius:9px;background:#eaf2ff;color:var(--primary);border:none;cursor:pointer;display:flex;align-items:center;justify-content:center" onclick="openClientModal(${u.id})" title="Просмотр">${eyeIc}</button></td>
     </tr>`;
   }).join('');
   // pager
@@ -722,8 +721,8 @@ function renderClients(){
   }else pg.innerHTML='';
 }
 
-window.openClientModal=async function(jsonStr){
-  const u=JSON.parse(jsonStr);
+window.openClientModal=async function(userId){
+  const u=_clients.find(c=>c.id===userId)||{id:userId};
   const name=[u.first_name,u.last_name].filter(Boolean).join(' ')||u.business_name||'—';
   // Открываем сразу с заглушкой, потом подгружаем детали
   openModal(`<div class="modal wide" style="max-width:700px">
@@ -1003,10 +1002,15 @@ window.txUpdateCashback=function(){
   const amt=Number(($('#txAmount')||{}).value||0);
   const hint=$('#txCashbackHint');
   if(!hint)return;
-  if(amt>0){
-    const cnt=_newTxUser?(_newTxUser.approvedCount??0):0;
+  if(amt>0&&_newTxUser){
+    const cnt=_newTxUser.approvedCount??0;
     const pct=cnt===0?5:cnt===1?7:10;
+    hint.style.background='#e3f8ef';hint.style.color='var(--success)';
     hint.textContent=`Кешбэк клиенту: ${fmt(Math.round(amt*pct/100))} сум (${pct}%)`;
+    hint.classList.add('show');
+  } else if(amt>0&&!_newTxUser){
+    hint.style.background='#fff8e1';hint.style.color='#b45309';
+    hint.textContent='Выберите клиента для расчёта кешбэка';
     hint.classList.add('show');
   } else hint.classList.remove('show');
 };

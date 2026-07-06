@@ -57,9 +57,11 @@ async def my_transactions(user: dict = Depends(get_current_user)):
         SELECT id, amount, cashback_amount, status, note, created_at, confirmed_at
         FROM transactions
         WHERE user_id = $1
+          AND created_at >= $2
         ORDER BY created_at DESC
         """,
         user["id"],
+        user["cashback_reset_at"],
     )
     return rows
 
@@ -236,6 +238,21 @@ async def my_gift_requests(user: dict = Depends(get_current_user)):
 # ---------- Каталог ----------
 @router.get("/diffusers")
 async def list_diffusers(user: dict = Depends(get_current_user)):
+    # user требуется для авторизации, каталог открыт для зарегистрированных пользователей
+    return await db.fetch(
+        """
+        SELECT id, name_ru, name_uz, description_ru, description_uz, type,
+               tag_ru, tag_uz, image_url, specs, features
+        FROM diffusers
+        WHERE is_active = TRUE
+        ORDER BY sort_order, id
+        """
+    )
+
+
+@router.get("/catalog")
+async def public_catalog():
+    """Публичный каталог без авторизации — для отображения в webapp без токена."""
     return await db.fetch(
         """
         SELECT id, name_ru, name_uz, description_ru, description_uz, type,
@@ -251,8 +268,9 @@ async def list_diffusers(user: dict = Depends(get_current_user)):
 @router.get("/spends")
 async def my_spends(user: dict = Depends(get_current_user)):
     rows = await db.fetch(
-        "SELECT id, amount, created_at, gift_request_id FROM cashback_spends WHERE user_id = $1 ORDER BY created_at DESC",
+        "SELECT id, amount, created_at, gift_request_id FROM cashback_spends WHERE user_id = $1 AND created_at >= $2 ORDER BY created_at DESC",
         user["id"],
+        user["cashback_reset_at"],
     )
     return rows
 
@@ -261,9 +279,14 @@ async def my_spends(user: dict = Depends(get_current_user)):
 @router.get("/privacy")
 async def get_privacy(user: dict = Depends(get_current_user)):
     row = await db.fetchrow(
-        "SELECT content_ru, content_uz, file_url FROM privacy_policy ORDER BY id DESC LIMIT 1"
+        "SELECT content_ru, content_uz, file_url, file_url_uz FROM privacy_policy ORDER BY id DESC LIMIT 1"
     )
-    return row or {"content_ru": "", "content_uz": "", "file_url": ""}
+    if not row:
+        return {"content_ru": "", "content_uz": "", "file_url": "", "pdf_uz": ""}
+    return {
+        "content_ru": row["content_ru"], "content_uz": row["content_uz"],
+        "pdf": row.get("file_url", ""), "pdf_uz": row.get("file_url_uz", ""),
+    }
 
 
 # ---------- Регионы / районы ----------

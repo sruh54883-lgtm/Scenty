@@ -33,7 +33,7 @@ async def admin_login(body: LoginBody):
 @router.post("/agent/login")
 async def agent_login(body: LoginBody):
     agent = await db.fetchrow(
-        "SELECT id, name, username, password_hash, is_active FROM agents WHERE username = $1",
+        "SELECT id, name, username, password_hash, is_active FROM agents WHERE LOWER(username) = LOWER($1)",
         body.username,
     )
     if agent is None or not agent["password_hash"]:
