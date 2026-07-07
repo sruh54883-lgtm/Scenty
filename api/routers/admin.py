@@ -1423,6 +1423,8 @@ async def geo_regions(
                COUNT(DISTINCT u.id) AS users,
                COALESCE(SUM(t.cashback_amount)
                    FILTER (WHERE t.status IN ('approved','confirmed'){df}), 0) AS cashback,
+               COALESCE(SUM(t.amount)
+                   FILTER (WHERE t.status IN ('approved','confirmed'){df}), 0) AS total_amount,
                COUNT(DISTINCT gr.id) AS gift_requests
         FROM regions r
         LEFT JOIN users u  ON u.region_id = r.id AND u.is_active = TRUE
@@ -1434,6 +1436,7 @@ async def geo_regions(
     )
     return [{"id": r["id"], "name_ru": r["name_ru"],
              "users": int(r["users"]), "balance": int(r["cashback"]),
+             "total_amount": int(r["total_amount"]),
              "gift_requests": int(r["gift_requests"])} for r in rows]
 
 
@@ -1466,6 +1469,8 @@ async def geo_districts(
                COUNT(DISTINCT u.id) AS users,
                COALESCE(SUM(t.cashback_amount)
                    FILTER (WHERE t.status IN ('approved','confirmed'){df}), 0) AS cashback,
+               COALESCE(SUM(t.amount)
+                   FILTER (WHERE t.status IN ('approved','confirmed'){df}), 0) AS total_amount,
                COUNT(DISTINCT gr.id) AS gift_requests
         FROM districts d
         LEFT JOIN users u  ON u.district_id = d.id AND u.is_active = TRUE
@@ -1479,6 +1484,7 @@ async def geo_districts(
     )
     return [{"id": r["id"], "name_ru": r["name_ru"],
              "users": int(r["users"]), "balance": int(r["cashback"]),
+             "total_amount": int(r["total_amount"]),
              "gift_requests": int(r["gift_requests"])} for r in rows]
 
 

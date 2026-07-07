@@ -1280,7 +1280,7 @@ function renderGeoTable(level, rows, parentId, parentName){
 
   const thead = isUsers
     ? `<th>Клиент</th><th>Телефон</th><th style="text-align:right">Кешбэк за период</th><th style="text-align:right">Текущий баланс</th><th style="text-align:right">Заявки</th>`
-    : `<th>Название</th><th style="text-align:right">Клиентов</th><th style="text-align:right">Кешбэк выдан</th><th style="text-align:right">Заявки на подарки</th><th></th>`;
+    : `<th>Название</th><th style="text-align:right">Клиентов</th><th style="text-align:right">Общая сумма</th><th style="text-align:right">Кешбэк выдан</th><th style="text-align:right">Заявки на подарки</th><th></th>`;
 
   const tbody = rows.map(r => {
     if(isUsers){
@@ -1302,6 +1302,7 @@ function renderGeoTable(level, rows, parentId, parentName){
     return `<tr>
       <td style="font-weight:600">${esc(r.name_ru)}</td>
       <td style="text-align:right">${r.users > 0 ? `<b>${r.users}</b>` : `<span style="color:var(--muted)">—</span>`}</td>
+      <td style="text-align:right;font-weight:700;color:#16233f">${r.total_amount > 0 ? fmt(r.total_amount)+' <span style="font-size:11px;font-weight:400;color:var(--muted)">сум</span>' : '<span style="color:var(--muted)">—</span>'}</td>
       <td style="text-align:right;color:var(--primary);font-weight:700">${r.balance > 0 ? fmt(r.balance)+' <span style="font-size:11px;font-weight:400;color:var(--muted)">сум</span>' : '<span style="color:var(--muted)">—</span>'}</td>
       <td style="text-align:right">${r.gift_requests > 0 ? `<span style="background:#f3eaff;color:#7b46c9;border-radius:6px;padding:2px 8px;font-weight:700;font-size:12px">${r.gift_requests}</span>` : `<span style="color:var(--muted)">—</span>`}</td>
       <td style="text-align:right"><button class="btn btn-ghost btn-sm" style="font-size:12px;padding:5px 12px" onclick="${drillFn}">${btnLabel}</button></td>
@@ -1309,7 +1310,7 @@ function renderGeoTable(level, rows, parentId, parentName){
   }).join("");
 
   const emptyRow = rows.length === 0
-    ? `<tr><td colspan="${isUsers?4:5}" style="text-align:center;color:var(--muted);padding:32px">Нет данных</td></tr>`
+    ? `<tr><td colspan="${isUsers?5:6}" style="text-align:center;color:var(--muted);padding:32px">Нет данных</td></tr>`
     : "";
 
   card.innerHTML = `
