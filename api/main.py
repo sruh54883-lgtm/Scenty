@@ -157,6 +157,7 @@ app.add_middleware(_AuthRateLimitMiddleware)
 
 
 _ALLOWED_ORIGINS = [
+    "https://scenti.javlondev.uz",
     "https://scenti-production.up.railway.app",
     "https://web.telegram.org",
     "null",  # Telegram WebApp открывает через file:// / null origin
