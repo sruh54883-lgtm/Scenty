@@ -957,11 +957,13 @@ async def update_agent(agent_id: int, body: AgentUpdate, admin: dict = Depends(g
 
 @router.delete("/agents/{agent_id}")
 async def delete_agent(agent_id: int, admin: dict = Depends(get_current_admin)):
-    row = await db.fetchrow(
-        "UPDATE agents SET is_active = FALSE WHERE id = $1 RETURNING id", agent_id
-    )
+    row = await db.fetchrow("SELECT id FROM agents WHERE id = $1", agent_id)
     if row is None:
         raise HTTPException(status_code=404, detail="Агент не найден")
+    # Обнуляем FK-ссылки перед удалением
+    await db.execute("UPDATE transactions SET agent_id = NULL WHERE agent_id = $1", agent_id)
+    await db.execute("DELETE FROM agent_districts WHERE agent_id = $1", agent_id)
+    await db.execute("DELETE FROM agents WHERE id = $1", agent_id)
     await _audit(admin["id"], "agent_delete", {"agent_id": agent_id})
     return {"status": "deleted"}
 
