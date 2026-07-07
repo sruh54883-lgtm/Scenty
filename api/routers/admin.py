@@ -2025,10 +2025,9 @@ async def delete_catalog_item(item_id: int, admin: dict = Depends(get_current_ad
     row = await db.fetchrow("SELECT id FROM diffusers WHERE id = $1", item_id)
     if row is None:
         raise HTTPException(status_code=404, detail="Не найдено")
-    try:
-        await db.execute("DELETE FROM diffusers WHERE id = $1", item_id)
-    except Exception:
-        await db.execute("UPDATE diffusers SET is_active = FALSE WHERE id = $1", item_id)
+    # Обнуляем FK-ссылки чтобы не блокировали удаление
+    await db.execute("UPDATE users SET diffuser_id = NULL WHERE diffuser_id = $1", item_id)
+    await db.execute("DELETE FROM diffusers WHERE id = $1", item_id)
     await _audit(admin["id"], "catalog_delete", {"item_id": item_id})
     return {"status": "deleted"}
 
