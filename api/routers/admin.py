@@ -2022,11 +2022,13 @@ async def create_catalog_item(body: CatalogBody, admin: dict = Depends(get_curre
 
 @router.delete("/catalog/{item_id}")
 async def delete_catalog_item(item_id: int, admin: dict = Depends(get_current_admin)):
-    row = await db.fetchrow(
-        "UPDATE diffusers SET is_active = FALSE WHERE id = $1 RETURNING id", item_id
-    )
+    row = await db.fetchrow("SELECT id FROM diffusers WHERE id = $1", item_id)
     if row is None:
         raise HTTPException(status_code=404, detail="Не найдено")
+    try:
+        await db.execute("DELETE FROM diffusers WHERE id = $1", item_id)
+    except Exception:
+        await db.execute("UPDATE diffusers SET is_active = FALSE WHERE id = $1", item_id)
     await _audit(admin["id"], "catalog_delete", {"item_id": item_id})
     return {"status": "deleted"}
 
