@@ -256,6 +256,17 @@ async def migrate():
             except Exception as e:
                 print(f"Aroma seed note ({name_ru}): {e}")
 
+        # Янгихаёт — пропущенный район Ташкента (region_id=14)
+        try:
+            await conn.execute(
+                """INSERT INTO districts (region_id, name_ru, name_uz, code)
+                   VALUES (14, 'Янгихаёт', 'Yangiha''yot', 'yangi_hayot')
+                   ON CONFLICT DO NOTHING""",
+            )
+            print("Yangiha'yot district seeded OK")
+        except Exception as e:
+            print(f"District seed note: {e}")
+
         # Дефолтные настройки контактов
         _default_settings = [
             ("contact_phone", "+998773831111"),
