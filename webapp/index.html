@@ -146,14 +146,15 @@ img{display:block;max-width:100%;}
 .gift-card .gprice{display:inline-block;font-size:12px;font-weight:700;color:var(--primary);margin-top:6px;background:rgba(14,55,163,.07);padding:4px 9px;border-radius:9px;}
 
 .cat-card{
-  flex-shrink:0;width:140px;background:var(--card);border-radius:var(--r-card);
-  box-shadow:var(--shadow-sm);overflow:hidden;transition:transform .15s;border:1px solid var(--border);
+  flex-shrink:0;width:156px;background:var(--card);border-radius:18px;
+  box-shadow:0 2px 14px rgba(14,55,163,.09);overflow:hidden;transition:transform .15s;border:1px solid var(--border);
 }
 .cat-card:active{transform:scale(.97);}
-.cat-card .pic{height:104px;background:var(--tile-grad);display:flex;align-items:center;justify-content:center;}
-.cat-card .pic svg{width:42px;height:42px;color:var(--light-blue);opacity:.85;}
-.cat-card .body{padding:11px 12px 13px;}
-.cat-card .cname{font-size:13px;font-weight:700;line-height:1.25;}
+.cat-card .pic{height:148px;background:linear-gradient(145deg,#f4f7ff,#eaf0fb);display:flex;align-items:center;justify-content:center;overflow:hidden;}
+.cat-card .pic img{width:100%;height:100%;object-fit:cover;object-position:center;display:block;}
+.cat-card .pic svg{width:48px;height:48px;color:var(--light-blue);opacity:.8;}
+.cat-card .body{padding:12px 12px 14px;}
+.cat-card .cname{font-size:13.5px;font-weight:700;line-height:1.25;}
 .cat-card .tag{display:inline-block;margin-top:7px;font-size:10.5px;font-weight:600;color:var(--light-blue);background:#EAF2FE;border-radius:8px;padding:3px 8px;}
 
 /* ============ CARD GENERIC ============ */
@@ -744,8 +745,8 @@ function renderHome(){
 
   const catCards = [...DEVICES,...AROMAS].slice(0,4).map((c,i)=>`
     <div class="cat-card" onclick="openCatDetail('${i<DEVICES.length?'device':'aroma'}',${i<DEVICES.length?i:i-DEVICES.length})">
-      <div class="pic" style="${c.image_url?'background:linear-gradient(145deg,#f0f5ff,#e8eef9);padding:10px;box-sizing:border-box;align-items:center;justify-content:center;':''}">
-        ${c.image_url?`<img src="${c.image_url}" style="width:100%;height:100%;object-fit:contain;display:block;filter:drop-shadow(0 4px 12px rgba(14,55,163,.13));" onerror="this.style.display='none'">`:(ICONS[c.icon]||'')}
+      <div class="pic">
+        ${c.image_url?`<img src="${c.image_url}" onerror="this.style.display='none'">`:(ICONS[c.icon]||'')}
       </div>
       <div class="body"><div class="cname">${c.name}</div><span class="tag">${c.tag}</span></div>
     </div>`).join('');

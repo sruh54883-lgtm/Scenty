@@ -2302,6 +2302,23 @@ async function loadAgents(){
   Agents.list=Array.isArray(data)?data:(data?.items||[]);
   renderAgents();
 }
+function districtCell(agentId, districts){
+  if(!districts.length) return "—";
+  const SHOW = 3;
+  const visible = districts.slice(0, SHOW).map(d=>`<span class="tag" style="margin:1px 1px 2px">${esc(d)}</span>`).join("");
+  if(districts.length <= SHOW) return visible;
+  const hidden = districts.slice(SHOW).map(d=>`<span class="tag" style="margin:1px 1px 2px">${esc(d)}</span>`).join("");
+  const rest = districts.length - SHOW;
+  return `<div class="dc-wrap" id="dc-${agentId}">
+    <div class="dc-short">${visible}<button class="btn btn-ghost btn-sm" style="font-size:11px;padding:2px 7px;margin:1px" onclick="event.stopPropagation();toggleDistricts(${agentId},true)">ещё ${rest} →</button></div>
+    <div class="dc-full" style="display:none">${visible}${hidden}<button class="btn btn-ghost btn-sm" style="font-size:11px;padding:2px 7px;margin:1px" onclick="event.stopPropagation();toggleDistricts(${agentId},false)">Скрыть ↑</button></div>
+  </div>`;
+}
+window.toggleDistricts=function(id,expand){
+  const w=document.getElementById("dc-"+id);if(!w)return;
+  w.querySelector(".dc-short").style.display=expand?"none":"";
+  w.querySelector(".dc-full").style.display=expand?"":"none";
+};
 function renderAgents(){
   const body=$("#agBody");if(!body)return;
   if(!Agents.list.length){body.innerHTML=emptyRow(6,"Нет агентов");return;}
@@ -2309,7 +2326,7 @@ function renderAgents(){
     <tr class="clickable" onclick="agentStats(${a.id})">
       <td><div class="cell-user"><div class="avatar">${initials(a.name)}</div><div class="meta"><b>${esc(a.name)}</b><small>@${esc(a.username||"")}</small></div></div></td>
       <td class="mono nowrap">${esc(a.phone||"—")}</td>
-      <td>${(a.districts||[]).map(d=>`<span class="tag" style="margin:1px">${esc(d)}</span>`).join(" ")||"—"}</td>
+      <td>${districtCell(a.id, a.districts||[])}</td>
       <td class="t-strong">${fmt(a.txn_month||0)}</td>
       <td class="t-strong mono">${fmtSum(a.sales_month)}</td>
       <td class="t-actions" onclick="event.stopPropagation()">
