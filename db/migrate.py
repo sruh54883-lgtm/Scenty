@@ -118,14 +118,9 @@ async def migrate():
         except Exception as e:
             print(f"Admin setup warning: {e}")
 
-        # Добавляем S-100 если ещё нет
-        try:
-            await conn.execute(
-                """INSERT INTO diffusers
-                  (name_ru, name_uz, description_ru, description_uz,
-                   type, tag_ru, tag_uz, image_url, sort_order)
-                VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)
-                ON CONFLICT (name_ru) DO NOTHING""",
+        # Диффузоры (аппараты)
+        _devices = [
+            (
                 "S-100", "S-100",
                 ("✅ Эффективное ароматизирование до 100 м²\n"
                  "✅ 400 мл аромакапсула — спокойствие и комфорт на недели\n"
@@ -135,11 +130,131 @@ async def migrate():
                  "✅ 400 ml aroma kapsula — haftalab tinchlik va huzur\n"
                  "✅ Elektrda ishlaydi — uzluksiz barqarorlik\n"
                  "✅ Mobil ilova orqali boshqaruv — barchasi qo'lingizda"),
-                "device", "До 100 кв.м", "100 m² gacha", "", 20,
-            )
-            print("S-100 diffuser seeded OK")
-        except Exception as e:
-            print(f"S-100 seed note: {e}")
+                "До 100 кв.м", "100 m² gacha", 10,
+            ),
+            (
+                "M-300", "M-300",
+                ("✅ Эффективное ароматизирование до 200 м²\n"
+                 "✅ 200 мл аромакапсула — длительная работа без замены\n"
+                 "✅ Корпус из металла — надёжность и премиальный вид\n"
+                 "✅ Управление через мобильное приложение и кнопки\n"
+                 "✅ Регулировка интенсивности и времени работы"),
+                ("✅ 200 m² gacha samarali iforlantirish\n"
+                 "✅ 200 ml aroma kapsula — uzoq muddatli uzluksiz ish\n"
+                 "✅ Metall korpus — ishonchlilik va premium ko'rinish\n"
+                 "✅ Mobil ilova va tugmalar orqali boshqaruv\n"
+                 "✅ Intensivlik va ish vaqtini sozlash imkoniyati"),
+                "До 200 кв.м", "200 m² gacha", 20,
+            ),
+            (
+                "L-1000", "L-1000",
+                ("✅ Мощное ароматизирование до 1000 м²\n"
+                 "✅ 800 мл аромакапсула — максимальная автономность\n"
+                 "✅ Корпус из металла — профессиональный стандарт\n"
+                 "✅ Управление через мобильное приложение и кнопки\n"
+                 "✅ Гибкая настройка интенсивности и времени работы"),
+                ("✅ 1000 m² gacha kuchli iforlantirish\n"
+                 "✅ 800 ml aroma kapsula — maksimal avtonomlik\n"
+                 "✅ Metall korpus — professional standart\n"
+                 "✅ Mobil ilova va tugmalar orqali boshqaruv\n"
+                 "✅ Intensivlik va ish vaqtini moslashuvchan sozlash"),
+                "До 1000 кв.м", "1000 m² gacha", 30,
+            ),
+            (
+                "XL-2000", "XL-2000",
+                ("✅ Профессиональное ароматизирование до 2000 м²\n"
+                 "✅ 800 мл аромакапсула — для крупных объектов\n"
+                 "✅ Корпус из металла — высочайшая надёжность\n"
+                 "✅ Управление через мобильное приложение и кнопки\n"
+                 "✅ Программируемое расписание и настройка интенсивности"),
+                ("✅ 2000 m² gacha professional iforlantirish\n"
+                 "✅ 800 ml aroma kapsula — yirik ob'ektlar uchun\n"
+                 "✅ Metall korpus — eng yuqori ishonchlilik\n"
+                 "✅ Mobil ilova va tugmalar orqali boshqaruv\n"
+                 "✅ Dasturlanadigan jadval va intensivlikni sozlash"),
+                "До 2000 кв.м", "2000 m² gacha", 40,
+            ),
+        ]
+        for d in _devices:
+            try:
+                await conn.execute(
+                    """INSERT INTO diffusers
+                      (name_ru, name_uz, description_ru, description_uz,
+                       type, tag_ru, tag_uz, image_url, sort_order)
+                    VALUES ($1,$2,$3,$4,'device',$5,$6,'',$7)
+                    ON CONFLICT (name_ru) DO NOTHING""",
+                    d[0], d[1], d[2], d[3], d[4], d[5], d[6],
+                )
+                print(f"Diffuser seeded: {d[0]}")
+            except Exception as e:
+                print(f"Diffuser seed note ({d[0]}): {e}")
+
+        # Ароматы
+        _aroma_desc_ru = (
+            "Натуральный аромат премиум-класса для диффузоров Scenti. "
+            "Создаёт неповторимую атмосферу свежести и уюта в вашем помещении. "
+            "Совместим со всеми моделями аппаратов Scenti."
+        )
+        _aroma_desc_uz = (
+            "Scenti diffuzorlari uchun premium sifatli tabiiy xushbo'y. "
+            "Xonangizda yangilik va qulaylik atmosferasini yaratadi. "
+            "Barcha Scenti apparat modellari bilan mos keladi."
+        )
+        _aromas = [
+            ("Inbir", "Inbir"),
+            ("Hilton", "Hilton"),
+            ("Atlantic", "Atlantic"),
+            ("Dark Tea", "Dark Tea"),
+            ("Harmony", "Harmony"),
+            ("Monaco", "Monaco"),
+            ("Burberry", "Burberry"),
+            ("Gulong", "Gulong"),
+            ("California", "California"),
+            ("Rosso", "Rosso"),
+            ("Premier", "Premier"),
+            ("My Path", "My Path"),
+            ("Adress", "Adress"),
+            ("Unique 02", "Unique 02"),
+            ("White Tea", "White Tea"),
+            ("Armani", "Armani"),
+            ("Bengal", "Bengal"),
+            ("Miss Dior", "Miss Dior"),
+            ("Velvet", "Velvet"),
+            ("Azure", "Azure"),
+            ("Bubble Gum", "Bubble Gum"),
+            ("Pumpkin Pie", "Pumpkin Pie"),
+            ("Resin", "Resin"),
+            ("Currant", "Currant"),
+            ("Unique 04", "Unique 04"),
+            ("Master", "Master"),
+            ("Cappuccino", "Cappuccino"),
+            ("Green Bamboo", "Green Bamboo"),
+            ("Ritz", "Ritz"),
+            ("Cookies", "Cookies"),
+            ("Desert", "Desert"),
+            ("Soft Tule", "Soft Tule"),
+            ("Crystal", "Crystal"),
+            ("Embers", "Embers"),
+            ("Passion", "Passion"),
+            ("Diamond", "Diamond"),
+            ("Caramel", "Caramel"),
+            ("Marshmallow", "Marshmallow"),
+            ("Shadow", "Shadow"),
+            ("Candy", "Candy"),
+        ]
+        for i, (name_ru, name_uz) in enumerate(_aromas):
+            try:
+                await conn.execute(
+                    """INSERT INTO diffusers
+                      (name_ru, name_uz, description_ru, description_uz,
+                       type, tag_ru, tag_uz, image_url, sort_order)
+                    VALUES ($1,$2,$3,$4,'aroma','Аромат','Xushbo''y','',$5)
+                    ON CONFLICT (name_ru) DO NOTHING""",
+                    name_ru, name_uz, _aroma_desc_ru, _aroma_desc_uz, 100 + i,
+                )
+                print(f"Aroma seeded: {name_ru}")
+            except Exception as e:
+                print(f"Aroma seed note ({name_ru}): {e}")
 
     except Exception as e:
         print(f"Migration note: {e}")
