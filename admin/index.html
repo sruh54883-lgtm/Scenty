@@ -3095,10 +3095,7 @@ async function pageSettings(){
     if(s.contact_tg) $("#sf_tg").value = s.contact_tg;
     if(s.youtube_url) $("#sf_youtube").value = s.youtube_url;
     if(s.instagram_url) $("#sf_instagram").value = s.instagram_url;
-    if(s.admin_notify_telegram_ids){
-      const v = s.admin_notify_telegram_ids;
-      $("#sf_notify_ids").value = Array.isArray(v) ? v.join(",") : v;
-    }
+    if(s.notifications_chat_id) $("#sf_notify_ids").value = s.notifications_chat_id;
   }catch(e){ toast("Не удалось загрузить настройки","err"); }
 
   $("#settingsForm").addEventListener("submit", async e => {
@@ -3112,9 +3109,9 @@ async function pageSettings(){
         contact_phone: $("#sf_phone").value.trim(),
         contact_phone_display: $("#sf_phone_display").value.trim(),
         contact_tg: $("#sf_tg").value.trim(),
+        notifications_chat_id: $("#sf_notify_ids").value.trim(),
         youtube_url: $("#sf_youtube").value.trim(),
         instagram_url: $("#sf_instagram").value.trim(),
-        admin_notify_telegram_ids: notifyIds,
       })});
       toast("Настройки сохранены","ok");
     }catch(ex){

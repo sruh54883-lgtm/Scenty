@@ -2178,6 +2178,7 @@ class SettingsBody(BaseModel):
     contact_phone: str = ""
     contact_phone_display: str = ""
     contact_tg: str = ""
+    notifications_chat_id: str = ""
     youtube_url: str = ""
     instagram_url: str = ""
 
@@ -2198,6 +2199,7 @@ async def update_settings(body: SettingsBody, admin: dict = Depends(get_current_
         "contact_phone": phone,
         "contact_phone_display": phone_display,
         "contact_tg": body.contact_tg.strip().lstrip("@"),
+        "notifications_chat_id": body.notifications_chat_id.strip(),
         "youtube_url": body.youtube_url.strip(),
         "instagram_url": body.instagram_url.strip(),
     }

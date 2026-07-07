@@ -165,6 +165,11 @@ CREATE TABLE IF NOT EXISTS audit_log (
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
+CREATE TABLE IF NOT EXISTS app_settings (
+    key   VARCHAR(100) PRIMARY KEY,
+    value TEXT NOT NULL DEFAULT ''
+);
+
 CREATE INDEX IF NOT EXISTS idx_users_telegram_id ON users(telegram_id);
 CREATE INDEX IF NOT EXISTS idx_transactions_user_id ON transactions(user_id);
 CREATE INDEX IF NOT EXISTS idx_transactions_status ON transactions(status);

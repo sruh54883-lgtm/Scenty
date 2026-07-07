@@ -256,6 +256,25 @@ async def migrate():
             except Exception as e:
                 print(f"Aroma seed note ({name_ru}): {e}")
 
+        # Дефолтные настройки контактов
+        _default_settings = [
+            ("contact_phone", "+998773831111"),
+            ("contact_phone_display", "+998 77 383 11 11"),
+            ("contact_tg", "Scentioffice1"),
+            ("notifications_chat_id", ""),
+            ("youtube_url", ""),
+            ("instagram_url", ""),
+        ]
+        for key, value in _default_settings:
+            try:
+                await conn.execute(
+                    "INSERT INTO app_settings(key,value) VALUES($1,$2) ON CONFLICT(key) DO NOTHING",
+                    key, value,
+                )
+            except Exception as e:
+                print(f"Settings seed note ({key}): {e}")
+        print("Default settings seeded OK")
+
     except Exception as e:
         print(f"Migration note: {e}")
     finally:
