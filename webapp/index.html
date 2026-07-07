@@ -1267,7 +1267,7 @@ async function init(){
   const hasApi = await loadUserData();
   if(hasApi){
     await Promise.all([loadGifts(), loadHistory(), loadRequests(), loadCatalog()]);
-    renderHome();renderGifts();renderHistory();renderCatalog();renderProfile();
+    renderHome();renderGifts();renderHistory();renderCatalog();renderProfile();renderTabbar();
   }
 
   // Открыть нужный таб если задан хэш в URL (#gifts, #history и т.д.)
