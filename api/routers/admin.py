@@ -1437,6 +1437,21 @@ async def geo_regions(
              "gift_requests": int(r["gift_requests"])} for r in rows]
 
 
+@router.post("/geo/districts")
+async def create_district(body: dict, admin: dict = Depends(get_current_admin)):
+    region_id = body.get("region_id")
+    name_ru = (body.get("name_ru") or "").strip()
+    name_uz = (body.get("name_uz") or name_ru).strip()
+    if not region_id or not name_ru:
+        raise HTTPException(status_code=400, detail="region_id и name_ru обязательны")
+    row = await db.fetchrow(
+        "INSERT INTO districts (region_id, name_ru, name_uz, code) VALUES ($1,$2,$3,$4) RETURNING id, name_ru, name_uz",
+        region_id, name_ru, name_uz, body.get("code", ""),
+    )
+    await _audit(admin["id"], "district_create", {"region_id": region_id, "name_ru": name_ru})
+    return row
+
+
 @router.get("/geo/districts")
 async def geo_districts(
     region_id: int,
