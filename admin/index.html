@@ -265,6 +265,10 @@ body:not(.collapsed) .main{margin-left:var(--sidebar-w)}
 /* ===================== TOOLBAR ===================== */
 .toolbar{display:flex;align-items:center;gap:12px;margin-bottom:18px;flex-wrap:wrap}
 .search{position:relative;flex:1;max-width:360px;min-width:200px}
+.filter-chip{display:inline-flex;align-items:center;gap:8px;background:#eaf1ff;color:var(--primary);font-size:13px;font-weight:600;padding:7px 8px 7px 14px;border-radius:20px;white-space:nowrap}
+.filter-chip .chip-x{position:relative;border:none;background:rgba(14,55,163,.12);color:var(--primary);width:20px;height:20px;border-radius:50%;cursor:pointer;font-size:11px;line-height:1;display:inline-flex;align-items:center;justify-content:center;transition:background .15s}
+.filter-chip .chip-x::after{content:"";position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:40px;height:40px}
+.filter-chip .chip-x:hover{background:rgba(14,55,163,.24)}
 .search svg{position:absolute;left:13px;top:50%;transform:translateY(-50%);width:17px;height:17px;color:var(--muted)}
 .search .input{padding-left:40px;height:42px;background:#fff}
 .section-head{display:flex;align-items:center;gap:14px;margin-bottom:20px}
@@ -319,6 +323,7 @@ tbody tr.removing{animation:rowOut .45s forwards}
 .st-rejected,.st-inactive{background:#fbe9e7;color:var(--danger)}
 .st-neutral{background:#eef3fb;color:var(--muted)}
 .st-shipping{background:#e8f4fd;color:#1a6fb5}
+.tag-off{display:inline-flex;align-items:center;font-size:10px;font-weight:700;padding:2px 8px;border-radius:20px;background:#eef1f6;color:#8a93a6;margin-left:6px;white-space:nowrap;vertical-align:middle}
 .st-confirming{background:#f0e8fd;color:#7c3aed}
 
 /* Rich-text broadcast editor */
@@ -896,6 +901,15 @@ async function apiOrMock(path, _unused, opts){
   if(r && !Array.isArray(r) && Array.isArray(r.data)) return r.data;
   return r;
 }
+// like apiOrMock, but preserves pagination meta for endpoints that return {data,total,page,limit}
+async function apiPaged(path, opts){
+  const r = await api(path, opts);
+  if(r && !Array.isArray(r) && Array.isArray(r.data)){
+    return {data:r.data, total:r.total ?? r.data.length, page:r.page ?? 1, limit:r.limit ?? r.data.length};
+  }
+  const arr = Array.isArray(r) ? r : [];
+  return {data:arr, total:arr.length, page:1, limit:arr.length||20};
+}
 
 /* ============================================================
    MOCK DATA
@@ -982,7 +996,11 @@ function renderNav(){
 }
 $("#nav").addEventListener("click",e=>{
   const it = e.target.closest(".nav-item");
-  if(it){ go(it.dataset.page); document.body.classList.remove("sb-open"); }
+  if(it){
+    // явный переход в «Клиенты» из меню сбрасывает фильтр по региону/поиску
+    if(it.dataset.page==="users"){ Clients.regionId=null; Clients.regionName=""; Clients.q=""; Clients.page=1; }
+    go(it.dataset.page); document.body.classList.remove("sb-open");
+  }
 });
 const URL_MAP={dash:'/admin/',users:'/admin/clients',txns:'/admin/transactions',gifts:'/admin/gifts',
   claims:'/admin/orders',catalog:'/admin/catalog',agents:'/admin/agents',cast:'/admin/broadcast',
@@ -1026,6 +1044,22 @@ function pagerHTML(p, fn){
   return `<div class="pager"><div class="info">${from}–${to} из ${p.total}</div><div class="pages">
     <button class="pg-btn" onclick="${fn}(${p.cur-1})" ${p.cur===1?'disabled':''}>‹</button>${btns}
     <button class="pg-btn" onclick="${fn}(${p.cur+1})" ${p.cur===p.pages?'disabled':''}>›</button></div></div>`;
+}
+// pager driven by server-side total (no local slicing)
+function serverPagerHTML(total, cur, per, fn){
+  const pages = Math.max(1, Math.ceil(total/per));
+  cur = Math.min(Math.max(1,cur), pages);
+  const from = total===0 ? 0 : (cur-1)*per+1;
+  const to = Math.min(cur*per, total);
+  const info = total===0 ? `0 из 0` : `${from}–${to} из ${total}`;
+  if(pages<=1) return `<div class="pager"><div class="info">${info}</div></div>`;
+  let btns="";
+  for(let i=1;i<=pages;i++){
+    btns+=`<button class="pg-btn ${i===cur?'active':''}" onclick="${fn}(${i})">${i}</button>`;
+  }
+  return `<div class="pager"><div class="info">${info}</div><div class="pages">
+    <button class="pg-btn" onclick="${fn}(${cur-1})" ${cur===1?'disabled':''}>‹</button>${btns}
+    <button class="pg-btn" onclick="${fn}(${cur+1})" ${cur===pages?'disabled':''}>›</button></div></div>`;
 }
 
 let modalEsc=null;
@@ -1388,11 +1422,13 @@ function initDashMap(regionStats){
         color:"transparent", fillColor:"#3B82F6", fillOpacity:0.13, weight:0, interactive:false,
       }).addTo(_dashMap);
       // Main bubble
-      L.circleMarker([coord.lat, coord.lng], {
-        radius, color:"#1D4ED8", fillColor:"#3B82F6", weight:2, opacity:0.95, fillOpacity:0.78,
+      const _mk = L.circleMarker([coord.lat, coord.lng], {
+        radius, color:"#1D4ED8", fillColor:"#3B82F6", weight:2, opacity:0.95, fillOpacity:0.78, className:"dash-bubble",
       })
       .bindTooltip(tip, {sticky:true, direction:"top", offset:[0,-4]})
+      .on("click", ()=>openUsersForRegion(name))
       .addTo(_dashMap);
+      if(_mk._path) _mk._path.style.cursor="pointer";
     } else {
       L.circleMarker([coord.lat, coord.lng], {
         radius:5, color:"#94a3b8", fillColor:"#cbd5e1", weight:1, opacity:0.5, fillOpacity:0.35,
@@ -1404,6 +1440,15 @@ function initDashMap(regionStats){
 
   _dashMap.fitBounds([[37.0, 56.0], [45.8, 73.2]], {padding:[16,16], animate:false});
 }
+// клик по региону на карте → раздел «Клиенты» с фильтром по региону
+window.openUsersForRegion = (regionName)=>{
+  const reg = (REGIONS_DATA||[]).find(r=>r.name_ru===regionName);
+  Clients.regionId = reg ? reg.id : null;
+  Clients.regionName = reg ? regionName : "";
+  Clients.q = "";
+  Clients.page = 1;
+  go('users');
+};
 
 /* ============================================================
    GEO DRILL-DOWN TABLE (Dashboard)
@@ -1518,12 +1563,19 @@ async function loadGeoUsers(districtId, districtName){
 /* ============================================================
    PAGE 1: CLIENTS
    ============================================================ */
-const Clients = {list:[], q:"", page:1};
+const USERS_PER = 20;
+const Clients = {list:[], q:"", page:1, total:0, regionId:null, regionName:"", loading:false};
+let _uSearchTimer = null;
 async function pageUsers(){
   const c = $("#content");
+  const regionChip = Clients.regionId
+    ? `<div class="filter-chip" id="uRegionChip">Регион: <b>${esc(Clients.regionName||"—")}</b>
+        <button class="chip-x" title="Сбросить фильтр" onclick="clearUsersRegion()">✕</button></div>`
+    : "";
   c.innerHTML = `
     <div class="toolbar">
       <div class="search">${I.search}<input class="input" id="uSearch" placeholder="Поиск по имени или телефону..." value="${esc(Clients.q)}"></div>
+      ${regionChip}
     </div>
     <div class="table-wrap">
       <table><thead><tr>
@@ -1531,24 +1583,49 @@ async function pageUsers(){
       </tr></thead><tbody id="uBody">${loadingTable(7)}</tbody></table>
       <div id="uPager"></div>
     </div>`;
-  $("#uSearch").addEventListener("input",e=>{Clients.q=e.target.value;Clients.page=1;renderUsers();});
-  const data = await apiOrMock("/admin/users", ()=>MOCK.users);
-  Clients.list = Array.isArray(data)?data:(data?.data||[]);
+  $("#uSearch").addEventListener("input",e=>{
+    Clients.q=e.target.value; Clients.page=1;
+    if(_uSearchTimer) clearTimeout(_uSearchTimer);
+    _uSearchTimer=setTimeout(loadUsers,350);
+  });
+  return loadUsers();
+}
+async function loadUsers(){
+  const body=$("#uBody"); if(!body) return;
+  Clients.loading=true;
+  const params=new URLSearchParams();
+  params.set("page", Clients.page);
+  params.set("limit", USERS_PER);
+  if(Clients.q.trim()) params.set("search", Clients.q.trim());
+  if(Clients.regionId) params.set("region_id", Clients.regionId);
+  try{
+    const res = await apiPaged(`/admin/users?${params.toString()}`);
+    Clients.list = res.data;
+    Clients.total = res.total;
+    if(res.page) Clients.page = res.page;
+  }catch(e){
+    if(e.message==="401") return;
+    if(e.message==="demo"){ Clients.list=MOCK.users; Clients.total=MOCK.users.length; }
+    else { body.innerHTML=emptyRow(7,"Ошибка загрузки"); if($("#uPager"))$("#uPager").innerHTML=""; Clients.loading=false; return; }
+  }
+  Clients.loading=false;
   renderUsers();
 }
-function filterUsers(){
-  const q=Clients.q.trim().toLowerCase();
-  return Clients.list.filter(u=>!q || (u.name||"").toLowerCase().includes(q) || (u.phone||"").toLowerCase().includes(q));
-}
-window.uGo = p=>{Clients.page=p;renderUsers();};
+window.clearUsersRegion = ()=>{
+  Clients.regionId=null; Clients.regionName=""; Clients.page=1;
+  pageUsers();
+};
+window.uGo = p=>{ Clients.page=p; loadUsers(); };
 function renderUsers(){
-  const arr=filterUsers();
-  const p=paginate(arr,Clients.page,20);
   const body=$("#uBody"); if(!body) return;
-  if(!p.items.length){ body.innerHTML=emptyRow(7,Clients.q?"Ничего не найдено":"Нет клиентов"); $("#uPager").innerHTML=""; return; }
-  body.innerHTML=p.items.map(u=>`
+  if(!Clients.list.length){
+    body.innerHTML=emptyRow(7, Clients.q?"Ничего не найдено":(Clients.regionId?"В этом регионе нет клиентов":"Нет клиентов"));
+    if($("#uPager")) $("#uPager").innerHTML=serverPagerHTML(Clients.total,Clients.page,USERS_PER,"uGo");
+    return;
+  }
+  body.innerHTML=Clients.list.map(u=>`
     <tr class="clickable" onclick="openUser(${u.id})">
-      <td><div class="cell-user"><div class="avatar">${initials(u.name)}</div><div class="meta"><b>${esc(u.name)}</b><small>${esc(u.district||u.region||"")}</small></div></div></td>
+      <td><div class="cell-user"><div class="avatar">${initials(u.name)}</div><div class="meta"><b>${esc(u.name)}${u.is_active===false?`<span class="tag-off">Деактивирован</span>`:""}</b><small>${esc(u.district||u.region||"")}</small></div></div></td>
       <td>${esc(u.business||"—")}</td>
       <td class="mono nowrap"><div>${esc(u.phone||"—")}</div>${u.username?`<small class="muted">@${esc(u.username)}</small>`:u.telegram_id?`<small class="muted">TG: ${u.telegram_id}</small>`:""}</td>
       <td>${esc(u.region||"—")}</td>
@@ -1559,14 +1636,15 @@ function renderUsers(){
         <button class="btn btn-ghost btn-sm btn-icon" title="Удалить" style="color:var(--danger)" onclick="deleteUser(${u.id},'${esc(u.name)}')">${I.trash}</button>
       </td>
     </tr>`).join("");
-  $("#uPager").innerHTML=pagerHTML(p,"uGo");
+  $("#uPager").innerHTML=serverPagerHTML(Clients.total,Clients.page,USERS_PER,"uGo");
 }
 window.deleteUser = async (id, name) => {
   if(!confirm(`Удалить клиента «${name}»? Действие необратимо.`)) return;
   try{
     await api("/admin/users/"+id, {method:"DELETE"});
-    Clients.list = Clients.list.filter(x=>x.id!==id);
-    renderUsers(); toast("Клиент удалён","warn");
+    // если удалили последнюю запись на странице — откатываемся на предыдущую
+    if(Clients.list.length===1 && Clients.page>1) Clients.page--;
+    await loadUsers(); toast("Клиент удалён","warn");
   }catch(e){ if(e.message==="401")return; toast("Ошибка удаления","err"); }
 };
 window.openUser = async id=>{
@@ -1688,7 +1766,12 @@ function txnStatusRu(s){
 /* ============================================================
    PAGE 2: TRANSACTIONS
    ============================================================ */
-const Txns = {list:[], tab:"pending", page:1, agentFilter:""};
+const TXNS_PER = 20;
+const Txns = {list:[], tab:"pending", page:1, total:0, agentFilter:"", agents:[], loading:false, counts:{pending:0,approved:0,rejected:0}};
+// UI-вкладка -> значение параметра status для бэкенда.
+// /admin/transactions делает точное совпадение t.status=$1, поэтому передаём статус как есть.
+function txnStatusParam(tab){ return tab; } // 'pending' | 'approved' | 'rejected'
+
 async function pageTxns(){
   const c=$("#content");
   c.innerHTML=`<div class="toolbar"><div class="spacer"></div>
@@ -1701,14 +1784,28 @@ async function pageTxns(){
       <tbody id="txnBody">${loadingTable(7)}</tbody></table>
       <div id="txnPager"></div>
     </div>`;
-  const [data, agentsData] = await Promise.all([
-    apiOrMock("/admin/transactions",()=>MOCK.txns),
-    fetch((window.API_BASE||"")+"/admin/agents?date_from=2020-01-01&date_to=2099-01-01",{headers:{"Authorization":"Bearer "+State.token}}).then(r=>r.json()).catch(()=>[])
-  ]);
-  Txns.list=Array.isArray(data)?data:(data?.data||[]);
-  Txns.agents=Array.isArray(agentsData)?agentsData:[];
-  Badges.pendingTxn=Txns.list.filter(t=>t.status==="pending").length; renderNav();
-  // Рендерим фильтр по агентам
+  // Список агентов (для фильтра) — грузим один раз
+  try{
+    const agentsData = await fetch((window.API_BASE||"")+"/admin/agents?date_from=2020-01-01&date_to=2099-01-01",{headers:{"Authorization":"Bearer "+State.token}}).then(r=>r.json());
+    Txns.agents = Array.isArray(agentsData)?agentsData:[];
+  }catch(e){ Txns.agents=[]; }
+  renderTxnAgentFilter();
+  await loadTxns();
+
+  // Авто-обновление каждые 20 сек пока на этой странице
+  if(window._txnPollTimer) clearInterval(window._txnPollTimer);
+  window._txnPollTimer = setInterval(async ()=>{
+    if(State.page !== 'txns'){ clearInterval(window._txnPollTimer); return; }
+    try{
+      const prevPending = Txns.counts.pending;
+      await refreshTxnCounts();
+      if(Txns.counts.pending > prevPending) toast(`Новая заявка на подтверждение (${Txns.counts.pending})`, 'info');
+      await loadTxns();
+    }catch(e){ /* тихий сбой — не мешаем */ }
+  }, 20000);
+}
+
+function renderTxnAgentFilter(){
   const wrap=$("#txnAgentFilterWrap");
   if(wrap && Txns.agents.length){
     wrap.innerHTML=`<select id="txnAgentSelect" onchange="txnSetAgent(this.value)" style="padding:8px 12px;border:1.5px solid var(--border);border-radius:8px;font-size:14px;background:#fff;cursor:pointer;min-width:200px">
@@ -1716,24 +1813,65 @@ async function pageTxns(){
       ${Txns.agents.map(a=>`<option value="${a.id}" ${Txns.agentFilter==a.id?'selected':''}>${esc(a.name)}</option>`).join('')}
     </select>`;
   }
-  renderTxns();
+}
 
-  // Авто-обновление каждые 20 сек пока на этой странице
-  if(window._txnPollTimer) clearInterval(window._txnPollTimer);
-  window._txnPollTimer = setInterval(async ()=>{
-    if(State.page !== 'txns'){ clearInterval(window._txnPollTimer); return; }
-    try{
-      const fresh = await apiOrMock("/admin/transactions",()=>MOCK.txns);
-      const newList = Array.isArray(fresh)?fresh:(fresh?.data||[]);
-      const prevPending = Txns.list.filter(t=>t.status==='pending').length;
-      const newPending = newList.filter(t=>t.status==='pending').length;
-      Txns.list = newList;
-      Badges.pendingTxn = newPending; renderNav();
-      // Показываем toast если появились новые заявки
-      if(newPending > prevPending) toast(`Новая заявка на подтверждение (${newPending})`, 'info');
-      renderTxns();
-    }catch(e){ /* тихий сбой — не мешаем */ }
-  }, 20000);
+// Серверная загрузка текущей вкладки/страницы
+async function loadTxns(){
+  const body=$("#txnBody"); if(!body) return;
+  Txns.loading=true;
+  const params=new URLSearchParams();
+  params.set("status", txnStatusParam(Txns.tab));
+  params.set("page", Txns.page);
+  params.set("limit", TXNS_PER);
+  try{
+    const res = await apiPaged(`/admin/transactions?${params.toString()}`);
+    Txns.list = res.data;
+    Txns.total = res.total;
+    if(res.page) Txns.page = res.page;
+  }catch(e){
+    if(e.message==="401"){ Txns.loading=false; return; }
+    if(e.message==="demo"){
+      const arr=MOCK.txns.filter(t=>Txns.tab==='approved'?(t.status==='approved'||t.status==='confirmed'):t.status===Txns.tab);
+      Txns.list=arr; Txns.total=arr.length;
+    } else {
+      body.innerHTML=emptyRow(7,"Ошибка загрузки");
+      if($("#txnPager"))$("#txnPager").innerHTML="";
+      Txns.loading=false; return;
+    }
+  }
+  Txns.loading=false;
+  renderTxns();
+  refreshTxnCounts();
+}
+
+// Точные счётчики по статусам — лёгкие запросы (limit=1, берём только total)
+async function refreshTxnCounts(){
+  if(State.token==="demo-token"){
+    Txns.counts={
+      pending:MOCK.txns.filter(t=>t.status==='pending').length,
+      approved:MOCK.txns.filter(t=>t.status==='approved'||t.status==='confirmed').length,
+      rejected:MOCK.txns.filter(t=>t.status==='rejected').length,
+    };
+    Badges.pendingTxn=Txns.counts.pending; renderNav(); renderTxnTabs(); return;
+  }
+  const [p,a,r] = await Promise.all([
+    apiPaged(`/admin/transactions?status=pending&page=1&limit=1`).then(x=>x.total).catch(()=>Txns.counts.pending),
+    apiPaged(`/admin/transactions?status=approved&page=1&limit=1`).then(x=>x.total).catch(()=>Txns.counts.approved),
+    apiPaged(`/admin/transactions?status=rejected&page=1&limit=1`).then(x=>x.total).catch(()=>Txns.counts.rejected),
+  ]);
+  Txns.counts={pending:p,approved:a,rejected:r};
+  Badges.pendingTxn=p; renderNav();
+  renderTxnTabs();
+}
+
+function renderTxnTabs(){
+  const el=$("#txnTabs"); if(!el) return;
+  const c=Txns.counts;
+  el.innerHTML=`<div class="tabs">
+    <div class="tab ${Txns.tab==='pending'?'active':''}" onclick="txnTab('pending')">Ожидают ${c.pending?`<span class="cnt">${c.pending}</span>`:""}</div>
+    <div class="tab ${Txns.tab==='approved'?'active':''}" onclick="txnTab('approved')">Подтверждённые</div>
+    <div class="tab ${Txns.tab==='rejected'?'active':''}" onclick="txnTab('rejected')">Отклонённые</div>
+  </div>`;
 }
 
 window.openCreateTx=async function(){
@@ -1889,10 +2027,9 @@ window.openCreateTx=async function(){
       const r=await api("/admin/transactions",{method:"POST",body:JSON.stringify({user_id:userId,amount,note})});
       closeModal();
       toast("Транзакция создана","ok",`Кешбэк ${Math.round(r.cashback_amount??r.cashback??0).toLocaleString("ru-RU")} UZS — ожидает подтверждения`);
-      const data=await apiOrMock("/admin/transactions",()=>MOCK.txns);
-      Txns.list=Array.isArray(data)?data:(data?.data||[]);
-      Badges.pendingTxn=Txns.list.filter(t=>t.status==="pending").length;
-      renderNav(); renderTxns();
+      // Новая транзакция всегда pending — показываем её: вкладка "Ожидают", первая страница
+      Txns.tab='pending'; Txns.page=1;
+      await loadTxns();
     }catch(e){
       this.disabled=false; this.innerHTML=`${I.plus} Создать транзакцию`;
       toast("Ошибка","err",e.message||"Проверьте данные");
@@ -1900,19 +2037,21 @@ window.openCreateTx=async function(){
   };
 };
 function renderTxns(){
-  const counts={pending:0,approved:0,rejected:0};
-  Txns.list.forEach(t=>{if(t.status==="confirmed")counts.approved++;else if(counts[t.status]!==undefined)counts[t.status]++;});
-  $("#txnTabs").innerHTML=`<div class="tabs">
-    <div class="tab ${Txns.tab==='pending'?'active':''}" onclick="txnTab('pending')">Ожидают ${counts.pending?`<span class="cnt">${counts.pending}</span>`:""}</div>
-    <div class="tab ${Txns.tab==='approved'?'active':''}" onclick="txnTab('approved')">Подтверждённые</div>
-    <div class="tab ${Txns.tab==='rejected'?'active':''}" onclick="txnTab('rejected')">Отклонённые</div>
-  </div>`;
-  let arr=Txns.list.filter(t=>Txns.tab==='approved'?(t.status==='approved'||t.status==='confirmed'):t.status===Txns.tab);
+  renderTxnTabs();
+  // Серверная пагинация: Txns.list — уже нужный статус и нужная страница.
+  // Фильтр по агенту — клиентский поверх текущей страницы (бэкенд /admin/transactions не поддерживает agent_id).
+  let arr=Txns.list;
   if(Txns.agentFilter) arr=arr.filter(t=>String(t.agent_id)===String(Txns.agentFilter));
-  const p=paginate(arr,Txns.page,20);
+  const agentNote = Txns.agentFilter
+    ? `<div class="muted" style="font-size:12px;text-align:center;padding:10px 0 0">Фильтр по агенту применяется только к текущей странице</div>`
+    : "";
   const body=$("#txnBody"); if(!body)return;
-  if(!p.items.length){body.innerHTML=emptyRow(7,"Нет транзакций");$("#txnPager").innerHTML="";return;}
-  body.innerHTML=p.items.map(t=>`
+  if(!arr.length){
+    body.innerHTML=emptyRow(7,"Нет транзакций");
+    if($("#txnPager")) $("#txnPager").innerHTML=agentNote+serverPagerHTML(Txns.total,Txns.page,TXNS_PER,"txnGo");
+    return;
+  }
+  body.innerHTML=arr.map(t=>`
     <tr data-id="${t.id}">
       <td><div class="cell-user"><div class="avatar">${initials(t.user_name)}</div><div class="meta"><b>${esc(t.user_name)}</b></div></div></td>
       <td>${esc(t.agent_name||"—")}</td>
@@ -1925,11 +2064,11 @@ function renderTxns(){
            <button class="btn btn-ghost btn-sm" onclick="txnReject(${t.id})" style="color:var(--danger);font-size:12px">Отклонить</button>`
         : t.reason?`<span class="muted" title="${esc(t.reason)}">${esc(t.reason)}</span>`:""}</td>
     </tr>`).join("");
-  $("#txnPager").innerHTML=pagerHTML(p,"txnGo");
+  $("#txnPager").innerHTML=agentNote+serverPagerHTML(Txns.total,Txns.page,TXNS_PER,"txnGo");
 }
-window.txnTab=t=>{Txns.tab=t;Txns.page=1;renderTxns();};
+window.txnTab=t=>{Txns.tab=t;Txns.page=1;loadTxns();};
 window.txnSetAgent=v=>{Txns.agentFilter=v;Txns.page=1;renderTxns();};
-window.txnGo=p=>{Txns.page=p;renderTxns();};
+window.txnGo=p=>{Txns.page=p;loadTxns();};
 window.txnConfirm=async id=>{
   const t=Txns.list.find(x=>x.id===id);
   const cashback=t?fmtSum(t.cashback):"";
@@ -1946,9 +2085,9 @@ window.txnConfirm=async id=>{
     try{
       await api("/admin/transactions/"+id+"/approve",{method:"POST"});
       closeModal();
-      if(t) t.status="approved";
       const row=$(`#txnBody tr[data-id="${id}"]`);
-      if(row){row.classList.add("removing");setTimeout(()=>{Badges.pendingTxn=Txns.list.filter(x=>x.status==="pending").length;renderNav();renderTxns();},450);}
+      if(row){row.classList.add("removing");setTimeout(()=>{loadTxns();},450);}
+      else{loadTxns();}
       toast("Транзакция подтверждена","ok","Кешбэк начислен клиенту");
     }catch(e){
       $("#txnConfirmDo").disabled=false; $("#txnConfirmDo").textContent="Да, подтвердить";
@@ -1968,10 +2107,10 @@ window.txnReject=id=>{
     $("#rejDo").disabled=true; $("#rejDo").textContent="Отклоняем…";
     try{
       await api("/admin/transactions/"+id+"/reject",{method:"POST",body:JSON.stringify({note:reason})});
-      const t=Txns.list.find(x=>x.id===id); if(t){t.status="rejected";t.reason=reason;}
       closeModal();
       const row=$(`#txnBody tr[data-id="${id}"]`);
-      if(row){row.classList.add("removing");setTimeout(()=>{Badges.pendingTxn=Txns.list.filter(x=>x.status==="pending").length;renderNav();renderTxns();},450);}
+      if(row){row.classList.add("removing");setTimeout(()=>{loadTxns();},450);}
+      else{loadTxns();}
       toast("Транзакция отклонена","warn");
     }catch(e){
       $("#rejDo").disabled=false; $("#rejDo").textContent="Отклонить транзакцию";

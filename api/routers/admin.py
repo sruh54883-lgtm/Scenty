@@ -122,6 +122,7 @@ async def _audit(admin_id: int, action: str, details: dict | None = None):
 @router.get("/users")
 async def list_users(
     search: str = "",
+    region_id: int | None = None,
     page: int = 1,
     limit: int = 20,
     admin: dict = Depends(get_current_admin),
@@ -130,14 +131,25 @@ async def list_users(
     limit = max(1, min(limit, 100))
     offset = (page - 1) * limit
 
-    where = "WHERE u.is_active = TRUE"
+    conditions: list = []
     args: list = []
+    # Баг 2: при поиске ищем среди всех клиентов (в т.ч. деактивированных),
+    # без поиска — только активные, чтобы дефолтный список не захламлялся.
     if search:
         args.append(f"%{search}%")
-        where += (
-            " AND (first_name ILIKE $1 OR last_name ILIKE $1"
-            " OR business_name ILIKE $1 OR phone ILIKE $1)"
+        n = len(args)
+        conditions.append(
+            f"(first_name ILIKE ${n} OR last_name ILIKE ${n}"
+            f" OR business_name ILIKE ${n} OR phone ILIKE ${n})"
         )
+    else:
+        conditions.append("u.is_active = TRUE")
+    # Баг 1: опциональный фильтр по региону, применяется в обоих случаях.
+    if region_id is not None:
+        args.append(region_id)
+        conditions.append(f"u.region_id = ${len(args)}")
+
+    where = "WHERE " + " AND ".join(conditions)
 
     total = await db.fetchval(f"SELECT COUNT(*) FROM users u {where}", *args)
     args2 = args + [limit, offset]
