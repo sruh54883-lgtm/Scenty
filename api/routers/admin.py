@@ -259,6 +259,104 @@ async def update_user(user_id: int, body: UserUpdate, admin: dict = Depends(get_
     return row
 
 
+@router.delete("/users/{user_id}/purge")
+async def purge_user(user_id: int, admin: dict = Depends(get_current_admin)):
+    """Полное (hard) удаление клиента со всеми связанными записями.
+
+    Защита: удаляет ТОЛЬКО деактивированного клиента (is_active=FALSE).
+    Сначала нужно выполнить обычное DELETE /admin/users/{id} (мягкое удаление),
+    только после этого возможно необратимое стирание.
+    """
+    if not admin.get("is_superadmin"):
+        raise HTTPException(status_code=403, detail="Только суперадминистратор")
+    async with db.get_pool().acquire() as conn:
+        async with conn.transaction():
+            user = await conn.fetchrow(
+                "SELECT id, first_name, last_name, is_active, telegram_id, phone, "
+                "business_name, cashback_balance FROM users WHERE id = $1 FOR UPDATE",
+                user_id,
+            )
+            if user is None:
+                raise HTTPException(status_code=404, detail="Клиент не найден")
+            if user["is_active"]:
+                raise HTTPException(
+                    status_code=400,
+                    detail="Сначала деактивируйте клиента (обычное удаление), затем можно полностью стереть",
+                )
+            _name = f"{user['first_name'] or ''} {user['last_name'] or ''}".strip()
+            # Считаем удаляемые связанные записи ДО удаления
+            tx_count = await conn.fetchval(
+                "SELECT COUNT(*) FROM transactions WHERE user_id = $1", user_id
+            )
+            gr_count = await conn.fetchval(
+                "SELECT COUNT(*) FROM gift_requests WHERE user_id = $1", user_id
+            )
+            cs_count = await conn.fetchval(
+                "SELECT COUNT(*) FROM cashback_spends WHERE user_id = $1", user_id
+            )
+            # Аудит собираем ДО удаления, пока данные ещё есть
+            await conn.execute(
+                "INSERT INTO audit_log (admin_id, action, details) VALUES ($1, $2, $3)",
+                admin["id"],
+                "user_purge",
+                json.dumps({
+                    "user_id": user_id,
+                    "name": _name,
+                    "telegram_id": user["telegram_id"],
+                    "phone": user["phone"],
+                    "business_name": user["business_name"],
+                    "cashback_balance": user["cashback_balance"],
+                    "transactions_count": tx_count,
+                    "gift_requests_count": gr_count,
+                    "cashback_spends_count": cs_count,
+                }),
+            )
+            await conn.execute("DELETE FROM cashback_spends WHERE user_id = $1", user_id)
+            await conn.execute("DELETE FROM gift_requests WHERE user_id = $1", user_id)
+            await conn.execute("DELETE FROM transactions WHERE user_id = $1", user_id)
+            await conn.execute("DELETE FROM users WHERE id = $1", user_id)
+    return {"deleted": True, "user_id": user_id}
+
+
+# ============================================================ СПИСАНИЯ КЕШБЭКА
+@router.delete("/cashback-spends/{spend_id}")
+async def delete_cashback_spend(spend_id: int, admin: dict = Depends(get_current_admin)):
+    """Удаляет одиночную запись списания кешбэка типа «оплата» (gift_request_id IS NULL).
+
+    Баланс пользователя НЕ трогаем — это удаление исторической/ошибочной записи.
+    Списания за подарки (gift_request_id IS NOT NULL) отменяются через флоу заявки.
+    """
+    if not admin.get("is_superadmin"):
+        raise HTTPException(status_code=403, detail="Только суперадминистратор")
+    async with db.get_pool().acquire() as conn:
+        async with conn.transaction():
+            row = await conn.fetchrow(
+                "SELECT id, user_id, amount, gift_request_id FROM cashback_spends "
+                "WHERE id = $1 FOR UPDATE",
+                spend_id,
+            )
+            if row is None:
+                raise HTTPException(status_code=404, detail="Запись не найдена")
+            if row["gift_request_id"] is not None:
+                raise HTTPException(
+                    status_code=400,
+                    detail="Это списание привязано к заявке на подарок — отменяйте через заявку",
+                )
+            # Аудит пишем ДО удаления, на том же соединении
+            await conn.execute(
+                "INSERT INTO audit_log (admin_id, action, details) VALUES ($1, $2, $3)",
+                admin["id"],
+                "cashback_spend_delete",
+                json.dumps({
+                    "spend_id": spend_id,
+                    "user_id": row["user_id"],
+                    "amount": row["amount"],
+                }),
+            )
+            await conn.execute("DELETE FROM cashback_spends WHERE id = $1", spend_id)
+    return {"status": "deleted", "spend_id": spend_id}
+
+
 # ============================================================ ТРАНЗАКЦИИ
 @router.get("/transactions")
 async def list_transactions(
