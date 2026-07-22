@@ -22,6 +22,7 @@
   --success:#1ec27f;
   --warning:#C98A2E;
   --danger:#D5564B;
+  --border:#E2E8F5;
 
   --radius:14px;
   --radius-sm:10px;
@@ -475,7 +476,6 @@ tbody tr.removing{animation:rowOut .45s forwards}
 .page-loading .spin{width:28px;height:28px;border:2.5px solid #dce8f9;border-top-color:var(--primary);border-radius:50%;animation:spin .7s linear infinite}
 
 /* ===================== DASHBOARD MAP ===================== */
-.dash-grid{display:grid;grid-template-columns:1fr 380px;gap:18px;align-items:start;margin-top:0}
 #dash-map{height:520px;border-radius:12px;overflow:hidden;background:#e8f0fc}
 #dash-map .leaflet-control-attribution{display:none}
 .leaflet-container{font-family:var(--font)!important;font-size:13px!important}
@@ -484,6 +484,161 @@ tbody tr.removing{animation:rowOut .45s forwards}
 .leaflet-tooltip::before{display:none!important}
 .leaflet-control-zoom a{border-radius:8px!important;border:1px solid #dce8f9!important;color:#374b6e!important;font-size:16px!important}
 .leaflet-control-zoom{border:none!important;box-shadow:0 2px 8px rgba(30,60,120,.12)!important;border-radius:10px!important;overflow:hidden!important}
+
+/* ===================== MOBILE MENU CONTROLS ===================== */
+.topbar-burger{
+  display:none;width:40px;height:40px;border-radius:10px;flex-shrink:0;
+  background:#fff;border:1px solid #e3eaf4;color:var(--text);
+  align-items:center;justify-content:center;margin-right:-4px;
+}
+.topbar-burger:hover{background:#eef3fb}
+.topbar-burger svg{width:22px;height:22px}
+#sbOverlay{display:none}
+
+/* ===================== RESPONSIVE — TABLET / MOBILE (<=768px) ===================== */
+@media (max-width:768px){
+  /* --- prevent horizontal page scroll --- */
+  html,body{max-width:100%;overflow-x:hidden}
+
+  /* --- sidebar becomes off-canvas drawer --- */
+  .sidebar{
+    width:264px !important;
+    transform:translateX(-100%);
+    transition:transform .28s cubic-bezier(.4,0,.2,1);
+    box-shadow:6px 0 32px rgba(0,0,0,.28);
+  }
+  body.sb-open .sidebar{transform:translateX(0)}
+  /* force expanded look inside drawer even when body.collapsed */
+  body.collapsed .sidebar{width:264px}
+  body.collapsed .sidebar .brand .name,
+  body.collapsed .nav-item span.label{display:inline}
+  body.collapsed .nav-item{justify-content:flex-start;padding:13px 14px}
+  body.collapsed .nav-item .badge{position:static;top:auto;right:auto;margin-left:auto}
+  body.collapsed .sidebar .brand{justify-content:flex-start;padding:16px 14px}
+  .nav-item{padding:13px 14px}               /* bigger touch targets */
+  .nav-item .ic svg{width:20px;height:20px}
+
+  /* --- main always full width --- */
+  .main,
+  body.collapsed .main,
+  body:not(.collapsed) .main{margin-left:0 !important}
+
+  /* --- overlay behind drawer --- */
+  #sbOverlay{
+    display:block;position:fixed;inset:0;background:rgba(11,15,26,.45);
+    z-index:45;opacity:0;pointer-events:none;transition:opacity .25s;
+  }
+  body.sb-open #sbOverlay{opacity:1;pointer-events:auto}
+
+  /* --- topbar --- */
+  .topbar{padding:0 14px;gap:12px}
+  .topbar-burger{display:flex}
+  .topbar h1{font-size:17px}
+  .who > div:not(.avatar){display:none}     /* hide name/role text, keep avatar */
+  #logoutBtn{margin-left:4px !important;height:40px}
+
+  /* --- content padding --- */
+  .content{padding:16px 14px 40px}
+  .section-head{gap:10px;margin-bottom:16px}
+  .section-head h2{font-size:19px}
+
+  /* --- inputs: >=16px avoids iOS zoom (incl. contenteditable rich editors) --- */
+  .input,input,select,textarea,[contenteditable]{font-size:16px !important}
+
+  /* --- lock background scroll while drawer is open --- */
+  body.sb-open{overflow:hidden}
+
+  /* --- stat grids → 2 columns (beats inline overrides) --- */
+  .stat-grid{grid-template-columns:1fr 1fr !important;gap:12px;margin-bottom:18px}
+  .stat{padding:16px}
+  .stat .value{font-size:23px}
+  .stat .ico{width:38px;height:38px;margin-bottom:10px}
+  .stat .pill{top:12px;right:12px}
+
+  /* --- dashboard map compact --- */
+  #dash-map{height:340px}
+  .dash-chart-bars{height:80px}
+
+  /* --- toolbar / search full width --- */
+  .toolbar{gap:10px}
+  .search{max-width:none;min-width:0;width:100%}
+
+  /* --- tabs scroll horizontally instead of overflowing --- */
+  .tabs{display:flex;max-width:100%;overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none}
+  .tabs::-webkit-scrollbar{display:none}
+  .tab{white-space:nowrap;flex-shrink:0}
+
+  /* --- tables: scroll inside the card, not the whole page --- */
+  .table-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch}
+  .table-wrap table{min-width:600px}
+  thead th{padding:11px 12px}
+  tbody td{padding:11px 12px;font-size:13px}
+
+  /* --- pager --- */
+  .pager{flex-direction:column;gap:10px;align-items:stretch}
+  .pager .pages{justify-content:center;flex-wrap:wrap}
+  .pg-btn{min-width:40px;height:40px}
+
+  /* --- touch-friendly small buttons --- */
+  .btn-sm{height:40px}
+  .btn-icon{width:40px;height:40px}
+  .modal-head .x{width:44px;height:44px}
+  .drawer-close{width:44px;height:44px}
+
+  /* --- forms 2-col → 1-col --- */
+  .form-grid{grid-template-columns:1fr}
+  #settingsForm > div[style*="grid-template-columns"]{grid-template-columns:1fr !important}
+  /* key/value pair: stack the two inputs full-width, delete button spans on the right */
+  .kv-row{grid-template-columns:1fr auto;gap:6px}
+  .kv-row .input{grid-column:1}
+  .kv-row .btn-icon{grid-column:2;grid-row:1 / span 2;align-self:start}
+
+  /* --- modals --- */
+  .overlay{padding:12px}
+  .modal,.modal.wide{width:100%;max-height:calc(100vh - 24px)}
+  .modal-head{padding:18px 18px 14px}
+  .modal-head h3{font-size:17px}
+  .modal-body{padding:18px}
+  .modal-foot{padding:14px 18px;flex-wrap:wrap}
+  .modal-foot .btn{flex:1;min-width:120px}
+
+  /* --- drawer near full-width --- */
+  .drawer{width:100%;max-width:100%}
+  .drawer-body{padding:14px 16px}
+  .drawer-body table{min-width:0}
+
+  /* --- toasts full width --- */
+  #toasts{top:12px;left:12px;right:12px}
+  .toast{min-width:0;max-width:none;width:100%}
+
+  /* --- dashboard filter bar --- */
+  .dash-filter-bar{gap:8px}
+  .dash-filter-sep{display:none}
+  .dash-filter-range{flex:1;min-width:0}
+  .dash-filter-range input[type=date]{flex:1;min-width:0}
+
+  /* --- settings / danger zone width --- */
+  .setting-card{max-width:100%}
+}
+
+/* ===================== RESPONSIVE — SMALL PHONES (<=480px) ===================== */
+@media (max-width:480px){
+  /* keep stats 2-up (compact) — single column would scroll too much */
+  .stat .value{font-size:21px}
+  .content{padding:14px 12px 36px}
+  .topbar h1{font-size:16px}
+  .section-head h2{font-size:18px}
+
+  /* login card fits the screen */
+  .login-card{width:100%;max-width:100%;padding:32px 22px 28px}
+  .login-header{padding:0 16px}
+
+  /* toolbar buttons go full-width for easy tapping */
+  .toolbar > .btn{width:100%}
+
+  .modal-foot{flex-direction:column-reverse}
+  .modal-foot .btn{width:100%;flex:none}
+}
 </style>
 </head>
 <body class="">
@@ -538,9 +693,13 @@ tbody tr.removing{animation:rowOut .45s forwards}
     <nav class="nav" id="nav"></nav>
     <div class="foot"></div>
   </aside>
+  <div id="sbOverlay"></div>
 
   <div class="main">
     <header class="topbar">
+      <button class="topbar-burger" id="mobileMenuBtn" title="Меню" aria-label="Меню">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+      </button>
       <h1 id="pageTitle">Dashboard</h1>
       <div class="spacer"></div>
       <div class="who">
@@ -823,7 +982,7 @@ function renderNav(){
 }
 $("#nav").addEventListener("click",e=>{
   const it = e.target.closest(".nav-item");
-  if(it) go(it.dataset.page);
+  if(it){ go(it.dataset.page); document.body.classList.remove("sb-open"); }
 });
 const URL_MAP={dash:'/admin/',users:'/admin/clients',txns:'/admin/transactions',gifts:'/admin/gifts',
   claims:'/admin/orders',catalog:'/admin/catalog',agents:'/admin/agents',cast:'/admin/broadcast',
@@ -3238,11 +3397,19 @@ function logout(){
 }
 $("#logoutBtn").addEventListener("click",logout);
 
-/* collapse */
+/* collapse (desktop) / drawer (mobile) */
+const _isMobile = ()=> window.matchMedia("(max-width:768px)").matches;
 $("#collapseBtn").addEventListener("click",()=>{
+  if(_isMobile()){ document.body.classList.remove("sb-open"); return; }
   document.body.classList.toggle("collapsed");
   localStorage.setItem("scenti_collapsed",document.body.classList.contains("collapsed")?"1":"0");
 });
+/* mobile drawer open/close */
+$("#mobileMenuBtn").addEventListener("click",()=>document.body.classList.toggle("sb-open"));
+$("#sbOverlay").addEventListener("click",()=>document.body.classList.remove("sb-open"));
+window.addEventListener("keydown",e=>{ if(e.key==="Escape") document.body.classList.remove("sb-open"); });
+/* close drawer when switching back to desktop */
+window.addEventListener("resize",()=>{ if(!_isMobile()) document.body.classList.remove("sb-open"); });
 // по умолчанию свёрнут, если не сохранено иное
 if(localStorage.getItem("scenti_collapsed")!=="0")document.body.classList.add("collapsed");
 

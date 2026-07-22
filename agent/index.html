@@ -234,6 +234,113 @@ tbody tr:last-child td{border-bottom:none}
 .txn-item .amt{margin-left:auto;text-align:right}
 .txn-item .amt b{display:block;font-weight:800}
 .txn-item .amt small{color:var(--muted);font-size:11.5px}
+
+/* HAMBURGER + DRAWER (mobile only, hidden on desktop) */
+.hamburger{display:none;width:40px;height:40px;flex-shrink:0;border-radius:10px;flex-direction:column;align-items:center;justify-content:center;gap:4px;background:#fff;border:1px solid var(--border)}
+.hamburger span{display:block;width:20px;height:2px;background:var(--text);border-radius:2px}
+.hamburger:active{background:#eef3fb}
+.sidebar-backdrop{display:none;position:fixed;inset:0;background:rgba(11,15,26,.5);z-index:45;opacity:0;transition:opacity .25s}
+.sidebar-backdrop.show{opacity:1}
+
+/* ===================== MOBILE ADAPTATION ===================== */
+@media (max-width:768px){
+  html,body{max-width:100%;overflow-x:hidden}
+
+  /* iOS: no zoom on focus */
+  input,textarea,select,.input{font-size:16px}
+
+  /* Off-canvas drawer */
+  .hamburger{display:flex;width:44px;height:44px}
+  .sidebar-backdrop{display:block;pointer-events:none}
+  .sidebar-backdrop.show{pointer-events:auto}
+  .sidebar{width:262px;transform:translateX(-100%);transition:transform .25s cubic-bezier(.4,0,.2,1);z-index:60;box-shadow:0 0 40px rgba(0,0,0,.35)}
+  .sidebar.open{transform:translateX(0)}
+  .main{margin-left:0}
+
+  /* Topbar */
+  .topbar{height:58px;padding:0 14px;gap:12px}
+  .topbar h1{font-size:18px}
+  .content{padding:16px 14px 40px}
+
+  /* Stat grids (inline styles overridden with !important) */
+  .stat-grid{grid-template-columns:repeat(2,1fr)!important;gap:12px;margin-bottom:18px}
+  .stat{padding:16px}
+  .stat .value{font-size:22px}
+  .stat .ico{width:38px;height:38px;margin-bottom:10px}
+
+  /* Dashboard 3-col row -> single column */
+  .dash-grid{grid-template-columns:1fr!important;gap:14px}
+
+  /* Dashboard filter bar */
+  .dash-filter-bar{gap:8px}
+  .dash-filter-sep{display:none}
+  .dash-filter-range{flex-wrap:wrap;width:100%}
+  .dash-filter-range input[type=date]{flex:1;min-width:130px;font-size:16px;padding:9px 10px}
+  .dash-filter-actions{width:100%}
+  .dash-filter-actions .btn-apply,.dash-filter-actions .btn-reset{flex:1;padding:10px 12px}
+
+  /* Toolbar */
+  .toolbar{gap:10px}
+  .toolbar>.btn-primary{width:100%}
+  .seg-tabs{overflow-x:auto;max-width:100%;-webkit-overflow-scrolling:touch;scrollbar-width:none;position:relative}
+  .seg-tabs::-webkit-scrollbar{display:none}
+  /* Fade hint: sticky pseudo pinned to right edge signals more tabs to the right */
+  .seg-tabs::after{content:'';position:sticky;right:0;flex:0 0 28px;margin-left:-28px;align-self:stretch;background:linear-gradient(90deg,rgba(238,243,251,0),#eef3fb);pointer-events:none}
+  .seg-tab{padding:9px 16px;white-space:nowrap}
+
+  /* Search full width */
+  .search{max-width:100%;min-width:0;width:100%;flex:1 1 100%}
+  .search .input{height:46px}
+
+  /* Tables scroll horizontally inside their card (page itself never scrolls) */
+  .table-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch}
+  .table-wrap>table{min-width:600px}
+  thead th,tbody td{padding:12px 12px}
+
+  /* Section head */
+  .section-head h2{font-size:16px}
+
+  /* Modals */
+  .overlay{padding:14px 10px;align-items:flex-start}
+  .modal,.modal.wide{width:100%;max-height:calc(100vh - 28px)}
+  .modal-head{padding:18px 18px 14px}
+  .modal-head h3{font-size:17px}
+  .modal-head .x{width:44px;height:44px}
+  .modal-body{padding:18px}
+  .modal-foot{padding:14px 18px}
+  /* Inner modal grids (inline styles) */
+  .modal-body [style*="repeat(3,1fr)"]{grid-template-columns:1fr 1fr!important}
+  .modal-body [style*="1fr 1fr"]{grid-template-columns:1fr!important}
+
+  /* Toasts */
+  #toasts{top:12px;right:12px;left:12px}
+  .toast{min-width:0;max-width:100%}
+
+  /* Gift cards: 2 columns */
+  .gift-grid{grid-template-columns:repeat(2,1fr);gap:12px}
+  .gift-card img,.gift-card>div:first-child{height:120px!important}
+
+  /* Touch targets (min 44px) */
+  .pg-btn{min-height:44px;min-width:44px}
+  .period-chip{padding:12px 14px}
+  .btn-logout{padding:14px 12px}
+  .btn-icon{width:44px!important;height:44px!important}
+}
+
+@media (max-width:480px){
+  /* Login */
+  #login{padding:16px}
+  .login-card{width:100%;padding:32px 22px 28px}
+
+  /* Stat grid can stay 2 cols; ensure values fit */
+  .stat .value{font-size:20px}
+
+  /* Stack modal footer buttons for big tap targets */
+  .modal-foot{flex-direction:column-reverse}
+  .modal-foot .btn{width:100%}
+  /* Client-modal 3-up stat cards -> single column to avoid number overflow */
+  .modal-body [style*="repeat(3,1fr)"]{grid-template-columns:1fr!important}
+}
 </style>
 </head>
 <body>
@@ -264,6 +371,7 @@ tbody tr:last-child td{border-bottom:none}
 <!-- APP -->
 <div id="app" style="display:none">
   <!-- SIDEBAR -->
+  <div class="sidebar-backdrop" id="sidebarBackdrop"></div>
   <div class="sidebar">
     <div class="brand">
       <div class="mark">S</div>
@@ -307,6 +415,7 @@ tbody tr:last-child td{border-bottom:none}
   <!-- MAIN -->
   <div class="main">
     <div class="topbar">
+      <button class="hamburger" id="menuBtn" aria-label="Меню"><span></span><span></span><span></span></button>
       <h1 id="pageTitle">Dashboard</h1>
     </div>
     <div class="content" id="content"></div>
@@ -400,9 +509,21 @@ function enterApp(){
   go('dash');
 }
 
+/* ===== SIDEBAR DRAWER (mobile) ===== */
+function toggleSidebar(open){
+  const sb=document.querySelector('.sidebar');
+  const bd=document.getElementById('sidebarBackdrop');
+  if(!sb||!bd)return;
+  const willOpen = open===undefined ? !sb.classList.contains('open') : open;
+  sb.classList.toggle('open',willOpen);
+  bd.classList.toggle('show',willOpen);
+}
+document.getElementById('menuBtn')?.addEventListener('click',()=>toggleSidebar());
+document.getElementById('sidebarBackdrop')?.addEventListener('click',()=>toggleSidebar(false));
+
 /* ===== NAVIGATION ===== */
 $$('.nav-item').forEach(item=>{
-  item.addEventListener('click',()=>go(item.dataset.page));
+  item.addEventListener('click',()=>{go(item.dataset.page);toggleSidebar(false);});
 });
 
 function go(page){
