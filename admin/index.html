@@ -675,7 +675,7 @@ tbody tr.removing{animation:rowOut .45s forwards}
     <div style="font-size:20px;font-weight:800;color:#0f1b35;margin-bottom:22px">Вход</div>
     <div class="field">
       <label>Имя пользователя</label>
-      <input class="input" id="loginUser" autocomplete="username" placeholder="admin">
+      <input class="input" id="loginUser" autocomplete="username">
     </div>
     <div class="field">
       <label>Пароль</label>
@@ -848,7 +848,7 @@ async function uploadImgFile(input, fieldId){
     const fd = new FormData();
     fd.append("file", file);
     const headers = {};
-    if(State.token && State.token!=="demo-token") headers["Authorization"]="Bearer "+State.token;
+    if(State.token) headers["Authorization"]="Bearer "+State.token;
     const res = await fetch(API_BASE+"/admin/upload", {method:"POST", headers, body:fd});
     if(!res.ok) throw new Error("HTTP "+res.status);
     const data = await res.json();
@@ -877,7 +877,6 @@ function toast(msg, type="ok", sub=""){
 /* ---------- API ---------- */
 let _api401Count = 0, _api401Timer = null;
 async function api(path, opts={}){
-  if(State.token==="demo-token") throw new Error("demo");
   const isFormData = opts.body instanceof FormData;
   const headers = isFormData ? {} : Object.assign({"Content-Type":"application/json"}, opts.headers||{});
   if(State.token) headers["Authorization"] = "Bearer "+State.token;
@@ -895,7 +894,7 @@ async function api(path, opts={}){
   const ct = res.headers.get("content-type")||"";
   return ct.includes("application/json") ? res.json() : res.text();
 }
-// api with mock fallback
+// thin wrapper over api(): unwraps {data:[...]} envelopes into a plain array
 async function apiOrMock(path, _unused, opts){
   const r = await api(path, opts);
   if(r && !Array.isArray(r) && Array.isArray(r.data)) return r.data;
@@ -910,60 +909,6 @@ async function apiPaged(path, opts){
   const arr = Array.isArray(r) ? r : [];
   return {data:arr, total:arr.length, page:1, limit:arr.length||20};
 }
-
-/* ============================================================
-   MOCK DATA
-   ============================================================ */
-const MOCK = {
-  users:[
-    {id:1,name:"Алишер Усманов",business:"Aroma House",phone:"+998 90 123 45 67",region:"Ташкент",district:"Чиланзар",balance:1250000,total_cashback:1850000,created_at:daysAgo(45)},
-    {id:2,name:"Дилноза Каримова",business:"Scent Boutique",phone:"+998 91 222 33 44",region:"Самарканд",district:"Самарканд г.",balance:430000,total_cashback:780000,created_at:daysAgo(20)},
-    {id:3,name:"Жасур Рахимов",business:"Parfum Lux",phone:"+998 93 555 66 77",region:"Ташкент",district:"Юнусабад",balance:90000,total_cashback:240000,created_at:daysAgo(7)},
-    {id:4,name:"Гулноза Тошева",business:"Fresh Air",phone:"+998 94 888 99 00",region:"Бухара",district:"Бухара г.",balance:2050000,total_cashback:3100000,created_at:daysAgo(90)},
-    {id:5,name:"Бекзод Юсупов",business:"Diffuser Pro",phone:"+998 97 111 22 33",region:"Фергана",district:"Коканд",balance:0,total_cashback:60000,created_at:daysAgo(3)},
-  ],
-  txns:[
-    {id:101,user_id:1,user_name:"Алишер Усманов",agent_name:"Шахзод (агент)",amount:1200000,cashback:120000,status:"pending",created_at:daysAgo(1)},
-    {id:102,user_id:2,user_name:"Дилноза Каримова",agent_name:"Мадина (агент)",amount:500000,cashback:50000,status:"pending",created_at:daysAgo(0)},
-    {id:103,user_id:4,user_name:"Гулноза Тошева",agent_name:"Шахзод (агент)",amount:3000000,cashback:300000,status:"confirmed",created_at:daysAgo(5)},
-    {id:104,user_id:1,user_name:"Алишер Усманов",agent_name:"Мадина (агент)",amount:800000,cashback:80000,status:"confirmed",created_at:daysAgo(12)},
-    {id:105,user_id:3,user_name:"Жасур Рахимов",agent_name:"Шахзод (агент)",amount:150000,cashback:15000,status:"rejected",created_at:daysAgo(8),reason:"Фото чека нечитаемо"},
-  ],
-  gifts:[
-    {id:1,name_ru:"Диффузор Mini",name_uz:"Mini diffuzor",desc_ru:"Компактный ароматический диффузор",desc_uz:"Ixcham aromatik diffuzor",image:"",price:500000,stock:12,active:true},
-    {id:2,name_ru:"Подарочный набор ароматов",name_uz:"Aromalar to'plami",desc_ru:"3 аромата на выбор",desc_uz:"3 ta aroma",image:"",price:1200000,stock:null,active:true},
-    {id:3,name_ru:"Диффузор Pro Max",name_uz:"Pro Max diffuzor",desc_ru:"Профессиональный аппарат для больших помещений",desc_uz:"Katta xonalar uchun",image:"",price:3000000,stock:3,active:false},
-  ],
-  claims:[
-    {id:1,user_name:"Алишер Усманов",gift_name:"Диффузор Mini",price:500000,status:"pending",created_at:daysAgo(1)},
-    {id:2,user_name:"Гулноза Тошева",gift_name:"Подарочный набор ароматов",price:1200000,status:"approved",created_at:daysAgo(3)},
-    {id:3,user_name:"Дилноза Каримова",gift_name:"Диффузор Mini",price:500000,status:"issued",created_at:daysAgo(10)},
-    {id:4,user_name:"Жасур Рахимов",gift_name:"Диффузор Pro Max",price:3000000,status:"rejected",created_at:daysAgo(6)},
-  ],
-  catalog:[
-    {id:1,type:"device",name_ru:"Scenti Air 200",name_uz:"Scenti Air 200",tag_ru:"Для дома до 200м²",tag_uz:"Uy uchun",desc_ru:"Тихий аппарат с таймером",desc_uz:"",image:"",active:true,specs:[["Площадь","200 м²"],["Бак","250 мл"]],features:["Таймер","Тихий режим","Bluetooth"]},
-    {id:2,type:"scent",name_ru:"Velvet Oud",name_uz:"Velvet Oud",tag_ru:"Древесный, тёплый",tag_uz:"Yog'ochli",desc_ru:"Глубокий древесный аромат",desc_uz:"",image:"",active:true,specs:[["Объём","500 мл"]],features:["Премиум","Долгий шлейф"]},
-    {id:3,type:"scent",name_ru:"Citrus Fresh",name_uz:"Citrus Fresh",tag_ru:"Цитрусовый",tag_uz:"Sitrusli",desc_ru:"Бодрящий цитрус",desc_uz:"",image:"",active:false,specs:[],features:["Освежающий"]},
-  ],
-  agents:[
-    {id:1,name:"Шахзод Алиев",phone:"+998 90 777 11 22",username:"shahzod",districts:["Чиланзар","Юнусабад"],txn_month:18,sales_month:14500000},
-    {id:2,name:"Мадина Юлдашева",phone:"+998 91 333 44 55",username:"madina",districts:["Самарканд г.","Каттакурган"],txn_month:11,sales_month:8200000},
-  ],
-  audit:[
-    {id:1,created_at:daysAgo(0),action:"Подтверждение транзакции",details:"TXN #104 на 800 000 сум",who:"admin"},
-    {id:2,created_at:daysAgo(0),action:"Создание агента",details:"Мадина Юлдашева",who:"admin"},
-    {id:3,created_at:daysAgo(1),action:"Отклонение транзакции",details:"TXN #105 — фото нечитаемо",who:"agent:shahzod"},
-    {id:4,created_at:daysAgo(2),action:"Выдача подарка",details:"Диффузор Mini → Дилноза",who:"admin"},
-    {id:5,created_at:daysAgo(3),action:"Редактирование клиента",details:"Баланс изменён: Гулноза Тошева",who:"admin"},
-  ],
-  backups:[
-    {id:1,name:"backup_2026-06-27.sql",size:"2.4 MB",created_at:daysAgo(1)},
-    {id:2,name:"backup_2026-06-20.sql",size:"2.3 MB",created_at:daysAgo(8)},
-    {id:3,name:"backup_2026-06-13.sql",size:"2.2 MB",created_at:daysAgo(15)},
-  ],
-  reminder:{text_ru:"Напоминаем о вашем накопленном кешбэке! Загляните в каталог подарков.",text_uz:"Yig'ilgan keshbegingizni eslatib o'tamiz!",active:true},
-  policy:{ru:"Политика конфиденциальности Scenti...\n\nМы уважаем вашу приватность.",uz:"Scenti maxfiylik siyosati...",pdf:""},
-};
 
 /* ============================================================
    NAV / ROUTER
@@ -1181,19 +1126,13 @@ async function pageDash(){
       <div id="dashTxn"><div class="skeleton" style="height:240px;border-radius:10px"></div></div>
     </div>`;
 
-  const mockStats = {
-    total_users:0,pending_transactions:0,total_cashback_issued:0,total_cashback_spent:0,
-    new_users_today:0,new_users_7d:0,new_users_30d:0,txns_today_count:0,txns_today_sum:0,
-    txns_month_sum:0,active_gifts:0,pending_claims:0,daily_chart:[],
-    total_gift_requests:0,total_gifts_value:0,
-  };
   const {df:statsFrom, dt:statsTo} = _dashDates();
   const statsQs = [statsFrom?`date_from=${statsFrom}`:'', statsTo?`date_to=${statsTo}`:''].filter(Boolean).join('&');
   const [stats, users, txns, claims] = await Promise.all([
-    apiOrMock(`/admin/stats${statsQs?'?'+statsQs:''}`, ()=>mockStats),
-    apiOrMock("/admin/users", ()=>MOCK.users),
-    apiOrMock("/admin/transactions", ()=>MOCK.txns),
-    apiOrMock("/admin/claims", ()=>MOCK.claims),
+    apiOrMock(`/admin/stats${statsQs?'?'+statsQs:''}`),
+    apiOrMock("/admin/users"),
+    apiOrMock("/admin/transactions"),
+    apiOrMock("/admin/claims"),
   ]);
   const uArr = Array.isArray(users)?users:(users?.data||[]);
   const tArr = Array.isArray(txns)?txns:(txns?.data||[]);
@@ -1605,8 +1544,7 @@ async function loadUsers(){
     if(res.page) Clients.page = res.page;
   }catch(e){
     if(e.message==="401") return;
-    if(e.message==="demo"){ Clients.list=MOCK.users; Clients.total=MOCK.users.length; }
-    else { body.innerHTML=emptyRow(7,"Ошибка загрузки"); if($("#uPager"))$("#uPager").innerHTML=""; Clients.loading=false; return; }
+    body.innerHTML=emptyRow(7,"Ошибка загрузки"); if($("#uPager"))$("#uPager").innerHTML=""; Clients.loading=false; return;
   }
   Clients.loading=false;
   renderUsers();
@@ -1830,14 +1768,9 @@ async function loadTxns(){
     if(res.page) Txns.page = res.page;
   }catch(e){
     if(e.message==="401"){ Txns.loading=false; return; }
-    if(e.message==="demo"){
-      const arr=MOCK.txns.filter(t=>Txns.tab==='approved'?(t.status==='approved'||t.status==='confirmed'):t.status===Txns.tab);
-      Txns.list=arr; Txns.total=arr.length;
-    } else {
-      body.innerHTML=emptyRow(7,"Ошибка загрузки");
-      if($("#txnPager"))$("#txnPager").innerHTML="";
-      Txns.loading=false; return;
-    }
+    body.innerHTML=emptyRow(7,"Ошибка загрузки");
+    if($("#txnPager"))$("#txnPager").innerHTML="";
+    Txns.loading=false; return;
   }
   Txns.loading=false;
   renderTxns();
@@ -1846,14 +1779,6 @@ async function loadTxns(){
 
 // Точные счётчики по статусам — лёгкие запросы (limit=1, берём только total)
 async function refreshTxnCounts(){
-  if(State.token==="demo-token"){
-    Txns.counts={
-      pending:MOCK.txns.filter(t=>t.status==='pending').length,
-      approved:MOCK.txns.filter(t=>t.status==='approved'||t.status==='confirmed').length,
-      rejected:MOCK.txns.filter(t=>t.status==='rejected').length,
-    };
-    Badges.pendingTxn=Txns.counts.pending; renderNav(); renderTxnTabs(); return;
-  }
   const [p,a,r] = await Promise.all([
     apiPaged(`/admin/transactions?status=pending&page=1&limit=1`).then(x=>x.total).catch(()=>Txns.counts.pending),
     apiPaged(`/admin/transactions?status=approved&page=1&limit=1`).then(x=>x.total).catch(()=>Txns.counts.approved),
@@ -2130,7 +2055,7 @@ async function pageGifts(){
     <button class="btn btn-primary btn-sm" onclick="giftEdit()">${I.plus}<span>Добавить подарок</span></button></div>
     <div class="table-wrap"><table><thead><tr><th>Фото</th><th>Название</th><th>Цена (кешбэк)</th><th>Остаток</th><th>Активен</th><th></th></tr></thead>
     <tbody id="gBody">${loadingTable(6)}</tbody></table></div>`;
-  const data=await apiOrMock("/admin/gifts",()=>MOCK.gifts);
+  const data=await apiOrMock("/admin/gifts");
   Gifts.list=Array.isArray(data)?data:(data?.items||[]);
   renderGifts();
 }
@@ -2211,7 +2136,7 @@ async function pageClaims(){
   c.innerHTML=`<div id="clTabs"></div>
     <div class="table-wrap"><table><thead><tr><th>Клиент</th><th>Подарок</th><th>Цена</th><th>Дата</th><th>Статус</th><th></th></tr></thead>
     <tbody id="clBody">${loadingTable(6)}</tbody></table><div id="clPager"></div></div>`;
-  const data=await apiOrMock("/admin/claims",()=>MOCK.claims);
+  const data=await apiOrMock("/admin/claims");
   Claims.list=Array.isArray(data)?data:(data?.items||[]);
   Badges.pendingClaims=Claims.list.filter(x=>x.status==="pending").length;renderNav();
   renderClaims();
@@ -2334,7 +2259,7 @@ async function pageCatalog(){
     <button class="btn btn-primary btn-sm" onclick="catEdit()">${I.plus}<span>Добавить</span></button></div>
     <div class="table-wrap"><table><thead><tr><th>Тип</th><th>Название</th><th>Тег</th><th>Активен</th><th></th></tr></thead>
     <tbody id="catBody">${loadingTable(5)}</tbody></table></div>`;
-  const data=await apiOrMock("/admin/catalog",()=>MOCK.catalog);
+  const data=await apiOrMock("/admin/catalog");
   Catalog.list=Array.isArray(data)?data:(data?.items||[]);
   renderCatalog();
 }
@@ -2597,7 +2522,7 @@ async function loadAgents(){
   const p=new URLSearchParams();
   if(df)p.set('date_from',df);if(dt)p.set('date_to',dt);
   const qs=p.toString();
-  const data=await apiOrMock(`/admin/agents${qs?'?'+qs:''}`,()=>MOCK.agents);
+  const data=await apiOrMock(`/admin/agents${qs?'?'+qs:''}`);
   Agents.list=Array.isArray(data)?data:(data?.items||[]);
   renderAgents();
 }
@@ -3243,7 +3168,7 @@ async function pageAudit(){
     <div class="table-wrap"><table><thead><tr><th>Дата</th><th>Действие</th><th>Детали</th><th>Кто</th></tr></thead>
     <tbody id="auBody">${loadingTable(4)}</tbody></table></div>`;
   $("#auDate").addEventListener("change",e=>{Audit.date=e.target.value;renderAudit();});
-  const data=await apiOrMock("/admin/audit",()=>MOCK.audit);
+  const data=await apiOrMock("/admin/audit");
   Audit.list=Array.isArray(data)?data:(data?.items||[]);
   renderAudit();
 }
@@ -3267,7 +3192,7 @@ window.auClear=()=>{Audit.date="";const i=$("#auDate");if(i)i.value="";renderAud
    ============================================================ */
 async function pageBackup(){
   const c=$("#content");
-  const data=await apiOrMock("/admin/backups",()=>MOCK.backups);
+  const data=await apiOrMock("/admin/backups");
   const list=Array.isArray(data)?data:(data?.items||[]);
   c.innerHTML=`<div class="card card-pad setting-card">
     <div class="section-head" style="margin-bottom:8px"><h2 style="font-size:18px">Бэкап базы данных</h2></div>
@@ -3516,15 +3441,7 @@ $("#loginForm").addEventListener("submit",async e=>{
     localStorage.setItem("scenti_admin_name",State.adminName);
     enterApp();
   }catch(err2){
-    // demo fallback: если API недоступна — входим с любым паролем для admin (токен НЕ сохраняем в localStorage)
-    if(u==="admin"){
-      State.token="demo-token";State.adminName="Администратор";
-      // намеренно НЕ сохраняем demo-token в localStorage — только на сессию
-      toast("Демо-режим — API работает в офлайн","warn");
-      enterApp();
-    }else{
-      err.textContent="Неверный логин или пароль";
-    }
+    err.textContent="Неверный логин или пароль";
   }finally{btn.disabled=false;btn.textContent="Войти";}
 });
 function logout(){
@@ -3598,8 +3515,7 @@ function autoCollapse(){ if(window.innerWidth<1100)document.body.classList.add("
 window.addEventListener("resize",()=>{ if(window.innerWidth<1100)document.body.classList.add("collapsed"); });
 
 /* boot */
-// Не входить автоматически с demo-token из localStorage — показать логин
-if(State.token && State.token!=="demo-token"){ enterApp(); } else { State.token=null; localStorage.removeItem("scenti_admin_token"); hideBoot(); $("#loginUser").focus(); }
+if(State.token){ enterApp(); } else { State.token=null; localStorage.removeItem("scenti_admin_token"); hideBoot(); $("#loginUser").focus(); }
 autoCollapse();
 
 /* ===================== DRAWER ===================== */
